@@ -1,0 +1,189 @@
+/**
+ * LifeTrack Firestore Security Rules
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model where all personal data is logically and 
+ * physically nested under a user's unique identifier. It utilizes a "closed-silo" approach: 
+ * users can only access data within their own branch of the Firestore tree.
+ *
+ * Data Structure:
+ * - /users/{userId}: Root document for each user.
+ * - /users/{userId}/{subcollection}: User-owned data (Learning Goals, Diaries, Budgets).
+ * - /users/{userId}/monthlyBudgets/{budgetId}/{nestedSub}: Budget-specific details (Expenses, Fixed Expenses).
+ * - /holidays: Global read-only master list for holiday references.
+ *
+ * Key Security Decisions:
+ * 1. Denormalization for Authorization: Every user-owned document contains a `userId` field. 
+ *    This allows rules to verify ownership by comparing the document data directly with 
+ *    the authenticated user's UID, avoiding expensive cross-document lookups.
+ * 2. Immutable Ownership: Relational fields (like `userId` and `monthlyBudgetId`) are 
+ *    enforced on creation and made immutable on update to prevent data from being 
+ *    "orphaned" or "hijacked."
+ * 3. Structural Segregation: Globally shared data (Holidays) is separated from private 
+ *    user data to maintain a clean security boundary.
+ * 4. Prototyping Flexibility: While authorization is strictly enforced, the specific 
+ *    data schema (types, optional fields) remains flexible to support rapid development.
+ */
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Global Helper Functions ---
+
+    /** @description Checks if the request is from a signed-in user. */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /** @description Checks if the provided UID matches the authenticated user. */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /** @description Checks ownership on an existing document. */
+    function isExistingOwner(userId) {
+      return resource != null && isOwner(userId);
+    }
+
+    /** @description Validates that a field in the incoming data matches the path parameter. */
+    function matchesPath(dataField, pathId) {
+      return dataField == pathId;
+    }
+
+    /** @description Ensures a specific field does not change during an update. */
+    function isImmutable(fieldName) {
+      return !(fieldName in request.resource.data) || request.resource.data[fieldName] == resource.data[fieldName];
+    }
+
+    // --- Collection Rules ---
+
+    /**
+     * @description Rules for User profiles. Users can only manage their own profile.
+     * @path /users/{userId}
+     * @allow (create) if auth.uid == 'user_123' and request.resource.data.id == 'user_123'
+     * @deny (get) if auth.uid == 'user_abc' and requesting '/users/user_xyz'
+     * @principle Ownership - Restricts access to a user's own root document.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false; // Users cannot be listed for privacy
+      allow create: if isOwner(userId) && matchesPath(request.resource.data.id, userId);
+      allow update: if isExistingOwner(userId) && isImmutable('id');
+      allow delete: if isExistingOwner(userId);
+
+      /**
+       * @description Rules for Learning Goals. Owned by the parent user.
+       * @path /users/{userId}/learningGoals/{goalId}
+       * @allow (list) if auth.uid == userId
+       * @principle Ownership - Subcollection follows the parent user's ownership.
+       */
+      match /learningGoals/{goalId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId);
+        allow update: if isExistingOwner(userId) && isImmutable('userId');
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Rules for Daily Learning Progress.
+       * @path /users/{userId}/dailyLearningProgress/{progressId}
+       */
+      match /dailyLearningProgress/{progressId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId);
+        allow update: if isExistingOwner(userId) && isImmutable('userId');
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Rules for Expense Categories.
+       * @path /users/{userId}/expenseCategories/{categoryId}
+       */
+      match /expenseCategories/{categoryId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId);
+        allow update: if isExistingOwner(userId) && isImmutable('userId');
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Rules for Daily Diary entries.
+       * @path /users/{userId}/dailyDiaries/{date}
+       */
+      match /dailyDiaries/{date} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId);
+        allow update: if isExistingOwner(userId) && isImmutable('userId');
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Rules for Monthly Budgets. Serves as a parent for further subcollections.
+       * @path /users/{userId}/monthlyBudgets/{monthlyBudgetId}
+       */
+      match /monthlyBudgets/{monthlyBudgetId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId);
+        allow update: if isExistingOwner(userId) && isImmutable('userId');
+        allow delete: if isExistingOwner(userId);
+
+        /**
+         * @description Rules for Fixed Expenses nested under a specific budget.
+         * @path /users/{userId}/monthlyBudgets/{monthlyBudgetId}/fixedExpenses/{id}
+         */
+        match /fixedExpenses/{id} {
+          allow get, list: if isOwner(userId);
+          allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId) && matchesPath(request.resource.data.monthlyBudgetId, monthlyBudgetId);
+          allow update: if isExistingOwner(userId) && isImmutable('userId') && isImmutable('monthlyBudgetId');
+          allow delete: if isExistingOwner(userId);
+        }
+
+        /**
+         * @description Rules for individual Expenses.
+         * @path /users/{userId}/monthlyBudgets/{monthlyBudgetId}/expenses/{id}
+         */
+        match /expenses/{id} {
+          allow get, list: if isOwner(userId);
+          allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId) && matchesPath(request.resource.data.monthlyBudgetId, monthlyBudgetId);
+          allow update: if isExistingOwner(userId) && isImmutable('userId') && isImmutable('monthlyBudgetId');
+          allow delete: if isExistingOwner(userId);
+        }
+
+        /**
+         * @description Rules for Daily Budget Summaries.
+         * @path /users/{userId}/monthlyBudgets/{monthlyBudgetId}/dailyBudgetSummaries/{date}
+         */
+        match /dailyBudgetSummaries/{date} {
+          allow get, list: if isOwner(userId);
+          allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId) && matchesPath(request.resource.data.monthlyBudgetId, monthlyBudgetId);
+          allow update: if isExistingOwner(userId) && isImmutable('userId') && isImmutable('monthlyBudgetId');
+          allow delete: if isExistingOwner(userId);
+        }
+
+        /**
+         * @description Rules for User-specific Holiday settings.
+         * @path /users/{userId}/monthlyBudgets/{monthlyBudgetId}/userHolidays/{id}
+         */
+        match /userHolidays/{id} {
+          allow get, list: if isOwner(userId);
+          allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId) && matchesPath(request.resource.data.monthlyBudgetId, monthlyBudgetId);
+          allow update: if isExistingOwner(userId) && isImmutable('userId') && isImmutable('monthlyBudgetId');
+          allow delete: if isExistingOwner(userId);
+        }
+      }
+    }
+
+    /**
+     * @description Rules for the master Holiday list. Public read, no client writes.
+     * @path /holidays/{holidayId}
+     * @allow (get) if isSignedIn()
+     * @deny (create, update, delete) if true
+     * @principle Structural Segregation - Read-only master data for all users.
+     */
+    match /holidays/{holidayId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if false;
+    }
+  }
+}

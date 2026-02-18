@@ -1,0 +1,842 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the LifeTrack application. This entity stores basic user profile information and serves as the primary key for all user-specific data, assuming an external authentication system handles credentials.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the user, used for display and communication purposes.",
+          "format": "email"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user account was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the user's profile was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "createdAt"
+      ]
+    },
+    "LearningGoal": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LearningGoal",
+      "type": "object",
+      "description": "Defines a user's specific learning goal, including a skill, its difficulty, and a daily target count for questions/tasks.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the LearningGoal entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who owns this learning goal. (Relationship: User 1:N LearningGoal)"
+        },
+        "skillName": {
+          "type": "string",
+          "description": "The name of the skill being learned (e.g., 'Python', 'SQL', 'DSA')."
+        },
+        "difficulty": {
+          "type": "string",
+          "description": "The difficulty level for this skill (e.g., 'Easy', 'Medium', 'Hard')."
+        },
+        "dailyTargetCount": {
+          "type": "number",
+          "description": "The number of questions or tasks targeted daily for this skill and difficulty level."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the learning goal was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the learning goal was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "skillName",
+        "difficulty",
+        "dailyTargetCount",
+        "createdAt"
+      ]
+    },
+    "DailyLearningProgress": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DailyLearningProgress",
+      "type": "object",
+      "description": "Tracks a user's daily progress for a specific learning goal (skill and difficulty).",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the DailyLearningProgress entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who made this progress. (Relationship: User 1:N DailyLearningProgress)"
+        },
+        "date": {
+          "type": "string",
+          "description": "The date for which this progress entry is recorded.",
+          "format": "date"
+        },
+        "skillName": {
+          "type": "string",
+          "description": "The name of the skill for this progress entry."
+        },
+        "difficulty": {
+          "type": "string",
+          "description": "The difficulty level for this progress entry."
+        },
+        "goalDailyCount": {
+          "type": "number",
+          "description": "The daily target count for this skill and difficulty on this date."
+        },
+        "completedCount": {
+          "type": "number",
+          "description": "The number of questions or tasks completed for this skill and difficulty on this date."
+        },
+        "partialCount": {
+          "type": "number",
+          "description": "The number of questions or tasks partially completed for this skill and difficulty on this date."
+        },
+        "status": {
+          "type": "string",
+          "description": "The overall status for this specific skill/difficulty on this day (e.g., 'Completed', 'Partial', 'Missed', 'Not Started')."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the progress entry was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the progress entry was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "date",
+        "skillName",
+        "difficulty",
+        "goalDailyCount",
+        "completedCount",
+        "partialCount",
+        "status",
+        "createdAt"
+      ]
+    },
+    "MonthlyBudget": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MonthlyBudget",
+      "type": "object",
+      "description": "Stores the user's overall budget settings and calculations for a specific month and year.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the MonthlyBudget entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who owns this monthly budget. (Relationship: User 1:N MonthlyBudget)"
+        },
+        "month": {
+          "type": "number",
+          "description": "The month number (1-12) for this budget."
+        },
+        "year": {
+          "type": "number",
+          "description": "The year for this budget."
+        },
+        "totalBudgetAmount": {
+          "type": "number",
+          "description": "The total budget amount set by the user for the month."
+        },
+        "initialCalculatedDailyBaseBudget": {
+          "type": "number",
+          "description": "The initial calculated base daily budget for the month after fixed expenses, before any rolling logic."
+        },
+        "isLocked": {
+          "type": "boolean",
+          "description": "Indicates if the budget for this month is locked, preventing further edits (e.g., for past months)."
+        },
+        "isWeekendExtraBudgetEnabled": {
+          "type": "boolean",
+          "description": "Toggle to enable or disable extra budget for weekend days."
+        },
+        "weekendExtraBudgetPerDayAmount": {
+          "type": "number",
+          "description": "The extra budget amount applied per weekend day, if enabled."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the monthly budget was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the monthly budget was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "month",
+        "year",
+        "totalBudgetAmount",
+        "initialCalculatedDailyBaseBudget",
+        "isLocked",
+        "isWeekendExtraBudgetEnabled",
+        "weekendExtraBudgetPerDayAmount",
+        "createdAt"
+      ]
+    },
+    "FixedExpense": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "FixedExpense",
+      "type": "object",
+      "description": "Represents a recurring fixed monthly expense defined by the user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the FixedExpense entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who owns this fixed expense. (Relationship: User 1:N FixedExpense)"
+        },
+        "monthlyBudgetId": {
+          "type": "string",
+          "description": "Reference to the MonthlyBudget this fixed expense is associated with. (Relationship: MonthlyBudget 1:N FixedExpense)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the fixed expense (e.g., 'Rent', 'Electricity Bill')."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The fixed amount of the expense."
+        },
+        "includeInBudget": {
+          "type": "boolean",
+          "description": "A toggle indicating whether this fixed expense should be deducted from the monthly budget calculation."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the fixed expense was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the fixed expense was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "monthlyBudgetId",
+        "name",
+        "amount",
+        "includeInBudget",
+        "createdAt"
+      ]
+    },
+    "ExpenseCategory": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ExpenseCategory",
+      "type": "object",
+      "description": "Defines a user-created category for organizing expenses.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ExpenseCategory entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who owns this expense category. (Relationship: User 1:N ExpenseCategory)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the expense category (e.g., 'Groceries', 'Transport')."
+        },
+        "description": {
+          "type": "string",
+          "description": "An optional description for the expense category."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the expense category was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the expense category was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "name",
+        "createdAt"
+      ]
+    },
+    "Expense": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Expense",
+      "type": "object",
+      "description": "Records an individual expense transaction made by the user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Expense entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who made this expense. (Relationship: User 1:N Expense)"
+        },
+        "monthlyBudgetId": {
+          "type": "string",
+          "description": "Reference to the MonthlyBudget this expense falls under. (Relationship: MonthlyBudget 1:N Expense)"
+        },
+        "expenseCategoryId": {
+          "type": "string",
+          "description": "Reference to the ExpenseCategory this expense belongs to. (Relationship: ExpenseCategory 1:N Expense)"
+        },
+        "amount": {
+          "type": "number",
+          "description": "The monetary amount of the expense."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief description of the expense (e.g., 'Coffee at Starbucks')."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date when the expense occurred.",
+          "format": "date"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the expense record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the expense record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "monthlyBudgetId",
+        "expenseCategoryId",
+        "amount",
+        "date",
+        "createdAt"
+      ]
+    },
+    "DailyBudgetSummary": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DailyBudgetSummary",
+      "type": "object",
+      "description": "Provides a daily summary of budget performance, including allowed budget, spent amount, and carry-forward/deduction.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the DailyBudgetSummary entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User this daily summary belongs to. (Relationship: User 1:N DailyBudgetSummary)"
+        },
+        "monthlyBudgetId": {
+          "type": "string",
+          "description": "Reference to the MonthlyBudget this daily summary is part of. (Relationship: MonthlyBudget 1:N DailyBudgetSummary)"
+        },
+        "date": {
+          "type": "string",
+          "description": "The specific date for this budget summary.",
+          "format": "date"
+        },
+        "calculatedAllowedBudget": {
+          "type": "number",
+          "description": "The total budget allowed for this specific day, considering base budget, carry-forward, and any bonuses."
+        },
+        "totalSpentAmount": {
+          "type": "number",
+          "description": "The sum of all expenses logged for this specific day."
+        },
+        "netBalance": {
+          "type": "number",
+          "description": "The difference between the calculated allowed budget and the total spent amount for the day (positive for saved, negative for overspent)."
+        },
+        "carryForwardAmount": {
+          "type": "number",
+          "description": "The amount carried forward to the next day's budget (can be negative if overspent)."
+        },
+        "baseDailyBudget": {
+          "type": "number",
+          "description": "The base daily budget for the month (Total Budget - Included Fixed Expenses / Days in Month)."
+        },
+        "weekendBonusAmount": {
+          "type": "number",
+          "description": "The extra budget amount applied for this day if it was a weekend and enabled."
+        },
+        "holidayBonusAmount": {
+          "type": "number",
+          "description": "The extra budget amount applied for this day if it was a holiday and enabled."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the daily budget summary was first created/calculated.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the daily budget summary was last updated (e.g., due to expense changes)."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "monthlyBudgetId",
+        "date",
+        "calculatedAllowedBudget",
+        "totalSpentAmount",
+        "netBalance",
+        "carryForwardAmount",
+        "baseDailyBudget",
+        "weekendBonusAmount",
+        "holidayBonusAmount",
+        "createdAt"
+      ]
+    },
+    "DailyDiary": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DailyDiary",
+      "type": "object",
+      "description": "Stores a user's personal diary entry for a specific day, including reflections, plans, and mood.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the DailyDiary entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who wrote this diary entry. (Relationship: User 1:N DailyDiary)"
+        },
+        "date": {
+          "type": "string",
+          "description": "The date for which this diary entry is recorded. (One entry per day per user).",
+          "format": "date"
+        },
+        "whatIDid": {
+          "type": "string",
+          "description": "A reflection on activities performed during the day."
+        },
+        "whatILearned": {
+          "type": "string",
+          "description": "Learnings or insights gained during the day."
+        },
+        "challengesBlockers": {
+          "type": "string",
+          "description": "Challenges encountered or blockers faced."
+        },
+        "tomorrowsPlan": {
+          "type": "string",
+          "description": "Plans or goals for the following day."
+        },
+        "mood": {
+          "type": "string",
+          "description": "The user's mood for the day (e.g., 'Happy', 'Neutral', 'Stressed', or an emoji representation)."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the diary entry was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the diary entry was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "date",
+        "whatIDid",
+        "whatILearned",
+        "challengesBlockers",
+        "tomorrowsPlan",
+        "mood",
+        "createdAt"
+      ]
+    },
+    "Holiday": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Holiday",
+      "type": "object",
+      "description": "A master list of pre-defined public holidays, which users can choose to enable or disable for extra budget purposes.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Holiday entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The common name of the holiday (e.g., 'Diwali', 'Republic Day')."
+        },
+        "date": {
+          "type": "string",
+          "description": "The specific date of the holiday, including the year (e.g., '2023-11-12').",
+          "format": "date"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the holiday record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the holiday record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "date",
+        "createdAt"
+      ]
+    },
+    "UserHoliday": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserHoliday",
+      "type": "object",
+      "description": "Stores user-specific settings for holidays, linking to a master holiday or defining a custom one, along with an optional extra budget.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the UserHoliday entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who owns this holiday setting. (Relationship: User 1:N UserHoliday)"
+        },
+        "monthlyBudgetId": {
+          "type": "string",
+          "description": "Reference to the MonthlyBudget this holiday setting applies to. (Relationship: MonthlyBudget 1:N UserHoliday)"
+        },
+        "holidayId": {
+          "type": "string",
+          "description": "Optional reference to a Holiday from the master list if this is a pre-defined holiday. (Relationship: Holiday 1:N UserHoliday)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the holiday, copied from the master list or custom-defined by the user."
+        },
+        "date": {
+          "type": "string",
+          "description": "The specific date of the holiday for which the settings apply.",
+          "format": "date"
+        },
+        "isEnabled": {
+          "type": "boolean",
+          "description": "A toggle indicating whether this holiday is enabled by the user to receive extra budget."
+        },
+        "extraBudgetAmount": {
+          "type": "number",
+          "description": "The extra budget amount configured by the user for this specific holiday."
+        },
+        "isCustom": {
+          "type": "boolean",
+          "description": "Indicates if this is a user-defined custom holiday rather than one from the master list."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user holiday setting was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the user holiday setting was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "monthlyBudgetId",
+        "name",
+        "date",
+        "isEnabled",
+        "extraBudgetAmount",
+        "isCustom",
+        "createdAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile information. All user-specific data is nested under this user's document. Achieves authorization independence for subcollections by acting as the root of user-owned data hierarchy.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user, corresponding to Firebase Authentication UID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/learningGoals/{learningGoalId}",
+        "definition": {
+          "entityName": "LearningGoal",
+          "schema": {
+            "$ref": "#/backend/entities/LearningGoal"
+          },
+          "description": "Stores individual learning goals for a user. Includes denormalized 'userId' for authorization independence, ensuring request.auth.uid matches the path and document owner.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who owns this learning goal."
+            },
+            {
+              "name": "learningGoalId",
+              "description": "The unique identifier for the specific learning goal."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/dailyLearningProgress/{dailyProgressId}",
+        "definition": {
+          "entityName": "DailyLearningProgress",
+          "schema": {
+            "$ref": "#/backend/entities/DailyLearningProgress"
+          },
+          "description": "Tracks a user's daily progress for a specific learning goal. Includes denormalized 'userId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who made this progress."
+            },
+            {
+              "name": "dailyProgressId",
+              "description": "The unique identifier for the daily learning progress entry. Often uses a date string."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/monthlyBudgets/{monthlyBudgetId}",
+        "definition": {
+          "entityName": "MonthlyBudget",
+          "schema": {
+            "$ref": "#/backend/entities/MonthlyBudget"
+          },
+          "description": "Stores monthly budget settings and overall calculations for a user. Includes denormalized 'userId' for authorization independence. All budget-related subcollections are nested here.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who owns this monthly budget."
+            },
+            {
+              "name": "monthlyBudgetId",
+              "description": "The unique identifier for the specific monthly budget (e.g., YYYYMM)."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/monthlyBudgets/{monthlyBudgetId}/fixedExpenses/{fixedExpenseId}",
+        "definition": {
+          "entityName": "FixedExpense",
+          "schema": {
+            "$ref": "#/backend/entities/FixedExpense"
+          },
+          "description": "Represents recurring fixed expenses associated with a specific monthly budget. Includes denormalized 'userId' and 'monthlyBudgetId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who owns this fixed expense."
+            },
+            {
+              "name": "monthlyBudgetId",
+              "description": "The unique identifier of the monthly budget this fixed expense is linked to."
+            },
+            {
+              "name": "fixedExpenseId",
+              "description": "The unique identifier for the specific fixed expense."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/expenseCategories/{categoryId}",
+        "definition": {
+          "entityName": "ExpenseCategory",
+          "schema": {
+            "$ref": "#/backend/entities/ExpenseCategory"
+          },
+          "description": "Stores user-defined categories for organizing expenses. Includes denormalized 'userId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who owns this expense category."
+            },
+            {
+              "name": "categoryId",
+              "description": "The unique identifier for the specific expense category."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/monthlyBudgets/{monthlyBudgetId}/expenses/{expenseId}",
+        "definition": {
+          "entityName": "Expense",
+          "schema": {
+            "$ref": "#/backend/entities/Expense"
+          },
+          "description": "Records individual expense transactions. Includes denormalized 'userId', 'monthlyBudgetId', and 'expenseCategoryId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who made this expense."
+            },
+            {
+              "name": "monthlyBudgetId",
+              "description": "The unique identifier of the monthly budget this expense is linked to."
+            },
+            {
+              "name": "expenseId",
+              "description": "The unique identifier for the specific expense transaction."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/monthlyBudgets/{monthlyBudgetId}/dailyBudgetSummaries/{date}",
+        "definition": {
+          "entityName": "DailyBudgetSummary",
+          "schema": {
+            "$ref": "#/backend/entities/DailyBudgetSummary"
+          },
+          "description": "Provides a daily summary of budget performance for a specific month. Uses the date (YYYY-MM-DD) as the document ID. Includes denormalized 'userId' and 'monthlyBudgetId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user this daily summary belongs to."
+            },
+            {
+              "name": "monthlyBudgetId",
+              "description": "The unique identifier of the monthly budget this daily summary is part of."
+            },
+            {
+              "name": "date",
+              "description": "The specific date for this budget summary (e.g., '2023-11-01')."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/dailyDiaries/{date}",
+        "definition": {
+          "entityName": "DailyDiary",
+          "schema": {
+            "$ref": "#/backend/entities/DailyDiary"
+          },
+          "description": "Stores a user's personal diary entry for a specific day. Uses the date (YYYY-MM-DD) as the document ID. Includes denormalized 'userId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who wrote this diary entry."
+            },
+            {
+              "name": "date",
+              "description": "The date for which this diary entry is recorded (e.g., '2023-11-01')."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/holidays/{holidayId}",
+        "definition": {
+          "entityName": "Holiday",
+          "schema": {
+            "$ref": "#/backend/entities/Holiday"
+          },
+          "description": "A master, globally accessible list of pre-defined public holidays. This collection is read-only for all authenticated users. It does not contain a 'userId' as it's not user-owned data, adhering to structural segregation.",
+          "params": [
+            {
+              "name": "holidayId",
+              "description": "The unique identifier for the master holiday entry."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/monthlyBudgets/{monthlyBudgetId}/userHolidays/{userHolidayId}",
+        "definition": {
+          "entityName": "UserHoliday",
+          "schema": {
+            "$ref": "#/backend/entities/UserHoliday"
+          },
+          "description": "Stores user-specific settings for holidays, linked to a monthly budget. Includes denormalized 'userId', 'monthlyBudgetId', and 'holidayId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who owns this holiday setting."
+            },
+            {
+              "name": "monthlyBudgetId",
+              "description": "The unique identifier of the monthly budget this user holiday setting applies to."
+            },
+            {
+              "name": "userHolidayId",
+              "description": "The unique identifier for the user's specific holiday setting."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure for the LifeTrack application is designed with a strong emphasis on security, scalability, and debuggability, adhering strictly to the core design principles and mandates. \n\n**Authorization Independence via Denormalization (Mandate A):**\nAll user-specific data is organized hierarchically, rooted under a top-level `/users/{userId}` collection. This immediately establishes path-based ownership. To ensure 'Authorization Independence' (CRITICAL principle 1), every document within a user's subcollections (e.g., `learningGoals`, `monthlyBudgets`, `expenses`) explicitly contains the `userId` field. Furthermore, for nested subcollections like `fixedExpenses` or `expenses` under `monthlyBudgets`, the `monthlyBudgetId` is also denormalized into the document. This denormalization eliminates the need for `get()` calls in Firestore Security Rules, as all necessary authorization context (the owner's ID) is present within the document itself (`resource.data.userId`). Rules can then simply compare `request.auth.uid` against `resource.data.userId` and potentially against path wildcards (`request.path[1]` for `userId`, `request.path[3]` for `monthlyBudgetId`), making authorization checks atomic, efficient, and robust.\n\n**Structural Segregation and QAPs (Mandate B & Principle 4):**\nEach collection (or subcollection) is designed to have a homogeneous security posture. For instance, `/users/{userId}/learningGoals` contains only learning goals owned by `{userId}`, and access is exclusively granted to `request.auth.uid` if it matches the `{userId}` in the path and the `userId` field in the document. This approach directly supports Query Authorization Patterns (QAPs), ensuring that 'rules are not filters'. When a user performs a `list` operation (e.g., `db.collection('users').doc(auth.uid).collection('learningGoals').get()`), Firestore security rules implicitly ensure that only documents owned by the authenticated user are ever accessible, without requiring additional client-side filtering or server-side `where` clauses for security. The `/holidays` collection, representing master, globally accessible data, is segregated at the top level because its security posture (read-only for all authenticated users) is different from user-owned data.\n\n**Access Modeling and Data Clarity (Mandates C & D):**\nThe structure consistently uses hierarchical paths for user-owned data (`/users/{userId}/...`) and continues this hierarchy for nested 1:N relationships (`/users/{userId}/monthlyBudgets/{monthlyBudgetId}/fixedExpenses/{fixedExpenseId}`). Semantic naming conventions are strictly enforced for collections (`learningGoals`, `monthlyBudgets`) and path wildcards (`{userId}`, `{monthlyBudgetId}`). Explicit state modeling (e.g., `status` in `DailyLearningProgress`) and predictable schemas are maintained throughout the design, enhancing debuggability and maintainability."
+  }
+}
