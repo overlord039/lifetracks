@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -241,6 +242,10 @@
           "type": "boolean",
           "description": "A toggle indicating whether this fixed expense should be deducted from the monthly budget calculation."
         },
+        "expenseCategoryId": {
+          "type": "string",
+          "description": "Reference to the ExpenseCategory this fixed expense belongs to. Must be of type 'fixed'."
+        },
         "createdAt": {
           "type": "string",
           "description": "Timestamp when the fixed expense was created.",
@@ -259,6 +264,7 @@
         "name",
         "amount",
         "includeInBudget",
+        "expenseCategoryId",
         "createdAt"
       ]
     },
@@ -280,6 +286,11 @@
           "type": "string",
           "description": "The name of the expense category (e.g., 'Groceries', 'Transport')."
         },
+        "type": {
+          "type": "string",
+          "enum": ["daily", "fixed"],
+          "description": "The type of the category, distinguishing between daily spending and recurring fixed expenses."
+        },
         "description": {
           "type": "string",
           "description": "An optional description for the expense category."
@@ -299,6 +310,7 @@
         "id",
         "userId",
         "name",
+        "type",
         "createdAt"
       ]
     },
@@ -615,7 +627,7 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores user profile information. All user-specific data is nested under this user's document. Achieves authorization independence for subcollections by acting as the root of user-owned data hierarchy.",
+          "description": "Stores user profile information. All user-specific data is nested under this user's document.",
           "params": [
             {
               "name": "userId",
@@ -631,7 +643,7 @@
           "schema": {
             "$ref": "#/backend/entities/LearningGoal"
           },
-          "description": "Stores individual learning goals for a user. Includes denormalized 'userId' for authorization independence, ensuring request.auth.uid matches the path and document owner.",
+          "description": "Stores individual learning goals for a user.",
           "params": [
             {
               "name": "userId",
@@ -651,7 +663,7 @@
           "schema": {
             "$ref": "#/backend/entities/DailyLearningProgress"
           },
-          "description": "Tracks a user's daily progress for a specific learning goal. Includes denormalized 'userId' for authorization independence.",
+          "description": "Tracks a user's daily progress for a specific learning goal.",
           "params": [
             {
               "name": "userId",
@@ -659,7 +671,7 @@
             },
             {
               "name": "dailyProgressId",
-              "description": "The unique identifier for the daily learning progress entry. Often uses a date string."
+              "description": "The unique identifier for the daily learning progress entry."
             }
           ]
         }
@@ -671,7 +683,7 @@
           "schema": {
             "$ref": "#/backend/entities/MonthlyBudget"
           },
-          "description": "Stores monthly budget settings and overall calculations for a user. Includes denormalized 'userId' for authorization independence. All budget-related subcollections are nested here.",
+          "description": "Stores monthly budget settings and overall calculations for a user.",
           "params": [
             {
               "name": "userId",
@@ -691,7 +703,7 @@
           "schema": {
             "$ref": "#/backend/entities/FixedExpense"
           },
-          "description": "Represents recurring fixed expenses associated with a specific monthly budget. Includes denormalized 'userId' and 'monthlyBudgetId' for authorization independence.",
+          "description": "Represents recurring fixed expenses associated with a specific monthly budget.",
           "params": [
             {
               "name": "userId",
@@ -715,7 +727,7 @@
           "schema": {
             "$ref": "#/backend/entities/ExpenseCategory"
           },
-          "description": "Stores user-defined categories for organizing expenses. Includes denormalized 'userId' for authorization independence.",
+          "description": "Stores user-defined categories for organizing expenses.",
           "params": [
             {
               "name": "userId",
@@ -735,7 +747,7 @@
           "schema": {
             "$ref": "#/backend/entities/Expense"
           },
-          "description": "Records individual expense transactions. Includes denormalized 'userId', 'monthlyBudgetId', and 'expenseCategoryId' for authorization independence.",
+          "description": "Records individual expense transactions.",
           "params": [
             {
               "name": "userId",
@@ -759,7 +771,7 @@
           "schema": {
             "$ref": "#/backend/entities/DailyBudgetSummary"
           },
-          "description": "Provides a daily summary of budget performance for a specific month. Uses the date (YYYY-MM-DD) as the document ID. Includes denormalized 'userId' and 'monthlyBudgetId' for authorization independence.",
+          "description": "Provides a daily summary of budget performance for a specific month.",
           "params": [
             {
               "name": "userId",
@@ -783,7 +795,7 @@
           "schema": {
             "$ref": "#/backend/entities/DailyDiary"
           },
-          "description": "Stores a user's personal diary entry for a specific day. Uses the date (YYYY-MM-DD) as the document ID. Includes denormalized 'userId' for authorization independence.",
+          "description": "Stores a user's personal diary entry for a specific day.",
           "params": [
             {
               "name": "userId",
@@ -803,7 +815,7 @@
           "schema": {
             "$ref": "#/backend/entities/Holiday"
           },
-          "description": "A master, globally accessible list of pre-defined public holidays. This collection is read-only for all authenticated users. It does not contain a 'userId' as it's not user-owned data, adhering to structural segregation.",
+          "description": "A master, globally accessible list of pre-defined public holidays.",
           "params": [
             {
               "name": "holidayId",
@@ -819,7 +831,7 @@
           "schema": {
             "$ref": "#/backend/entities/UserHoliday"
           },
-          "description": "Stores user-specific settings for holidays, linked to a monthly budget. Includes denormalized 'userId', 'monthlyBudgetId', and 'holidayId' for authorization independence.",
+          "description": "Stores user-specific settings for holidays, linked to a monthly budget.",
           "params": [
             {
               "name": "userId",
@@ -836,7 +848,6 @@
           ]
         }
       }
-    ],
-    "reasoning": "The Firestore data structure for the LifeTrack application is designed with a strong emphasis on security, scalability, and debuggability, adhering strictly to the core design principles and mandates. \n\n**Authorization Independence via Denormalization (Mandate A):**\nAll user-specific data is organized hierarchically, rooted under a top-level `/users/{userId}` collection. This immediately establishes path-based ownership. To ensure 'Authorization Independence' (CRITICAL principle 1), every document within a user's subcollections (e.g., `learningGoals`, `monthlyBudgets`, `expenses`) explicitly contains the `userId` field. Furthermore, for nested subcollections like `fixedExpenses` or `expenses` under `monthlyBudgets`, the `monthlyBudgetId` is also denormalized into the document. This denormalization eliminates the need for `get()` calls in Firestore Security Rules, as all necessary authorization context (the owner's ID) is present within the document itself (`resource.data.userId`). Rules can then simply compare `request.auth.uid` against `resource.data.userId` and potentially against path wildcards (`request.path[1]` for `userId`, `request.path[3]` for `monthlyBudgetId`), making authorization checks atomic, efficient, and robust.\n\n**Structural Segregation and QAPs (Mandate B & Principle 4):**\nEach collection (or subcollection) is designed to have a homogeneous security posture. For instance, `/users/{userId}/learningGoals` contains only learning goals owned by `{userId}`, and access is exclusively granted to `request.auth.uid` if it matches the `{userId}` in the path and the `userId` field in the document. This approach directly supports Query Authorization Patterns (QAPs), ensuring that 'rules are not filters'. When a user performs a `list` operation (e.g., `db.collection('users').doc(auth.uid).collection('learningGoals').get()`), Firestore security rules implicitly ensure that only documents owned by the authenticated user are ever accessible, without requiring additional client-side filtering or server-side `where` clauses for security. The `/holidays` collection, representing master, globally accessible data, is segregated at the top level because its security posture (read-only for all authenticated users) is different from user-owned data.\n\n**Access Modeling and Data Clarity (Mandates C & D):**\nThe structure consistently uses hierarchical paths for user-owned data (`/users/{userId}/...`) and continues this hierarchy for nested 1:N relationships (`/users/{userId}/monthlyBudgets/{monthlyBudgetId}/fixedExpenses/{fixedExpenseId}`). Semantic naming conventions are strictly enforced for collections (`learningGoals`, `monthlyBudgets`) and path wildcards (`{userId}`, `{monthlyBudgetId}`). Explicit state modeling (e.g., `status` in `DailyLearningProgress`) and predictable schemas are maintained throughout the design, enhancing debuggability and maintainability."
+    ]
   }
 }
