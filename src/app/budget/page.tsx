@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,15 +8,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useAuth } from '@/contexts/auth-context';
-import { db } from '@/lib/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { collection, addDoc, query, where, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { Plus, Trash2, Tag, BrainCircuit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { categorizeExpense } from '@/ai/flows/categorize-expense-flow';
 
-export default function BudgetPage() {
-  const { user } = useAuth();
+export default function BudgetPage(props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+  // Unwrap searchParams to satisfy Next.js 15 requirements
+  use(props.searchParams);
+  
+  const { user } = useUser();
+  const db = useFirestore();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [fixedExpenses, setFixedExpenses] = useState<any[]>([]);
@@ -34,7 +37,7 @@ export default function BudgetPage() {
       setFixedExpenses(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     };
     fetchFixed();
-  }, [user]);
+  }, [user, db]);
 
   const addFixedExpense = async () => {
     if (!newFixed.name || !newFixed.amount) return;

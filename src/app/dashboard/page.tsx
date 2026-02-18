@@ -1,11 +1,9 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, use } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useAuth } from '@/contexts/auth-context';
-import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { useUser } from '@/firebase';
 import { format } from 'date-fns';
 import { 
   TrendingUp, 
@@ -17,8 +15,11 @@ import {
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
-export default function Dashboard() {
-  const { user } = useAuth();
+export default function Dashboard(props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+  // Unwrap searchParams to satisfy Next.js 15 requirements
+  use(props.searchParams);
+  
+  const { user } = useUser();
   const [stats, setStats] = useState({
     todayBudget: 0,
     spentToday: 0,
@@ -31,10 +32,7 @@ export default function Dashboard() {
     if (!user) return;
 
     const fetchSummary = async () => {
-      const today = format(new Date(), 'yyyy-MM-dd');
-      
-      // Real app would fetch budget reports here
-      // For demo, we'll set some placeholder values
+      // Placeholder values for the dashboard summary
       setStats({
         todayBudget: 45.50,
         spentToday: 12.00,

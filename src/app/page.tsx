@@ -1,22 +1,24 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/auth-context';
+import { useUser } from '@/firebase';
 
-export default function Home() {
-  const { user, loading } = useAuth();
+export default function Home(props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+  // Unwrap searchParams to satisfy Next.js 15 requirements
+  use(props.searchParams);
+  const { user, isUserLoading } = useUser();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading) {
+    if (!isUserLoading) {
       if (user) {
         router.push('/dashboard');
       } else {
         router.push('/login');
       }
     }
-  }, [user, loading, router]);
+  }, [user, isUserLoading, router]);
 
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-background">

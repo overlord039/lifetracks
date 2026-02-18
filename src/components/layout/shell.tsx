@@ -7,9 +7,7 @@ import {
   Wallet, 
   BookText, 
   BarChart3, 
-  LogOut,
-  User as UserIcon,
-  Menu
+  LogOut
 } from 'lucide-react';
 import { 
   Sidebar, 
@@ -23,13 +21,12 @@ import {
   SidebarTrigger,
   SidebarInset
 } from '@/components/ui/sidebar';
-import { useAuth } from '@/contexts/auth-context';
-import { auth } from '@/lib/firebase';
+import { useAuth, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
@@ -40,7 +37,8 @@ const navItems = [
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user } = useUser();
+  const auth = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -81,11 +79,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-3 mb-4 p-2 rounded-lg bg-accent/10">
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-primary text-primary-foreground">
-                  {user?.email?.charAt(0).toUpperCase()}
+                  {user?.email?.charAt(0).toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col min-w-0">
-                <span className="text-sm font-medium truncate">{user?.email?.split('@')[0]}</span>
+                <span className="text-sm font-medium truncate">{user?.email?.split('@')[0] || 'User'}</span>
                 <span className="text-xs text-muted-foreground truncate">{user?.email}</span>
               </div>
             </div>

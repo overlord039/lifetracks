@@ -1,24 +1,26 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useAuth } from '@/contexts/auth-context';
-import { db } from '@/lib/firebase';
-import { collection, addDoc, query, where, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { CheckCircle2, Circle, GraduationCap, Plus, Trash2 } from 'lucide-react';
+import { useUser, useFirestore } from '@/firebase';
+import { collection, addDoc, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { CheckCircle2, GraduationCap, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-export default function LearningPage() {
-  const { user } = useAuth();
+export default function LearningPage(props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+  // Unwrap searchParams to satisfy Next.js 15 requirements
+  use(props.searchParams);
+  
+  const { user } = useUser();
+  const db = useFirestore();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [goals, setGoals] = useState<any[]>([]);
-  const [dailyProgress, setDailyProgress] = useState<any[]>([]);
   
   const [newGoal, setNewGoal] = useState({ skill: '', difficulty: 'Easy', target: '2' });
 
@@ -30,7 +32,7 @@ export default function LearningPage() {
       setGoals(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     };
     fetchData();
-  }, [user]);
+  }, [user, db]);
 
   const addGoal = async () => {
     if (!newGoal.skill || !newGoal.target) return;

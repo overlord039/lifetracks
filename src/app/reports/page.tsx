@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { use } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
@@ -18,7 +18,6 @@ import {
   PieChart,
   Pie
 } from 'recharts';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 const spendingData = [
   { name: 'Mon', spent: 25, budget: 40 },
@@ -37,7 +36,10 @@ const categoryData = [
   { name: 'Misc', value: 200, color: '#BA68C8' },
 ];
 
-export default function ReportsPage() {
+export default function ReportsPage(props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+  // Unwrap searchParams to satisfy Next.js 15 requirements
+  use(props.searchParams);
+  
   return (
     <AppShell>
       <div className="grid gap-6 md:grid-cols-2">

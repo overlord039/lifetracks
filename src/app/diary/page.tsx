@@ -1,20 +1,23 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { useAuth } from '@/contexts/auth-context';
-import { db } from '@/lib/firebase';
-import { collection, addDoc, query, where, getDocs, doc, setDoc, getDoc } from 'firebase/firestore';
+import { useUser, useFirestore } from '@/firebase';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { BookText, Save, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-export default function DiaryPage() {
-  const { user } = useAuth();
+export default function DiaryPage(props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+  // Unwrap searchParams to satisfy Next.js 15 requirements
+  use(props.searchParams);
+  
+  const { user } = useUser();
+  const db = useFirestore();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [entry, setEntry] = useState({
@@ -37,7 +40,7 @@ export default function DiaryPage() {
       }
     };
     fetchTodayEntry();
-  }, [user, todayStr]);
+  }, [user, db, todayStr]);
 
   const saveEntry = async () => {
     if (!user) return;
