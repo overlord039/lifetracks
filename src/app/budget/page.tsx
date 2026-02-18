@@ -116,7 +116,6 @@ export default function BudgetPage() {
       if (matched) {
         setNewExpense(prev => ({ ...prev, categoryId: matched.id }));
       } else if (result.isNewCategorySuggested) {
-        // Option to add new category automatically could go here
         toast({ title: "New category suggested", description: `You might want to add "${result.suggestedCategoryName}" to your list.` });
       }
     } catch (err) {
@@ -128,7 +127,16 @@ export default function BudgetPage() {
 
   const handleLogExpense = () => {
     if (!newExpense.description || !newExpense.amount || !newExpense.categoryId || !user || !expensesRef) {
-      toast({ variant: 'destructive', title: 'Incomplete data', description: 'Please fill in description, amount, and category.' });
+      let missingFields = [];
+      if (!newExpense.description) missingFields.push('description');
+      if (!newExpense.categoryId) missingFields.push('category');
+      if (!newExpense.amount) missingFields.push('amount');
+      
+      toast({ 
+        variant: 'destructive', 
+        title: 'Incomplete data', 
+        description: `Please provide: ${missingFields.join(', ')}.` 
+      });
       return;
     }
     
@@ -242,13 +250,16 @@ export default function BudgetPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="expense-desc">What did you buy?</Label>
+                <Label htmlFor="expense-desc">
+                  What did you buy? <span className="text-destructive">*</span>
+                </Label>
                 <div className="flex gap-2">
                   <Input 
                     id="expense-desc" 
                     placeholder="e.g., Dinner at Italian place" 
                     value={newExpense.description}
                     onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
+                    required
                   />
                   <Button 
                     variant="outline" 
@@ -264,7 +275,9 @@ export default function BudgetPage() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label>Category</Label>
+                  <Label>
+                    Category <span className="text-destructive">*</span>
+                  </Label>
                   <Select 
                     value={newExpense.categoryId} 
                     onValueChange={(val) => setNewExpense({ ...newExpense, categoryId: val })}
@@ -280,13 +293,16 @@ export default function BudgetPage() {
                   </Select>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="expense-amount">Amount</Label>
+                  <Label htmlFor="expense-amount">
+                    Amount <span className="text-destructive">*</span>
+                  </Label>
                   <Input 
                     id="expense-amount" 
                     type="number" 
                     placeholder="0.00" 
                     value={newExpense.amount}
                     onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
+                    required
                   />
                 </div>
               </div>
