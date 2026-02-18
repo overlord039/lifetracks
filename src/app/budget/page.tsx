@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,12 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
-import { Plus, Trash2, Tag, BrainCircuit, Loader2, Wallet, ReceiptText } from 'lucide-react';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
+import { collection, doc, query, where } from 'firebase/firestore';
+import { Plus, Trash2, Tag, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { categorizeExpense } from '@/ai/flows/categorize-expense-flow';
-import { format } from 'date-fns';
+import { format, getDaysInMonth, isWeekend } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function BudgetPage() {
@@ -26,16 +26,23 @@ export default function BudgetPage() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newFixed, setNewFixed] = useState({ name: '', amount: '' });
   const [newExpense, setNewExpense] = useState({ description: '', amount: '', categoryId: '' });
-  const [monthlyBudgetLimit, setMonthlyBudgetLimit] = useState('2000');
 
-  const monthId = format(new Date(), 'yyyyMM');
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const now = new Date();
+  const monthId = format(now, 'yyyyMM');
+  const todayStr = format(now, 'yyyy-MM-dd');
+  const daysInMonth = getDaysInMonth(now);
+  const isTodayWeekend = isWeekend(now);
 
   // Firestore References
   const categoriesRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return collection(db, 'users', user.uid, 'expenseCategories');
   }, [db, user]);
+
+  const monthlyBudgetRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, 'users', user.uid, 'monthlyBudgets', monthId);
+  }, [db, user, monthId]);
 
   const fixedExpensesRef = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -50,8 +57,21 @@ export default function BudgetPage() {
   // Data fetching
   const { data: categories } = useCollection(categoriesRef);
   const { data: fixedExpenses } = useCollection(fixedExpensesRef);
+  const { data: monthlyBudgetDoc } = useDoc(monthlyBudgetRef);
 
   // Handlers
+  const saveMonthlyBudget = (updates: any) => {
+    if (!monthlyBudgetRef || !user) return;
+    setDocumentNonBlocking(monthlyBudgetRef, {
+      ...updates,
+      userId: user.uid,
+      month: now.getMonth() + 1,
+      year: now.getFullYear(),
+      updatedAt: new Date().toISOString(),
+      createdAt: monthlyBudgetDoc?.createdAt || new Date().toISOString(),
+    }, { merge: true });
+  };
+
   const addCategory = () => {
     if (!newCategoryName.trim() || !categoriesRef) return;
     addDocumentNonBlocking(categoriesRef, {
@@ -111,7 +131,6 @@ export default function BudgetPage() {
         description: `${result.suggestedCategoryName}: ${result.reasoning}`,
       });
 
-      // Find matching category ID
       const matched = categories.find(c => c.name.toLowerCase() === result.suggestedCategoryName.toLowerCase());
       if (matched) {
         setNewExpense(prev => ({ ...prev, categoryId: matched.id }));
@@ -127,16 +146,7 @@ export default function BudgetPage() {
 
   const handleLogExpense = () => {
     if (!newExpense.description || !newExpense.amount || !newExpense.categoryId || !user || !expensesRef) {
-      let missingFields = [];
-      if (!newExpense.description) missingFields.push('description');
-      if (!newExpense.categoryId) missingFields.push('category');
-      if (!newExpense.amount) missingFields.push('amount');
-      
-      toast({ 
-        variant: 'destructive', 
-        title: 'Incomplete data', 
-        description: `Please provide: ${missingFields.join(', ')}.` 
-      });
+      toast({ variant: 'destructive', title: 'Missing Information', description: 'Please fill out all mandatory fields.' });
       return;
     }
     
@@ -156,7 +166,13 @@ export default function BudgetPage() {
     toast({ title: "Expense logged", description: "Successfully saved your spending." });
   };
 
+  // Calculations
+  const totalBudget = monthlyBudgetDoc?.totalBudgetAmount || 0;
   const totalFixedIncluded = fixedExpenses?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
+  const netMonthly = Math.max(0, totalBudget - totalFixedIncluded);
+  const baseDailyBudget = netMonthly / daysInMonth;
+  const weekendBonus = monthlyBudgetDoc?.isWeekendExtraBudgetEnabled ? (monthlyBudgetDoc?.weekendExtraBudgetPerDayAmount || 0) : 0;
+  const todayAllowed = baseDailyBudget + (isTodayWeekend ? weekendBonus : 0);
 
   return (
     <AppShell>
@@ -168,26 +184,57 @@ export default function BudgetPage() {
                 <Wallet className="h-5 w-5 text-primary" />
                 Monthly Budget Plan
               </CardTitle>
-              <CardDescription>Set your total spending limit for {format(new Date(), 'MMMM yyyy')}.</CardDescription>
+              <CardDescription>Set your total spending limit and weekend incentives.</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid gap-2">
-                <Label htmlFor="total-budget">Total Monthly Budget</Label>
-                <div className="flex gap-2">
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="total-budget">Total Monthly Budget</Label>
                   <Input 
                     id="total-budget" 
                     type="number" 
                     placeholder="2000"
-                    value={monthlyBudgetLimit} 
-                    onChange={(e) => setMonthlyBudgetLimit(e.target.value)}
+                    value={monthlyBudgetDoc?.totalBudgetAmount || ''} 
+                    onChange={(e) => saveMonthlyBudget({ totalBudgetAmount: parseFloat(e.target.value) || 0 })}
                   />
-                  <Button variant="secondary">Update</Button>
+                  <p className="text-xs text-muted-foreground">Your gross budget for {format(now, 'MMMM')}.</p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  This is your gross budget before any deductions.
-                </p>
+
+                <div className="space-y-2 p-4 border rounded-lg bg-muted/20">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="weekend-toggle" className="flex items-center gap-2">
+                      <CalendarDays className="h-4 w-4 text-primary" />
+                      Weekend Extra Budget
+                    </Label>
+                    <Switch 
+                      id="weekend-toggle"
+                      checked={monthlyBudgetDoc?.isWeekendExtraBudgetEnabled || false}
+                      onCheckedChange={(checked) => saveMonthlyBudget({ isWeekendExtraBudgetEnabled: checked })}
+                    />
+                  </div>
+                  <div className="pt-2">
+                    <Input 
+                      type="number"
+                      placeholder="e.g., 20.00"
+                      disabled={!monthlyBudgetDoc?.isWeekendExtraBudgetEnabled}
+                      value={monthlyBudgetDoc?.weekendExtraBudgetPerDayAmount || ''}
+                      onChange={(e) => saveMonthlyBudget({ weekendExtraBudgetPerDayAmount: parseFloat(e.target.value) || 0 })}
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-1">Extra amount added to Sat & Sun daily budget.</p>
+                  </div>
+                </div>
               </div>
             </CardContent>
+            <CardFooter className="bg-muted/10 flex flex-col items-start gap-1 border-t py-3">
+              <div className="flex justify-between w-full text-sm">
+                <span>Net Monthly Pool (After Fixed):</span>
+                <span className="font-bold">${netMonthly.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between w-full text-sm">
+                <span>Base Daily Allocation:</span>
+                <span className="font-bold text-primary">${baseDailyBudget.toFixed(2)} / day</span>
+              </div>
+            </CardFooter>
           </Card>
 
           <Card className="shadow-md">
@@ -196,7 +243,7 @@ export default function BudgetPage() {
                 <ReceiptText className="h-5 w-5 text-primary" />
                 Fixed Monthly Expenses
               </CardTitle>
-              <CardDescription>Recurring costs that are automatically deducted from your daily budget.</CardDescription>
+              <CardDescription>Recurring costs deducted from your monthly pool.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
@@ -283,7 +330,7 @@ export default function BudgetPage() {
             <CardContent className="space-y-4">
               <div className="grid gap-2">
                 <Label htmlFor="expense-desc">
-                  What did you buy? <span className="text-destructive">*</span>
+                  What did you buy? <span className="text-destructive font-bold">*</span>
                 </Label>
                 <div className="flex gap-2">
                   <Input 
@@ -308,7 +355,7 @@ export default function BudgetPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label>
-                    Category <span className="text-destructive">*</span>
+                    Category <span className="text-destructive font-bold">*</span>
                   </Label>
                   <Select 
                     value={newExpense.categoryId} 
@@ -326,7 +373,7 @@ export default function BudgetPage() {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="expense-amount">
-                    Amount <span className="text-destructive">*</span>
+                    Amount <span className="text-destructive font-bold">*</span>
                   </Label>
                   <Input 
                     id="expense-amount" 
@@ -348,15 +395,20 @@ export default function BudgetPage() {
         </div>
 
         <div className="space-y-6">
-          <Card className="shadow-md bg-primary text-primary-foreground">
+          <Card className={`shadow-md text-primary-foreground ${isTodayWeekend ? 'bg-secondary' : 'bg-primary'}`}>
             <CardHeader>
-              <CardTitle className="text-xl">Rolling Balance</CardTitle>
-              <CardDescription className="text-primary-foreground/80">Available for today</CardDescription>
+              <CardTitle className="text-xl flex items-center gap-2">
+                <Coins className="h-5 w-5" />
+                Allowed Today
+              </CardTitle>
+              <CardDescription className="text-primary-foreground/80">
+                {isTodayWeekend ? 'Weekend Bonus Applied! 🚀' : 'Standard Weekday Allocation'}
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold font-headline">$54.20</div>
+              <div className="text-4xl font-bold font-headline">${todayAllowed.toFixed(2)}</div>
               <div className="mt-4 p-3 rounded-lg bg-white/10 text-xs">
-                Base Daily: $40.00 + Carry: $14.20
+                Base: ${baseDailyBudget.toFixed(2)} {isTodayWeekend && `+ Bonus: $${weekendBonus.toFixed(2)}`}
               </div>
             </CardContent>
           </Card>
