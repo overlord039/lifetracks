@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useMemo } from 'react';
@@ -60,7 +59,7 @@ export default function Dashboard() {
   const allowedToday = budgetSummary?.calculatedAllowedBudget || 40.00; // Fallback default
   
   const totalGoals = learningGoals?.length || 0;
-  const completedGoals = learningGoals?.filter(g => g.completedCount >= g.target).length || 0;
+  const completedGoals = learningGoals?.filter(g => (g.completedCount || 0) >= (g.target || 0)).length || 0;
   const learningProgress = totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100) : 0;
 
   return (
@@ -73,7 +72,7 @@ export default function Dashboard() {
             <DollarSign className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${allowedToday.toFixed(2)}</div>
+            <div className="text-2xl font-bold">₹{allowedToday.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">Allowed for today</p>
           </CardContent>
         </Card>
@@ -84,7 +83,7 @@ export default function Dashboard() {
             <TrendingUp className="w-4 h-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${spentToday.toFixed(2)}</div>
+            <div className="text-2xl font-bold">₹{spentToday.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">
               {spentToday > allowedToday ? "Overspent!" : "Within limits"}
             </p>
@@ -138,7 +137,7 @@ export default function Dashboard() {
                 <div>
                   <h4 className="font-semibold text-primary">Budget Status</h4>
                   <p className="text-sm text-muted-foreground">
-                    ${(allowedToday - spentToday).toFixed(2)} remaining for the day.
+                    ₹{(allowedToday - spentToday).toFixed(2)} remaining for the day.
                   </p>
                 </div>
               </div>
@@ -166,7 +165,7 @@ export default function Dashboard() {
             <div className="space-y-4">
               {learningGoals?.length === 0 && <p className="text-sm text-muted-foreground">No active goals found.</p>}
               {learningGoals?.map((goal) => {
-                const percent = Math.min(100, Math.round((goal.completedCount / goal.target) * 100));
+                const percent = Math.min(100, Math.round(((goal.completedCount || 0) / (goal.target || 1)) * 100));
                 return (
                   <div key={goal.id} className="flex flex-col gap-1">
                     <div className="flex justify-between text-sm">

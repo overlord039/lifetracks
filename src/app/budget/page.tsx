@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -238,7 +237,7 @@ export default function BudgetPage() {
                     <div className="pt-2 animate-in fade-in slide-in-from-top-1">
                       <div className="text-sm font-medium text-primary flex items-center gap-1">
                         <Plus className="h-3 w-3" />
-                        ${autoWeekendBonus.toFixed(2)} / day
+                        ₹{autoWeekendBonus.toFixed(2)} / day
                       </div>
                       <p className="text-[10px] text-muted-foreground mt-1">
                         Automatically calculated for {weekendDaysInMonth} weekend days (50% bonus).
@@ -256,11 +255,11 @@ export default function BudgetPage() {
             <CardFooter className="bg-muted/10 flex flex-col items-start gap-1 border-t py-3">
               <div className="flex justify-between w-full text-sm">
                 <span>Net Monthly Pool (After Fixed):</span>
-                <span className="font-bold">${netMonthly.toFixed(2)}</span>
+                <span className="font-bold">₹{netMonthly.toFixed(2)}</span>
               </div>
               <div className="flex justify-between w-full text-sm">
                 <span>Standard Daily Allocation:</span>
-                <span className="font-bold text-primary">${weekdayRate.toFixed(2)} / day</span>
+                <span className="font-bold text-primary">₹{weekdayRate.toFixed(2)} / day</span>
               </div>
             </CardFooter>
           </Card>
@@ -315,7 +314,7 @@ export default function BudgetPage() {
                         fixedExpenses.map((expense) => (
                           <TableRow key={expense.id}>
                             <TableCell className="font-medium">{expense.name}</TableCell>
-                            <TableCell>${expense.amount.toFixed(2)}</TableCell>
+                            <TableCell>₹{expense.amount.toFixed(2)}</TableCell>
                             <TableCell>
                               <Switch 
                                 checked={expense.includeInBudget} 
@@ -343,7 +342,7 @@ export default function BudgetPage() {
             </CardContent>
             <CardFooter className="bg-muted/30 flex justify-between border-t py-4">
               <span className="text-sm font-medium">Total Fixed Deductions:</span>
-              <span className="font-bold text-destructive">${totalFixedIncluded.toFixed(2)}</span>
+              <span className="font-bold text-destructive">₹{totalFixedIncluded.toFixed(2)}</span>
             </CardFooter>
           </Card>
 
@@ -434,16 +433,16 @@ export default function BudgetPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold font-headline">${todayAllowed.toFixed(2)}</div>
+              <div className="text-4xl font-bold font-headline">₹{todayAllowed.toFixed(2)}</div>
               <div className="mt-4 p-3 rounded-lg bg-white/10 text-xs space-y-1">
                 <div className="flex justify-between">
                   <span>Daily Rate:</span>
-                  <span>${weekdayRate.toFixed(2)}</span>
+                  <span>₹{weekdayRate.toFixed(2)}</span>
                 </div>
                 {isWeekendEnabled && (
                   <div className="flex justify-between border-t border-white/20 pt-1">
                     <span>Weekend Bonus:</span>
-                    <span>{isTodayWeekend ? `+$${autoWeekendBonus.toFixed(2)}` : 'N/A'}</span>
+                    <span>{isTodayWeekend ? `+₹${autoWeekendBonus.toFixed(2)}` : 'N/A'}</span>
                   </div>
                 )}
               </div>
