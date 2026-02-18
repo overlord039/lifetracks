@@ -1,26 +1,34 @@
+
 "use client";
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { useUser, useFirestore } from '@/firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { useUser, useFirestore, useDoc, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
+import { doc } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { BookText, Save, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-export default function DiaryPage(props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
-  // Unwrap searchParams to satisfy Next.js 15 requirements
-  use(props.searchParams);
-  
+export default function DiaryPage() {
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [entry, setEntry] = useState({
+
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+
+  const diaryRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, 'users', user.uid, 'dailyDiaries', todayStr);
+  }, [db, user, todayStr]);
+
+  const { data: entry } = useDoc(diaryRef);
+
+  const [localEntry, setLocalEntry] = useState({
     whatIDidToday: '',
     whatILearned: '',
     challengesBlockers: '',
@@ -28,36 +36,32 @@ export default function DiaryPage(props: { searchParams: Promise<{ [key: string]
     mood: '😊'
   });
 
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
-
-  useEffect(() => {
-    if (!user) return;
-    const fetchTodayEntry = async () => {
-      const docRef = doc(db, 'daily_diary', `${user.uid}_${todayStr}`);
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        setEntry(snap.data() as any);
-      }
-    };
-    fetchTodayEntry();
-  }, [user, db, todayStr]);
-
-  const saveEntry = async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      await setDoc(doc(db, 'daily_diary', `${user.uid}_${todayStr}`), {
-        ...entry,
-        userId: user.uid,
-        date: todayStr,
-        updatedAt: new Date().toISOString()
+  // Update local state when Firestore data loads
+  React.useEffect(() => {
+    if (entry) {
+      setLocalEntry({
+        whatIDidToday: entry.whatIDidToday || '',
+        whatILearned: entry.whatILearned || '',
+        challengesBlockers: entry.challengesBlockers || '',
+        tomorrowsPlan: entry.tomorrowsPlan || '',
+        mood: entry.mood || '😊'
       });
-      toast({ title: "Diary saved!", description: "Your reflection for today has been recorded." });
-    } catch (err) {
-      toast({ variant: 'destructive', title: "Failed to save diary" });
-    } finally {
-      setLoading(false);
     }
+  }, [entry]);
+
+  const saveEntry = () => {
+    if (!user || !diaryRef) return;
+    setLoading(true);
+    setDocumentNonBlocking(diaryRef, {
+      ...localEntry,
+      userId: user.uid,
+      date: todayStr,
+      createdAt: entry?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+    
+    toast({ title: "Diary saved!", description: "Your reflection for today has been recorded." });
+    setLoading(false);
   };
 
   const moods = ['😊', '🤩', '🤔', '😴', '😤', '😔', '🤯'];
@@ -68,7 +72,7 @@ export default function DiaryPage(props: { searchParams: Promise<{ [key: string]
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary/20 rounded-lg text-primary">
-              <BookText className="w-6 h-6" />
+              < BookText className="w-6 h-6" />
             </div>
             <div>
               <h2 className="text-2xl font-bold font-headline">Daily Reflection</h2>
@@ -88,8 +92,8 @@ export default function DiaryPage(props: { searchParams: Promise<{ [key: string]
                 {moods.map(m => (
                   <button
                     key={m}
-                    onClick={() => setEntry({...entry, mood: m})}
-                    className={`text-3xl transition-transform hover:scale-125 ${entry.mood === m ? 'scale-125 drop-shadow-md' : 'grayscale opacity-50'}`}
+                    onClick={() => setLocalEntry({...localEntry, mood: m})}
+                    className={`text-3xl transition-transform hover:scale-125 ${localEntry.mood === m ? 'scale-125 drop-shadow-md' : 'grayscale opacity-50'}`}
                   >
                     {m}
                   </button>
@@ -103,8 +107,8 @@ export default function DiaryPage(props: { searchParams: Promise<{ [key: string]
                 <Textarea 
                   placeholder="Key accomplishments and activities..." 
                   className="min-h-[120px]" 
-                  value={entry.whatIDidToday}
-                  onChange={e => setEntry({...entry, whatIDidToday: e.target.value})}
+                  value={localEntry.whatIDidToday}
+                  onChange={e => setLocalEntry({...localEntry, whatIDidToday: e.target.value})}
                 />
               </div>
               <div className="space-y-2">
@@ -112,8 +116,8 @@ export default function DiaryPage(props: { searchParams: Promise<{ [key: string]
                 <Textarea 
                   placeholder="New skills or insights gained..." 
                   className="min-h-[120px]" 
-                  value={entry.whatILearned}
-                  onChange={e => setEntry({...entry, whatILearned: e.target.value})}
+                  value={localEntry.whatILearned}
+                  onChange={e => setLocalEntry({...localEntry, whatILearned: e.target.value})}
                 />
               </div>
               <div className="space-y-2">
@@ -121,8 +125,8 @@ export default function DiaryPage(props: { searchParams: Promise<{ [key: string]
                 <Textarea 
                   placeholder="What stopped your progress?" 
                   className="min-h-[120px]" 
-                  value={entry.challengesBlockers}
-                  onChange={e => setEntry({...entry, challengesBlockers: e.target.value})}
+                  value={localEntry.challengesBlockers}
+                  onChange={e => setLocalEntry({...localEntry, challengesBlockers: e.target.value})}
                 />
               </div>
               <div className="space-y-2">
@@ -130,8 +134,8 @@ export default function DiaryPage(props: { searchParams: Promise<{ [key: string]
                 <Textarea 
                   placeholder="Goals for the next day..." 
                   className="min-h-[120px]" 
-                  value={entry.tomorrowsPlan}
-                  onChange={e => setEntry({...entry, tomorrowsPlan: e.target.value})}
+                  value={localEntry.tomorrowsPlan}
+                  onChange={e => setLocalEntry({...localEntry, tomorrowsPlan: e.target.value})}
                 />
               </div>
             </div>

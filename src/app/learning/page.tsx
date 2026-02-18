@@ -1,69 +1,60 @@
+
 "use client";
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useUser, useFirestore } from '@/firebase';
-import { collection, addDoc, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 import { CheckCircle2, GraduationCap, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-export default function LearningPage(props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
-  // Unwrap searchParams to satisfy Next.js 15 requirements
-  use(props.searchParams);
-  
+export default function LearningPage() {
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [goals, setGoals] = useState<any[]>([]);
+  
+  const goalsRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return collection(db, 'users', user.uid, 'learningGoals');
+  }, [db, user]);
+
+  const { data: goals } = useCollection(goalsRef);
   
   const [newGoal, setNewGoal] = useState({ skill: '', difficulty: 'Easy', target: '2' });
 
-  useEffect(() => {
-    if (!user) return;
-    const fetchData = async () => {
-      const q = query(collection(db, 'learning_goals'), where('userId', '==', user.uid));
-      const snap = await getDocs(q);
-      setGoals(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    };
-    fetchData();
-  }, [user, db]);
-
-  const addGoal = async () => {
-    if (!newGoal.skill || !newGoal.target) return;
+  const addGoal = () => {
+    if (!newGoal.skill || !newGoal.target || !goalsRef) return;
     setLoading(true);
-    try {
-      const docRef = await addDoc(collection(db, 'learning_goals'), {
-        userId: user?.uid,
-        skill: newGoal.skill,
-        difficulty: newGoal.difficulty,
-        target: parseInt(newGoal.target),
-        completedCount: 0
-      });
-      setGoals([...goals, { id: docRef.id, ...newGoal, target: parseInt(newGoal.target), completedCount: 0 }]);
+    addDocumentNonBlocking(goalsRef, {
+      userId: user?.uid,
+      skill: newGoal.skill,
+      difficulty: newGoal.difficulty,
+      target: parseInt(newGoal.target),
+      completedCount: 0,
+      createdAt: new Date().toISOString()
+    }).then(() => {
       setNewGoal({ skill: '', difficulty: 'Easy', target: '2' });
-    } finally {
       setLoading(false);
-    }
+    });
   };
 
-  const updateProgress = async (id: string, delta: number) => {
-    const goal = goals.find(g => g.id === id);
+  const updateProgress = (id: string, delta: number) => {
+    if (!goalsRef) return;
+    const goal = goals?.find(g => g.id === id);
     if (!goal) return;
-    const newCount = Math.max(0, goal.completedCount + delta);
-    await updateDoc(doc(db, 'learning_goals', id), { completedCount: newCount });
-    setGoals(goals.map(g => g.id === id ? { ...g, completedCount: newCount } : g));
+    const newCount = Math.max(0, (goal.completedCount || 0) + delta);
+    updateDocumentNonBlocking(doc(goalsRef, id), { completedCount: newCount, updatedAt: new Date().toISOString() });
   };
 
   return (
     <AppShell>
       <div className="space-y-8">
-        {/* Setup Goals */}
         <Card className="shadow-md">
           <CardHeader>
             <CardTitle>Setup Your Learning Goals</CardTitle>
@@ -101,7 +92,6 @@ export default function LearningPage(props: { searchParams: Promise<{ [key: stri
           </CardContent>
         </Card>
 
-        {/* Daily Tracking */}
         <div className="grid gap-6 md:grid-cols-2">
           <Card className="shadow-md border-t-4 border-t-secondary">
             <CardHeader>
@@ -112,8 +102,8 @@ export default function LearningPage(props: { searchParams: Promise<{ [key: stri
               <CardDescription>Mark your completed tasks for today.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {goals.length === 0 && <p className="text-muted-foreground text-center py-8">No goals set yet.</p>}
-              {goals.map((goal) => (
+              {goals?.length === 0 && <p className="text-muted-foreground text-center py-8">No goals set yet.</p>}
+              {goals?.map((goal) => (
                 <div key={goal.id} className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-muted/10 transition-colors">
                   <div>
                     <h4 className="font-bold text-lg">{goal.skill}</h4>
@@ -152,22 +142,22 @@ export default function LearningPage(props: { searchParams: Promise<{ [key: stri
                   <div className="text-xs text-muted-foreground">Day Streak</div>
                 </div>
                 <div className="p-4 bg-muted rounded-lg text-center">
-                  <div className="text-2xl font-bold">45</div>
+                  <div className="text-2xl font-bold">{goals?.reduce((s, g) => s + (g.completedCount || 0), 0)}</div>
                   <div className="text-xs text-muted-foreground">Tasks Done</div>
                 </div>
               </div>
               <div className="space-y-3">
                 <h5 className="text-sm font-semibold">Skill Mastery</h5>
-                {goals.map(g => (
+                {goals?.map(g => (
                   <div key={g.id} className="space-y-1">
                     <div className="flex justify-between text-xs">
                       <span>{g.skill}</span>
-                      <span>{Math.round((g.completedCount / g.target) * 100)}%</span>
+                      <span>{Math.round(((g.completedCount || 0) / g.target) * 100)}%</span>
                     </div>
                     <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-primary transition-all duration-500" 
-                        style={{ width: `${(g.completedCount / g.target) * 100}%` }}
+                        style={{ width: `${Math.min(100, ((g.completedCount || 0) / g.target) * 100)}%` }}
                       />
                     </div>
                   </div>

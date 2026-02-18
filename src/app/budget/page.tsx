@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,69 +9,64 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useUser, useFirestore } from '@/firebase';
-import { collection, addDoc, query, where, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 import { Plus, Trash2, Tag, BrainCircuit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { categorizeExpense } from '@/ai/flows/categorize-expense-flow';
+import { format } from 'date-fns';
 
-export default function BudgetPage(props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
-  // Unwrap searchParams to satisfy Next.js 15 requirements
-  use(props.searchParams);
-  
+export default function BudgetPage() {
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [fixedExpenses, setFixedExpenses] = useState<any[]>([]);
   const [categories, setCategories] = useState<string[]>(['Food', 'Transport', 'Entertainment', 'Shopping']);
   
   const [newFixed, setNewFixed] = useState({ name: '', amount: '' });
   const [newExpense, setNewExpense] = useState({ description: '', amount: '' });
-  const [monthlyBudget, setMonthlyBudget] = useState('2000');
+  const [monthlyBudgetLimit, setMonthlyBudgetLimit] = useState('2000');
 
-  useEffect(() => {
-    if (!user) return;
-    const fetchFixed = async () => {
-      const q = query(collection(db, 'fixed_expenses'), where('userId', '==', user.uid));
-      const snap = await getDocs(q);
-      setFixedExpenses(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    };
-    fetchFixed();
-  }, [user, db]);
+  const monthId = format(new Date(), 'yyyyMM');
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
 
-  const addFixedExpense = async () => {
-    if (!newFixed.name || !newFixed.amount) return;
+  const fixedExpensesRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return collection(db, 'users', user.uid, 'monthlyBudgets', monthId, 'fixedExpenses');
+  }, [db, user, monthId]);
+
+  const { data: fixedExpenses } = useCollection(fixedExpensesRef);
+
+  const addFixedExpense = () => {
+    if (!newFixed.name || !newFixed.amount || !fixedExpensesRef) return;
     setLoading(true);
-    try {
-      const docRef = await addDoc(collection(db, 'fixed_expenses'), {
-        userId: user?.uid,
-        name: newFixed.name,
-        amount: parseFloat(newFixed.amount),
-        included: true
-      });
-      setFixedExpenses([...fixedExpenses, { id: docRef.id, name: newFixed.name, amount: parseFloat(newFixed.amount), included: true }]);
+    addDocumentNonBlocking(fixedExpensesRef, {
+      userId: user?.uid,
+      monthlyBudgetId: monthId,
+      name: newFixed.name,
+      amount: parseFloat(newFixed.amount),
+      includeInBudget: true,
+      createdAt: new Date().toISOString()
+    }).then(() => {
       setNewFixed({ name: '', amount: '' });
-    } finally {
       setLoading(false);
-    }
+    });
   };
 
-  const toggleFixed = async (id: string, current: boolean) => {
-    await updateDoc(doc(db, 'fixed_expenses', id), { included: !current });
-    setFixedExpenses(fixedExpenses.map(f => f.id === id ? { ...f, included: !current } : f));
+  const toggleFixed = (id: string, current: boolean) => {
+    if (!fixedExpensesRef) return;
+    updateDocumentNonBlocking(doc(fixedExpensesRef, id), { includeInBudget: !current });
   };
 
-  const deleteFixed = async (id: string) => {
-    await deleteDoc(doc(db, 'fixed_expenses', id));
-    setFixedExpenses(fixedExpenses.filter(f => f.id !== id));
+  const deleteFixed = (id: string) => {
+    if (!fixedExpensesRef) return;
+    deleteDocumentNonBlocking(doc(fixedExpensesRef, id));
   };
 
   const handleLogExpense = async () => {
-    if (!newExpense.description || !newExpense.amount) return;
+    if (!newExpense.description || !newExpense.amount || !user || !db) return;
     setLoading(true);
     try {
-      // AI Categorization
       const result = await categorizeExpense({
         expenseDescription: newExpense.description,
         existingCategories: categories
@@ -85,12 +81,15 @@ export default function BudgetPage(props: { searchParams: Promise<{ [key: string
         setCategories([...categories, result.suggestedCategoryName]);
       }
 
-      await addDoc(collection(db, 'expenses'), {
-        userId: user?.uid,
+      const expensesRef = collection(db, 'users', user.uid, 'monthlyBudgets', monthId, 'expenses');
+      addDocumentNonBlocking(expensesRef, {
+        userId: user.uid,
+        monthlyBudgetId: monthId,
         description: newExpense.description,
         amount: parseFloat(newExpense.amount),
         category: result.suggestedCategoryName,
-        date: new Date().toISOString()
+        date: todayStr,
+        createdAt: new Date().toISOString()
       });
 
       setNewExpense({ description: '', amount: '' });
@@ -101,12 +100,11 @@ export default function BudgetPage(props: { searchParams: Promise<{ [key: string
     }
   };
 
-  const totalFixedIncluded = fixedExpenses.filter(f => f.included).reduce((s, f) => s + f.amount, 0);
+  const totalFixedIncluded = fixedExpenses?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
 
   return (
     <AppShell>
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Budget Setup */}
         <div className="lg:col-span-2 space-y-6">
           <Card className="shadow-md">
             <CardHeader>
@@ -119,8 +117,8 @@ export default function BudgetPage(props: { searchParams: Promise<{ [key: string
                 <Input 
                   id="total-budget" 
                   type="number" 
-                  value={monthlyBudget} 
-                  onChange={(e) => setMonthlyBudget(e.target.value)}
+                  value={monthlyBudgetLimit} 
+                  onChange={(e) => setMonthlyBudgetLimit(e.target.value)}
                 />
               </div>
               
@@ -158,14 +156,14 @@ export default function BudgetPage(props: { searchParams: Promise<{ [key: string
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {fixedExpenses.map((expense) => (
+                      {fixedExpenses?.map((expense) => (
                         <TableRow key={expense.id}>
                           <TableCell className="font-medium">{expense.name}</TableCell>
                           <TableCell>${expense.amount.toFixed(2)}</TableCell>
                           <TableCell>
                             <Switch 
-                              checked={expense.included} 
-                              onCheckedChange={() => toggleFixed(expense.id, expense.included)} 
+                              checked={expense.includeInBudget} 
+                              onCheckedChange={() => toggleFixed(expense.id, expense.includeInBudget)} 
                             />
                           </TableCell>
                           <TableCell className="text-right">
@@ -186,7 +184,6 @@ export default function BudgetPage(props: { searchParams: Promise<{ [key: string
             </CardFooter>
           </Card>
 
-          {/* Log New Expense */}
           <Card className="shadow-md border-t-2 border-primary">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -224,7 +221,6 @@ export default function BudgetPage(props: { searchParams: Promise<{ [key: string
           </Card>
         </div>
 
-        {/* Rolling Budget Summary */}
         <div className="space-y-6">
           <Card className="shadow-md bg-primary text-primary-foreground">
             <CardHeader>
@@ -235,32 +231,6 @@ export default function BudgetPage(props: { searchParams: Promise<{ [key: string
               <div className="text-4xl font-bold font-headline">$54.20</div>
               <div className="mt-4 p-3 rounded-lg bg-white/10 text-xs">
                 Base Daily: $40.00 + Carry: $14.20
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-md">
-            <CardHeader>
-              <CardTitle className="text-sm">Budget Options</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Weekend Extra</Label>
-                  <p className="text-xs text-muted-foreground">Add bonus for Sat/Sun</p>
-                </div>
-                <Switch defaultChecked />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Public Holidays</Label>
-                  <p className="text-xs text-muted-foreground">Add bonus for holidays</p>
-                </div>
-                <Switch defaultChecked />
-              </div>
-              <div className="space-y-2 pt-2 border-t">
-                <Label>Extra Amount (per day)</Label>
-                <Input type="number" defaultValue="20" className="h-8" />
               </div>
             </CardContent>
           </Card>
