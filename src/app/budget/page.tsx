@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
-import { Plus, Trash2, Tag, BrainCircuit, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Tag, BrainCircuit, Loader2, Wallet, ReceiptText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { categorizeExpense } from '@/ai/flows/categorize-expense-flow';
 import { format } from 'date-fns';
@@ -164,78 +164,110 @@ export default function BudgetPage() {
         <div className="lg:col-span-2 space-y-6">
           <Card className="shadow-md">
             <CardHeader>
-              <CardTitle>Monthly Budget Setup</CardTitle>
-              <CardDescription>Configure your income and fixed deductions.</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-primary" />
+                Monthly Budget Plan
+              </CardTitle>
+              <CardDescription>Set your total spending limit for {format(new Date(), 'MMMM yyyy')}.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent>
               <div className="grid gap-2">
                 <Label htmlFor="total-budget">Total Monthly Budget</Label>
-                <Input 
-                  id="total-budget" 
-                  type="number" 
-                  value={monthlyBudgetLimit} 
-                  onChange={(e) => setMonthlyBudgetLimit(e.target.value)}
-                />
-              </div>
-              
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-semibold text-sm">Fixed Monthly Expenses</h4>
-                </div>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="flex gap-2">
                   <Input 
-                    className="col-span-2" 
-                    placeholder="Rent, Internet, etc." 
-                    value={newFixed.name}
-                    onChange={(e) => setNewFixed({ ...newFixed, name: e.target.value })}
-                  />
-                  <Input 
-                    className="col-span-2" 
+                    id="total-budget" 
                     type="number" 
-                    placeholder="Amount" 
-                    value={newFixed.amount}
-                    onChange={(e) => setNewFixed({ ...newFixed, amount: e.target.value })}
+                    placeholder="2000"
+                    value={monthlyBudgetLimit} 
+                    onChange={(e) => setMonthlyBudgetLimit(e.target.value)}
                   />
-                  <Button onClick={addFixedExpense} disabled={loading} size="icon">
-                    <Plus className="h-4 w-4" />
-                  </Button>
+                  <Button variant="secondary">Update</Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  This is your gross budget before any deductions.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ReceiptText className="h-5 w-5 text-primary" />
+                Fixed Monthly Expenses
+              </CardTitle>
+              <CardDescription>Recurring costs that are automatically deducted from your daily budget.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="grid grid-cols-5 gap-2">
+                  <div className="col-span-2 space-y-1">
+                    <Label className="text-xs">Expense Name</Label>
+                    <Input 
+                      placeholder="Rent, Internet, etc." 
+                      value={newFixed.name}
+                      onChange={(e) => setNewFixed({ ...newFixed, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="col-span-2 space-y-1">
+                    <Label className="text-xs">Amount</Label>
+                    <Input 
+                      type="number" 
+                      placeholder="0.00" 
+                      value={newFixed.amount}
+                      onChange={(e) => setNewFixed({ ...newFixed, amount: e.target.value })}
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <Button onClick={addFixedExpense} disabled={loading} size="icon" className="w-full">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="border rounded-md overflow-hidden">
+                <div className="border rounded-md overflow-hidden bg-card">
                   <Table>
-                    <TableHeader>
+                    <TableHeader className="bg-muted/50">
                       <TableRow>
                         <TableHead>Expense</TableHead>
                         <TableHead>Amount</TableHead>
-                        <TableHead>Include</TableHead>
+                        <TableHead>Included</TableHead>
                         <TableHead className="text-right">Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {fixedExpenses?.map((expense) => (
-                        <TableRow key={expense.id}>
-                          <TableCell className="font-medium">{expense.name}</TableCell>
-                          <TableCell>${expense.amount.toFixed(2)}</TableCell>
-                          <TableCell>
-                            <Switch 
-                              checked={expense.includeInBudget} 
-                              onCheckedChange={() => toggleFixed(expense.id, expense.includeInBudget)} 
-                            />
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" onClick={() => deleteFixed(expense.id)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                      {fixedExpenses && fixedExpenses.length > 0 ? (
+                        fixedExpenses.map((expense) => (
+                          <TableRow key={expense.id}>
+                            <TableCell className="font-medium">{expense.name}</TableCell>
+                            <TableCell>${expense.amount.toFixed(2)}</TableCell>
+                            <TableCell>
+                              <Switch 
+                                checked={expense.includeInBudget} 
+                                onCheckedChange={() => toggleFixed(expense.id, expense.includeInBudget)} 
+                              />
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="icon" onClick={() => deleteFixed(expense.id)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-6 text-muted-foreground italic text-xs">
+                            No fixed expenses added yet.
                           </TableCell>
                         </TableRow>
-                      ))}
+                      )}
                     </TableBody>
                   </Table>
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="bg-muted/30 flex justify-between">
-              <span className="text-sm text-muted-foreground">Fixed Deductions:</span>
+            <CardFooter className="bg-muted/30 flex justify-between border-t py-4">
+              <span className="text-sm font-medium">Total Fixed Deductions:</span>
               <span className="font-bold text-destructive">${totalFixedIncluded.toFixed(2)}</span>
             </CardFooter>
           </Card>
