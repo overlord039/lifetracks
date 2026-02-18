@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -8,8 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
-import { collection, doc, query, where } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 import { Plus, Trash2, Tag, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { categorizeExpense } from '@/ai/flows/categorize-expense-flow';
@@ -32,6 +33,15 @@ export default function BudgetPage() {
   const todayStr = format(now, 'yyyy-MM-dd');
   const daysInMonth = getDaysInMonth(now);
   const isTodayWeekend = isWeekend(now);
+
+  // Count weekend and weekday occurrences in the current month
+  let weekendDaysInMonth = 0;
+  let weekdaysInMonth = 0;
+  for (let i = 1; i <= daysInMonth; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), i);
+    if (isWeekend(d)) weekendDaysInMonth++;
+    else weekdaysInMonth++;
+  }
 
   // Firestore References
   const categoriesRef = useMemoFirebase(() => {
@@ -166,13 +176,25 @@ export default function BudgetPage() {
     toast({ title: "Expense logged", description: "Successfully saved your spending." });
   };
 
-  // Calculations
-  const totalBudget = monthlyBudgetDoc?.totalBudgetAmount || 0;
+  // Automated Budget Calculations
+  const totalBudgetAmount = monthlyBudgetDoc?.totalBudgetAmount || 0;
   const totalFixedIncluded = fixedExpenses?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
-  const netMonthly = Math.max(0, totalBudget - totalFixedIncluded);
-  const baseDailyBudget = netMonthly / daysInMonth;
-  const weekendBonus = monthlyBudgetDoc?.isWeekendExtraBudgetEnabled ? (monthlyBudgetDoc?.weekendExtraBudgetPerDayAmount || 0) : 0;
-  const todayAllowed = baseDailyBudget + (isTodayWeekend ? weekendBonus : 0);
+  const netMonthly = Math.max(0, totalBudgetAmount - totalFixedIncluded);
+  
+  // Logic for Auto-Calculation (50% extra on weekends)
+  const isWeekendEnabled = monthlyBudgetDoc?.isWeekendExtraBudgetEnabled || false;
+  const multiplier = 1.5; // weekends get 50% more than weekdays
+  
+  // netMonthly = (weekdaysInMonth * Rate) + (weekendDaysInMonth * multiplier * Rate)
+  const weekdayRate = netMonthly > 0 
+    ? (isWeekendEnabled 
+        ? netMonthly / (weekdaysInMonth + (multiplier * weekendDaysInMonth))
+        : netMonthly / daysInMonth)
+    : 0;
+  
+  const weekendRate = isWeekendEnabled ? weekdayRate * multiplier : weekdayRate;
+  const autoWeekendBonus = isWeekendEnabled ? (weekendRate - weekdayRate) : 0;
+  const todayAllowed = isTodayWeekend ? weekendRate : weekdayRate;
 
   return (
     <AppShell>
@@ -208,20 +230,26 @@ export default function BudgetPage() {
                     </Label>
                     <Switch 
                       id="weekend-toggle"
-                      checked={monthlyBudgetDoc?.isWeekendExtraBudgetEnabled || false}
+                      checked={isWeekendEnabled}
                       onCheckedChange={(checked) => saveMonthlyBudget({ isWeekendExtraBudgetEnabled: checked })}
                     />
                   </div>
-                  <div className="pt-2">
-                    <Input 
-                      type="number"
-                      placeholder="e.g., 20.00"
-                      disabled={!monthlyBudgetDoc?.isWeekendExtraBudgetEnabled}
-                      value={monthlyBudgetDoc?.weekendExtraBudgetPerDayAmount || ''}
-                      onChange={(e) => saveMonthlyBudget({ weekendExtraBudgetPerDayAmount: parseFloat(e.target.value) || 0 })}
-                    />
-                    <p className="text-[10px] text-muted-foreground mt-1">Extra amount added to Sat & Sun daily budget.</p>
-                  </div>
+                  {isWeekendEnabled && (
+                    <div className="pt-2 animate-in fade-in slide-in-from-top-1">
+                      <div className="text-sm font-medium text-primary flex items-center gap-1">
+                        <Plus className="h-3 w-3" />
+                        ${autoWeekendBonus.toFixed(2)} / day
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Automatically calculated for {weekendDaysInMonth} weekend days (50% bonus).
+                      </p>
+                    </div>
+                  )}
+                  {!isWeekendEnabled && (
+                    <p className="text-[10px] text-muted-foreground mt-2">
+                      Enable to automatically shift 50% extra budget to your weekends.
+                    </p>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -231,8 +259,8 @@ export default function BudgetPage() {
                 <span className="font-bold">${netMonthly.toFixed(2)}</span>
               </div>
               <div className="flex justify-between w-full text-sm">
-                <span>Base Daily Allocation:</span>
-                <span className="font-bold text-primary">${baseDailyBudget.toFixed(2)} / day</span>
+                <span>Standard Daily Allocation:</span>
+                <span className="font-bold text-primary">${weekdayRate.toFixed(2)} / day</span>
               </div>
             </CardFooter>
           </Card>
@@ -402,13 +430,22 @@ export default function BudgetPage() {
                 Allowed Today
               </CardTitle>
               <CardDescription className="text-primary-foreground/80">
-                {isTodayWeekend ? 'Weekend Bonus Applied! 🚀' : 'Standard Weekday Allocation'}
+                {isTodayWeekend ? 'Weekend Bonus Active! 🚀' : 'Standard Weekday Allocation'}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-4xl font-bold font-headline">${todayAllowed.toFixed(2)}</div>
-              <div className="mt-4 p-3 rounded-lg bg-white/10 text-xs">
-                Base: ${baseDailyBudget.toFixed(2)} {isTodayWeekend && `+ Bonus: $${weekendBonus.toFixed(2)}`}
+              <div className="mt-4 p-3 rounded-lg bg-white/10 text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span>Daily Rate:</span>
+                  <span>${weekdayRate.toFixed(2)}</span>
+                </div>
+                {isWeekendEnabled && (
+                  <div className="flex justify-between border-t border-white/20 pt-1">
+                    <span>Weekend Bonus:</span>
+                    <span>{isTodayWeekend ? `+$${autoWeekendBonus.toFixed(2)}` : 'N/A'}</span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -433,14 +470,12 @@ export default function BudgetPage() {
                   <div key={c.id} className="flex items-center gap-1 pl-2 pr-1 py-1 bg-muted rounded-full text-xs">
                     <Tag className="h-3 w-3" />
                     {c.name}
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-4 w-4 p-0 ml-1 rounded-full" 
+                    <button 
+                      className="h-4 w-4 p-0 ml-1 rounded-full flex items-center justify-center hover:bg-destructive/10 text-destructive/50 hover:text-destructive" 
                       onClick={() => deleteCategory(c.id)}
                     >
-                      <Trash2 className="h-2 w-2 text-destructive" />
-                    </Button>
+                      <Trash2 className="h-3 w-3" />
+                    </button>
                   </div>
                 ))}
                 {(!categories || categories.length === 0) && (
