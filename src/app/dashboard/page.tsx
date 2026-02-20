@@ -1,10 +1,11 @@
+
 "use client";
 
 import React, { useMemo } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
 import { collection, doc, query, where } from 'firebase/firestore';
 import { 
   TrendingUp, 
@@ -15,52 +16,93 @@ import {
   DollarSign
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
 
 export default function Dashboard() {
   const { user } = useUser();
   const firestore = useFirestore();
   
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
-  const monthId = format(new Date(), 'yyyyMM');
+  const now = new Date();
+  const todayStr = format(now, 'yyyy-MM-dd');
+  const monthId = format(now, 'yyyyMM');
 
-  // 1. Fetch Today's Expenses
-  const expensesQuery = useMemoFirebase(() => {
+  // 1. Fetch Monthly Budget Settings
+  const monthlyBudgetRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    return query(
-      collection(firestore, 'users', user.uid, 'monthlyBudgets', monthId, 'expenses'),
-      where('date', '==', todayStr)
-    );
-  }, [firestore, user, monthId, todayStr]);
-  const { data: todayExpenses } = useCollection(expensesQuery);
+    return doc(firestore, 'users', user.uid, 'monthlyBudgets', monthId);
+  }, [firestore, user, monthId]);
+  const { data: monthlyBudgetDoc } = useDoc(monthlyBudgetRef);
 
-  // 2. Fetch Today's Budget Summary
-  const budgetSummaryRef = useMemoFirebase(() => {
+  // 2. Fetch Fixed Expenses
+  const fixedExpensesRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    return doc(firestore, 'users', user.uid, 'monthlyBudgets', monthId, 'dailyBudgetSummaries', todayStr);
-  }, [firestore, user, monthId, todayStr]);
-  const { data: budgetSummary } = useDoc(budgetSummaryRef);
+    return collection(firestore, 'users', user.uid, 'monthlyBudgets', monthId, 'fixedExpenses');
+  }, [firestore, user, monthId]);
+  const { data: fixedExpenses } = useCollection(fixedExpensesRef);
 
-  // 3. Fetch Learning Goals
+  // 3. Fetch All Expenses for the Month
+  const monthExpensesRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, 'users', user.uid, 'monthlyBudgets', monthId, 'expenses');
+  }, [firestore, user, monthId]);
+  const { data: monthExpenses } = useCollection(monthExpensesRef);
+
+  // 4. Fetch Learning Goals
   const goalsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return collection(firestore, 'users', user.uid, 'learningGoals');
   }, [firestore, user]);
   const { data: learningGoals } = useCollection(goalsQuery);
 
-  // 4. Fetch Today's Diary Entry
+  // 5. Fetch Today's Diary Entry
   const diaryRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'users', user.uid, 'dailyDiaries', todayStr);
   }, [firestore, user, todayStr]);
   const { data: todayDiary } = useDoc(diaryRef);
 
-  // Aggregated Stats
-  const spentToday = todayExpenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0;
-  const allowedToday = budgetSummary?.calculatedAllowedBudget || 40.00; // Fallback default
-  
+  // Calculations
+  const { allowedToday, spentToday, dailyProgress } = useMemo(() => {
+    if (!monthlyBudgetDoc || !monthExpenses) {
+      return { allowedToday: 0, spentToday: 0, dailyProgress: 0 };
+    }
+
+    // Prepare daily expenses map
+    const dailyExpensesMap: Record<string, number> = {};
+    monthExpenses.forEach(exp => {
+      dailyExpensesMap[exp.date] = (dailyExpensesMap[exp.date] || 0) + exp.amount;
+    });
+
+    const config: MonthlyConfig = {
+      totalBudget: monthlyBudgetDoc.totalBudgetAmount || 0,
+      month: now.getMonth(),
+      year: now.getFullYear(),
+      fixedExpenses: (fixedExpenses || []).map(f => ({
+        id: f.id,
+        name: f.name,
+        amount: f.amount,
+        included: f.includeInBudget
+      })),
+      weekendExtra: monthlyBudgetDoc.isWeekendExtraBudgetEnabled ? 100 : 0, // Fallback placeholder if not computed
+      holidayExtra: 0,
+      isWeekendEnabled: monthlyBudgetDoc.isWeekendExtraBudgetEnabled || false,
+      isHolidayEnabled: false
+    };
+
+    // Use our logic lib to get the rolling reports
+    const reports = calculateRollingBudget(config, dailyExpensesMap, []);
+    const todayReport = reports[todayStr];
+
+    return {
+      allowedToday: todayReport?.allowedBudget || 0,
+      spentToday: todayReport?.spent || 0,
+      dailyProgress: todayReport?.allowedBudget > 0 ? Math.min(100, (todayReport.spent / todayReport.allowedBudget) * 100) : 0
+    };
+  }, [monthlyBudgetDoc, monthExpenses, fixedExpenses, todayStr, now]);
+
   const totalGoals = learningGoals?.length || 0;
   const completedGoals = learningGoals?.filter(g => (g.completedCount || 0) >= (g.target || 0)).length || 0;
-  const learningProgress = totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100) : 0;
+  const goalsProgress = totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100) : 0;
 
   return (
     <AppShell>
@@ -73,7 +115,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">₹{allowedToday.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">Allowed for today</p>
+            <p className="text-xs text-muted-foreground">Allowed for today (incl. carry)</p>
           </CardContent>
         </Card>
 
@@ -96,8 +138,8 @@ export default function Dashboard() {
             <BookOpen className="w-4 h-4 text-secondary-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{learningProgress}%</div>
-            <Progress value={learningProgress} className="h-2 mt-2" />
+            <div className="text-2xl font-bold">{goalsProgress}%</div>
+            <Progress value={goalsProgress} className="h-2 mt-2" />
           </CardContent>
         </Card>
 
