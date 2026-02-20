@@ -100,17 +100,18 @@ export default function BudgetPage() {
   }, [monthlyBudgetDoc, expenses, fixedExpenses, now, calculatedWeekendBonus]);
 
   const todayReport = budgetReport?.[todayStr];
-  const isOverspentToday = todayReport && todayReport.spent > todayReport.allowedBudget;
+  const dailyAllocationToday = dailyBase + (todayReport?.extraBudget || 0);
+  const isOverspentToday = todayReport && todayReport.spent > dailyAllocationToday;
 
   useEffect(() => {
     if (isOverspentToday) {
       toast({
         variant: "destructive",
-        title: "Budget Exceeded!",
-        description: `You've spent ₹${(todayReport?.spent || 0).toFixed(0)}, which is ₹${((todayReport?.spent || 0) - (todayReport?.allowedBudget || 0)).toFixed(0)} more than today's limit.`,
+        title: "Daily Budget Exceeded!",
+        description: `You've spent ₹${(todayReport?.spent || 0).toFixed(0)}, which is ₹${((todayReport?.spent || 0) - dailyAllocationToday).toFixed(0)} more than your daily target.`,
       });
     }
-  }, [isOverspentToday, todayReport?.spent, toast]);
+  }, [isOverspentToday, todayReport?.spent, dailyAllocationToday, toast]);
 
   const saveMonthlyBudget = (updates: any) => {
     if (!monthlyBudgetRef || !user) return;
@@ -224,9 +225,9 @@ export default function BudgetPage() {
           {isOverspentToday && (
             <Alert variant="destructive" className="animate-in fade-in slide-in-from-top-4 duration-500 shadow-lg">
               <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Over Budget Notification</AlertTitle>
+              <AlertTitle>Daily Limit Exceeded</AlertTitle>
               <AlertDescription>
-                Your daily spending has exceeded your sustainable allowance. Subsequent daily budgets will be adjusted to keep you on track.
+                You've spent more than your daily slice. While you may have unspent funds from previous days, try to stay within your daily target to maximize savings.
               </AlertDescription>
             </Alert>
           )}
@@ -404,12 +405,12 @@ export default function BudgetPage() {
                 Sustainable Today
               </CardTitle>
               <CardDescription className="text-primary-foreground/80 font-medium">
-                {todayStr} • Dynamic Carry-Forward
+                {todayStr} • Daily Allocation
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="text-5xl font-black tracking-tighter drop-shadow-sm">
-                ₹{Math.max(0, (todayReport?.allowedBudget || 0) - (todayReport?.spent || 0)).toFixed(0)}
+                ₹{Math.max(0, dailyAllocationToday - (todayReport?.spent || 0)).toFixed(0)}
               </div>
               
               <div className="space-y-4 pt-4 border-t border-white/20">
@@ -419,20 +420,20 @@ export default function BudgetPage() {
                 </div>
                 
                 <div className="flex justify-between items-center text-sm font-black pt-2 border-t border-white/10">
-                  <span>Remaining Daily Budget:</span>
-                  <span className="text-2xl">₹{Math.max(0, (todayReport?.allowedBudget || 0) - (todayReport?.spent || 0)).toFixed(0)}</span>
+                  <span>Remaining Daily Base Budget:</span>
+                  <span className="text-2xl">₹{Math.max(0, dailyAllocationToday - (todayReport?.spent || 0)).toFixed(0)}</span>
                 </div>
 
                 {isOverspentToday && (
                   <div className="pt-2 flex items-center justify-center gap-2 text-xs font-bold text-white uppercase animate-bounce bg-white/10 py-2 rounded-lg">
-                    <AlertTriangle className="h-4 w-4" /> Overspent by ₹{((todayReport?.spent || 0) - (todayReport?.allowedBudget || 0)).toFixed(0)}
+                    <AlertTriangle className="h-4 w-4" /> Overspent by ₹{((todayReport?.spent || 0) - dailyAllocationToday).toFixed(0)}
                   </div>
                 )}
               </div>
             </CardContent>
             <CardFooter className="pt-0 pb-4 flex justify-center">
               <div className="bg-white/10 px-3 py-1 rounded-full text-[10px] font-medium backdrop-blur-sm">
-                System maintains your monthly budget cap.
+                Focusing on your daily target.
               </div>
             </CardFooter>
           </Card>
