@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
-import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { categorizeExpense } from '@/ai/flows/categorize-expense-flow';
 import { format, getDaysInMonth } from 'date-fns';
@@ -89,7 +89,6 @@ export default function BudgetPage() {
         amount: f.amount,
         included: f.includeInBudget
       })),
-      // Automatically use the calculated 50% bonus if enabled
       saturdayExtra: monthlyBudgetDoc.isWeekendExtraBudgetEnabled ? calculatedWeekendBonus : 0,
       sundayExtra: monthlyBudgetDoc.isWeekendExtraBudgetEnabled ? calculatedWeekendBonus : 0,
       holidayExtra: 0,
@@ -410,43 +409,23 @@ export default function BudgetPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="text-5xl font-black tracking-tighter drop-shadow-sm">
-                ₹{Math.max(0, todayReport?.allowedBudget || 0).toFixed(0)}
+                ₹{Math.max(0, (todayReport?.allowedBudget || 0) - (todayReport?.spent || 0)).toFixed(0)}
               </div>
               
-              <div className="space-y-2 pt-4 border-t border-white/20">
-                <div className="flex justify-between text-xs opacity-90">
-                  <span>Daily Base Allowance:</span>
-                  <span className="font-bold">₹{dailyBase.toFixed(0)}</span>
-                </div>
-                
-                <div className="flex justify-between text-xs opacity-90">
-                  <span>Carry Forward (Saved/Over):</span>
-                  <span className={`font-bold ${(todayReport?.carryForwardFromYesterday || 0) < 0 ? 'text-red-200' : 'text-green-200'}`}>
-                    {(todayReport?.carryForwardFromYesterday || 0) >= 0 ? '+' : ''}
-                    ₹{(todayReport?.carryForwardFromYesterday || 0).toFixed(0)}
-                  </span>
-                </div>
-
-                {todayReport && todayReport.extraBudget > 0 && (
-                  <div className="flex justify-between text-xs text-yellow-200 font-bold">
-                    <span>Weekend Bonus:</span>
-                    <span>+₹{todayReport.extraBudget.toFixed(0)}</span>
-                  </div>
-                )}
-
-                <div className="flex justify-between text-sm font-black pt-2 border-t border-white/10">
+              <div className="space-y-4 pt-4 border-t border-white/20">
+                <div className="flex justify-between items-center text-sm font-bold opacity-90">
                   <span>Spent Today:</span>
-                  <span>₹{(todayReport?.spent || 0).toFixed(0)}</span>
+                  <span className="text-lg">₹{(todayReport?.spent || 0).toFixed(0)}</span>
                 </div>
                 
-                <div className="flex justify-between text-sm font-black pt-1">
-                  <span>Remaining Today:</span>
-                  <span className="text-xl">₹{Math.max(0, (todayReport?.allowedBudget || 0) - (todayReport?.spent || 0)).toFixed(0)}</span>
+                <div className="flex justify-between items-center text-sm font-black pt-2 border-t border-white/10">
+                  <span>Remaining Daily Budget:</span>
+                  <span className="text-2xl">₹{Math.max(0, (todayReport?.allowedBudget || 0) - (todayReport?.spent || 0)).toFixed(0)}</span>
                 </div>
 
                 {isOverspentToday && (
-                  <div className="pt-2 flex items-center gap-1 text-[10px] font-bold text-white uppercase animate-bounce">
-                    <AlertTriangle className="h-3 w-3" /> Overspent by ₹{((todayReport?.spent || 0) - (todayReport?.allowedBudget || 0)).toFixed(0)}
+                  <div className="pt-2 flex items-center justify-center gap-2 text-xs font-bold text-white uppercase animate-bounce bg-white/10 py-2 rounded-lg">
+                    <AlertTriangle className="h-4 w-4" /> Overspent by ₹{((todayReport?.spent || 0) - (todayReport?.allowedBudget || 0)).toFixed(0)}
                   </div>
                 )}
               </div>
