@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
-import { Plus, Trash2, Tag, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, TrendingDown, Info } from 'lucide-react';
+import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { categorizeExpense } from '@/ai/flows/categorize-expense-flow';
 import { format } from 'date-fns';
@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function BudgetPage() {
   const { user } = useUser();
@@ -97,8 +98,20 @@ export default function BudgetPage() {
   }, [monthlyBudgetDoc, expenses, fixedExpenses, now]);
 
   const todayReport = budgetReport?.[todayStr];
+  const isOverspentToday = todayReport && todayReport.spent > todayReport.allowedBudget;
   const totalIncludedFixed = fixedExpenses?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
   const netMonthlyPool = (monthlyBudgetDoc?.totalBudgetAmount || 0) - totalIncludedFixed;
+
+  // Notification for overspending
+  useEffect(() => {
+    if (isOverspentToday) {
+      toast({
+        variant: "destructive",
+        title: "Budget Exceeded!",
+        description: `You've spent ₹${(todayReport?.spent || 0).toFixed(0)}, which is ₹${((todayReport?.spent || 0) - (todayReport?.allowedBudget || 0)).toFixed(0)} more than today's limit.`,
+      });
+    }
+  }, [isOverspentToday, todayReport?.spent, toast]);
 
   // Handlers
   const saveMonthlyBudget = (updates: any) => {
@@ -180,7 +193,6 @@ export default function BudgetPage() {
 
     setNewExpense({ description: '', amount: '', categoryId: '' });
     setLoading(false);
-    toast({ title: "Expense logged" });
   };
 
   const deleteExpense = (id: string) => {
@@ -211,6 +223,16 @@ export default function BudgetPage() {
     <AppShell>
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
+          {isOverspentToday && (
+            <Alert variant="destructive" className="animate-in fade-in slide-in-from-top-4 duration-500 shadow-lg">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Over Budget Notification</AlertTitle>
+              <AlertDescription>
+                Your daily spending has exceeded your sustainable allowance. Subsequent daily budgets will be adjusted to keep you on track.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Monthly Budget Initialization */}
           <Card className="shadow-md border-t-4 border-t-primary">
             <CardHeader>
@@ -231,9 +253,6 @@ export default function BudgetPage() {
                     value={monthlyBudgetDoc?.totalBudgetAmount || ''} 
                     onChange={(e) => saveMonthlyBudget({ totalBudgetAmount: parseFloat(e.target.value) || 0 })}
                   />
-                  <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                    <Info className="h-3 w-3" /> User provides budget; system handles calculations.
-                  </p>
                 </div>
 
                 <div className="space-y-4 p-4 border rounded-xl bg-muted/20">
@@ -293,7 +312,6 @@ export default function BudgetPage() {
                 <ReceiptText className="h-5 w-5 text-primary" />
                 Fixed Monthly Expenses
               </CardTitle>
-              <CardDescription>Costs like Rent, EMI, or Recharge.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -394,16 +412,12 @@ export default function BudgetPage() {
                 </Table>
               </ScrollArea>
             </CardContent>
-            <CardFooter className="py-3 border-t bg-muted/5 flex justify-between">
-              <span className="text-xs font-bold uppercase text-muted-foreground tracking-tighter">Total Daily Spending</span>
-              <span className="text-sm font-black">₹{expenses?.reduce((s,e) => s + e.amount, 0).toLocaleString()}</span>
-            </CardFooter>
           </Card>
         </div>
 
         <div className="space-y-6">
           {/* DAILY BUDGET CALCULATION CARD */}
-          <Card className={`shadow-xl text-primary-foreground transition-colors duration-500 ${(todayReport?.allowedBudget || 0) < 0 ? 'bg-destructive' : 'bg-primary'}`}>
+          <Card className={`shadow-xl text-primary-foreground transition-colors duration-500 ${isOverspentToday ? 'bg-destructive animate-pulse' : 'bg-primary'}`}>
             <CardHeader>
               <CardTitle className="text-2xl flex items-center gap-2">
                 <Coins className="h-6 w-6" />
@@ -448,11 +462,17 @@ export default function BudgetPage() {
                   <span>Remaining Today:</span>
                   <span className="text-xl">₹{Math.max(0, (todayReport?.allowedBudget || 0) - (todayReport?.spent || 0)).toFixed(0)}</span>
                 </div>
+
+                {isOverspentToday && (
+                  <div className="pt-2 flex items-center gap-1 text-[10px] font-bold text-white uppercase animate-bounce">
+                    <AlertTriangle className="h-3 w-3" /> Overspent by ₹{((todayReport?.spent || 0) - (todayReport?.allowedBudget || 0)).toFixed(0)}
+                  </div>
+                )}
               </div>
             </CardContent>
             <CardFooter className="pt-0 pb-4 flex justify-center">
               <div className="bg-white/10 px-3 py-1 rounded-full text-[10px] font-medium backdrop-blur-sm">
-                System maintains ₹{monthlyBudgetDoc?.totalBudgetAmount?.toLocaleString()} monthly cap.
+                System maintains your monthly budget cap.
               </div>
             </CardFooter>
           </Card>
