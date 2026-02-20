@@ -62,7 +62,6 @@ export default function ReportsPage(props: { searchParams: Promise<{ [key: strin
       return { spendingData: [], categoryData: [] };
     }
 
-    // 1. Daily Spending vs Budget Data
     const dailyExpensesMap: Record<string, number> = {};
     monthExpenses.forEach(exp => {
       dailyExpensesMap[exp.date] = (dailyExpensesMap[exp.date] || 0) + exp.amount;
@@ -78,7 +77,8 @@ export default function ReportsPage(props: { searchParams: Promise<{ [key: strin
         amount: f.amount,
         included: f.includeInBudget
       })),
-      weekendExtra: monthlyBudgetDoc.isWeekendExtraBudgetEnabled ? 100 : 0,
+      saturdayExtra: monthlyBudgetDoc.saturdayExtraAmount || 0,
+      sundayExtra: monthlyBudgetDoc.sundayExtraAmount || 0,
       holidayExtra: 0,
       isWeekendEnabled: monthlyBudgetDoc.isWeekendExtraBudgetEnabled || false,
       isHolidayEnabled: false
@@ -86,7 +86,6 @@ export default function ReportsPage(props: { searchParams: Promise<{ [key: strin
 
     const rollingReports = calculateRollingBudget(config, dailyExpensesMap, []);
     
-    // Convert to Chart Format (Last 7 days or current month)
     const monthStart = startOfMonth(now);
     const monthEnd = endOfMonth(now);
     const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
@@ -97,11 +96,11 @@ export default function ReportsPage(props: { searchParams: Promise<{ [key: strin
       return {
         name: format(d, 'dd MMM'),
         spent: r?.spent || 0,
-        budget: r?.allowedBudget || 0
+        budget: Math.max(0, r?.allowedBudget || 0),
+        rawBudget: r?.allowedBudget || 0
       };
     });
 
-    // 2. Category Pie Chart Data
     const categoryTotals: Record<string, number> = {};
     monthExpenses.forEach(exp => {
       const catName = categories?.find(c => c.id === exp.expenseCategoryId)?.name || 'Misc';
@@ -122,17 +121,20 @@ export default function ReportsPage(props: { searchParams: Promise<{ [key: strin
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="shadow-md">
           <CardHeader>
-            <CardTitle>Daily Spending vs Budget</CardTitle>
-            <CardDescription>Visualizing your daily limits against actual spend (₹).</CardDescription>
+            <CardTitle>Daily Spending vs Dynamic Budget</CardTitle>
+            <CardDescription>Visualizing your sustainable limits vs actual spend (₹).</CardDescription>
           </CardHeader>
-          <CardContent className="h-[300px]">
+          <CardContent className="h-[300px] pt-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={spendingData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip formatter={(value: number) => `₹${value.toFixed(2)}`} />
-                <Legend />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                <XAxis dataKey="name" fontSize={10} />
+                <YAxis fontSize={10} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  formatter={(value: number) => `₹${value.toFixed(0)}`} 
+                />
+                <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '10px' }} />
                 <Bar dataKey="spent" fill="#64B5F6" radius={[4, 4, 0, 0]} name="Actual Spend" />
                 <Bar dataKey="budget" fill="#E3F2FD" stroke="#64B5F6" strokeDasharray="5 5" name="Allowed Budget" />
               </BarChart>
@@ -143,9 +145,9 @@ export default function ReportsPage(props: { searchParams: Promise<{ [key: strin
         <Card className="shadow-md">
           <CardHeader>
             <CardTitle>Spending by Category</CardTitle>
-            <CardDescription>Where your money is going this month.</CardDescription>
+            <CardDescription>Distribution of your monthly spending.</CardDescription>
           </CardHeader>
-          <CardContent className="h-[300px]">
+          <CardContent className="h-[300px] pt-4">
             {categoryData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -162,13 +164,13 @@ export default function ReportsPage(props: { searchParams: Promise<{ [key: strin
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value: number) => `₹${value.toFixed(2)}`} />
-                  <Legend />
+                  <Tooltip formatter={(value: number) => `₹${value.toFixed(0)}`} />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                No expense data available for charts.
+              <div className="flex items-center justify-center h-full text-muted-foreground text-sm italic">
+                No expense data recorded.
               </div>
             )}
           </CardContent>
@@ -176,17 +178,18 @@ export default function ReportsPage(props: { searchParams: Promise<{ [key: strin
 
         <Card className="md:col-span-2 shadow-md">
           <CardHeader>
-            <CardTitle>Learning Completion Rate</CardTitle>
-            <CardDescription>Monthly consistency tracking based on logged goals.</CardDescription>
+            <CardTitle>Sustainability Trend</CardTitle>
+            <CardDescription>How your daily limits are evolving over time.</CardDescription>
           </CardHeader>
-          <CardContent className="h-[300px]">
+          <CardContent className="h-[300px] pt-4">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={spendingData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="name" />
-                <YAxis domain={[0, 'auto']} />
-                <Tooltip formatter={(value: number) => `₹${value.toFixed(2)}`} />
-                <Line type="monotone" dataKey="spent" stroke="#A5D6A7" strokeWidth={3} dot={{ fill: '#A5D6A7' }} name="Spend Trend" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                <XAxis dataKey="name" fontSize={10} />
+                <YAxis fontSize={10} />
+                <Tooltip formatter={(value: number) => `₹${value.toFixed(0)}`} />
+                <Line type="monotone" dataKey="spent" stroke="#A5D6A7" strokeWidth={3} dot={{ fill: '#A5D6A7', r: 3 }} name="Spending" />
+                <Line type="step" dataKey="rawBudget" stroke="#64B5F6" strokeWidth={2} strokeDasharray="4 4" name="Budget Limit" />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>

@@ -13,7 +13,8 @@ import {
   AlertCircle, 
   Calendar,
   BookOpen,
-  DollarSign
+  DollarSign,
+  TrendingDown
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
@@ -26,35 +27,31 @@ export default function Dashboard() {
   const todayStr = format(now, 'yyyy-MM-dd');
   const monthId = format(now, 'yyyyMM');
 
-  // 1. Fetch Monthly Budget Settings
+  // Firestore Data
   const monthlyBudgetRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'users', user.uid, 'monthlyBudgets', monthId);
   }, [firestore, user, monthId]);
   const { data: monthlyBudgetDoc } = useDoc(monthlyBudgetRef);
 
-  // 2. Fetch Fixed Expenses
   const fixedExpensesRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return collection(firestore, 'users', user.uid, 'monthlyBudgets', monthId, 'fixedExpenses');
   }, [firestore, user, monthId]);
   const { data: fixedExpenses } = useCollection(fixedExpensesRef);
 
-  // 3. Fetch All Expenses for the Month
   const monthExpensesRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return collection(firestore, 'users', user.uid, 'monthlyBudgets', monthId, 'expenses');
   }, [firestore, user, monthId]);
   const { data: monthExpenses } = useCollection(monthExpensesRef);
 
-  // 4. Fetch Learning Goals
   const goalsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return collection(firestore, 'users', user.uid, 'learningGoals');
   }, [firestore, user]);
   const { data: learningGoals } = useCollection(goalsQuery);
 
-  // 5. Fetch Today's Diary Entry
   const diaryRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'users', user.uid, 'dailyDiaries', todayStr);
@@ -80,7 +77,8 @@ export default function Dashboard() {
         amount: f.amount,
         included: f.includeInBudget
       })),
-      weekendExtra: monthlyBudgetDoc.isWeekendExtraBudgetEnabled ? ( ( (monthlyBudgetDoc.totalBudgetAmount || 0) / 30 ) * 0.5 ) : 0,
+      saturdayExtra: monthlyBudgetDoc.saturdayExtraAmount || 0,
+      sundayExtra: monthlyBudgetDoc.sundayExtraAmount || 0,
       holidayExtra: 0,
       isWeekendEnabled: monthlyBudgetDoc.isWeekendExtraBudgetEnabled || false,
       isHolidayEnabled: false
@@ -92,100 +90,90 @@ export default function Dashboard() {
   const todayReport = budgetReport?.[todayStr];
   const allowedToday = todayReport?.allowedBudget || 0;
   const spentToday = todayReport?.spent || 0;
+  const remaining = Math.max(0, allowedToday - spentToday);
 
-  const totalGoals = learningGoals?.length || 0;
-  const completedGoals = learningGoals?.filter(g => (g.completedCount || 0) >= (g.target || 0)).length || 0;
-  const goalsProgress = totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100) : 0;
+  const goalsProgress = learningGoals?.length ? Math.round((learningGoals.filter(g => (g.completedCount || 0) >= (g.target || 0)).length / learningGoals.length) * 100) : 0;
 
   return (
     <AppShell>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {/* Quick Stats */}
-        <Card className="shadow-sm">
+        <Card className="shadow-md border-b-4 border-b-primary">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Daily Budget</CardTitle>
-            <DollarSign className="w-4 h-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-bold uppercase tracking-tighter text-muted-foreground">Allowed Today</CardTitle>
+            <DollarSign className="w-4 h-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{allowedToday.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">Allowed for today (incl. carry)</p>
+            <div className="text-3xl font-black">₹{allowedToday.toFixed(0)}</div>
+            <p className="text-[10px] text-muted-foreground mt-1">Including carry-forward balance</p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm">
+        <Card className="shadow-md">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Spent Today</CardTitle>
-            <TrendingUp className="w-4 h-4 text-primary" />
+            <CardTitle className="text-sm font-bold uppercase tracking-tighter text-muted-foreground">Spent Today</CardTitle>
+            <TrendingUp className="w-4 h-4 text-secondary-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{spentToday.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">
-              {spentToday > allowedToday ? "Over daily allocation" : "Within limits"}
+            <div className="text-3xl font-black">₹{spentToday.toFixed(0)}</div>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              {spentToday > allowedToday ? "Exceeding daily target" : "Within sustainable limits"}
             </p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm">
+        <Card className="shadow-md">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Goal Completion</CardTitle>
-            <BookOpen className="w-4 h-4 text-secondary-foreground" />
+            <CardTitle className="text-sm font-bold uppercase tracking-tighter text-muted-foreground">Goal Progress</CardTitle>
+            <BookOpen className="w-4 h-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{goalsProgress}%</div>
-            <Progress value={goalsProgress} className="h-2 mt-2" />
+            <div className="text-3xl font-black">{goalsProgress}%</div>
+            <Progress value={goalsProgress} className="h-1.5 mt-2" />
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm">
+        <Card className="shadow-md">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Diary Status</CardTitle>
+            <CardTitle className="text-sm font-bold uppercase tracking-tighter text-muted-foreground">Diary Entry</CardTitle>
             <Calendar className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              {todayDiary ? (
-                <CheckCircle2 className="w-5 h-5 text-secondary" />
-              ) : (
-                <AlertCircle className="w-5 h-5 text-destructive" />
-              )}
-              <div className="text-lg font-bold">
-                {todayDiary ? "Recorded" : "Missing Entry"}
-              </div>
+              {todayDiary ? <CheckCircle2 className="w-6 h-6 text-secondary-foreground" /> : <AlertCircle className="w-6 h-6 text-destructive" />}
+              <div className="text-lg font-black">{todayDiary ? "Complete" : "Pending"}</div>
             </div>
-            <p className="text-xs text-muted-foreground">Today's Reflection</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-6 mt-8 md:grid-cols-2">
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle>Daily Insights</CardTitle>
-            <CardDescription>Real-time view of your current metrics.</CardDescription>
+        <Card className="shadow-md overflow-hidden">
+          <CardHeader className="bg-primary/5">
+            <CardTitle>Budget Insights</CardTitle>
+            <CardDescription>Real-time sustainability check.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center gap-4 p-4 rounded-lg bg-primary/5 border border-primary/10">
-                <div className="bg-primary/20 p-2 rounded-full text-primary">
-                  <DollarSign className="w-6 h-6" />
+          <CardContent className="pt-6 space-y-4">
+            <div className={`p-4 rounded-xl border flex items-center justify-between ${remaining > 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-full ${remaining > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  {remaining > 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
                 </div>
                 <div>
-                  <h4 className="font-semibold text-primary">Budget Status</h4>
-                  <p className="text-sm text-muted-foreground">
-                    ₹{Math.max(0, allowedToday - spentToday).toFixed(2)} remaining for the day.
-                  </p>
+                  <p className="text-xs font-bold uppercase text-muted-foreground tracking-tighter">Remaining Today</p>
+                  <p className="text-2xl font-black">₹{remaining.toFixed(0)}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-4 p-4 rounded-lg bg-secondary/5 border border-secondary/10">
-                <div className="bg-secondary/20 p-2 rounded-full text-secondary-foreground">
-                  <CheckCircle2 className="w-6 h-6" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-secondary-foreground">Learning Milestone</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {completedGoals} of {totalGoals} goals completed today.
-                  </p>
-                </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Daily Base Allocation:</span>
+                <span className="font-bold">₹{todayReport?.baseBudget.toFixed(0)}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Carry-Forward Adjustment:</span>
+                <span className={`font-bold ${(todayReport?.carryForwardFromYesterday || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {(todayReport?.carryForwardFromYesterday || 0) >= 0 ? '+' : ''}₹{todayReport?.carryForwardFromYesterday.toFixed(0)}
+                </span>
               </div>
             </div>
           </CardContent>
@@ -193,25 +181,22 @@ export default function Dashboard() {
 
         <Card className="shadow-md">
           <CardHeader>
-            <CardTitle>Skill Progress</CardTitle>
-            <CardDescription>Tracking mastery across your learning goals.</CardDescription>
+            <CardTitle>Learning Mastery</CardTitle>
+            <CardDescription>Tracking your active goals.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {learningGoals?.length === 0 && <p className="text-sm text-muted-foreground">No active goals found.</p>}
-              {learningGoals?.map((goal) => {
-                const percent = Math.min(100, Math.round(((goal.completedCount || 0) / (goal.target || 1)) * 100));
-                return (
-                  <div key={goal.id} className="flex flex-col gap-1">
-                    <div className="flex justify-between text-sm">
-                      <span>{goal.skill} ({goal.difficulty})</span>
-                      <span className="text-muted-foreground">{percent}%</span>
-                    </div>
-                    <Progress value={percent} className="h-1.5" />
+          <CardContent className="space-y-4">
+            {learningGoals?.length ? learningGoals.map((goal) => {
+              const p = Math.min(100, Math.round(((goal.completedCount || 0) / (goal.target || 1)) * 100));
+              return (
+                <div key={goal.id} className="space-y-1">
+                  <div className="flex justify-between text-xs font-bold">
+                    <span>{goal.skill}</span>
+                    <span className="text-muted-foreground">{p}%</span>
                   </div>
-                );
-              })}
-            </div>
+                  <Progress value={p} className="h-1.5" />
+                </div>
+              );
+            }) : <p className="text-xs italic text-muted-foreground">No goals active.</p>}
           </CardContent>
         </Card>
       </div>

@@ -11,10 +11,10 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
-import { Plus, Trash2, Tag, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History } from 'lucide-react';
+import { Plus, Trash2, Tag, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, TrendingDown, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { categorizeExpense } from '@/ai/flows/categorize-expense-flow';
-import { format, getDaysInMonth, startOfMonth, eachDayOfInterval } from 'date-fns';
+import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -67,7 +67,7 @@ export default function BudgetPage() {
   const dailyCategories = categories?.filter(c => c.type === 'daily') || [];
   const fixedCategories = categories?.filter(c => c.type === 'fixed') || [];
 
-  // 2. Budget Calculation Logic (Shared with logic lib)
+  // Budget Calculation Logic
   const budgetReport = useMemo(() => {
     if (!monthlyBudgetDoc || !expenses) return null;
 
@@ -86,7 +86,8 @@ export default function BudgetPage() {
         amount: f.amount,
         included: f.includeInBudget
       })),
-      weekendExtra: monthlyBudgetDoc.isWeekendExtraBudgetEnabled ? ( ( (monthlyBudgetDoc.totalBudgetAmount || 0) / 30 ) * 0.5 ) : 0,
+      saturdayExtra: monthlyBudgetDoc.saturdayExtraAmount || 0,
+      sundayExtra: monthlyBudgetDoc.sundayExtraAmount || 0,
       holidayExtra: 0,
       isWeekendEnabled: monthlyBudgetDoc.isWeekendExtraBudgetEnabled || false,
       isHolidayEnabled: false
@@ -96,7 +97,8 @@ export default function BudgetPage() {
   }, [monthlyBudgetDoc, expenses, fixedExpenses, now]);
 
   const todayReport = budgetReport?.[todayStr];
-  const netMonthlyPool = (monthlyBudgetDoc?.totalBudgetAmount || 0) - (fixedExpenses?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0);
+  const totalIncludedFixed = fixedExpenses?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
+  const netMonthlyPool = (monthlyBudgetDoc?.totalBudgetAmount || 0) - totalIncludedFixed;
 
   // Handlers
   const saveMonthlyBudget = (updates: any) => {
@@ -120,7 +122,7 @@ export default function BudgetPage() {
       createdAt: new Date().toISOString()
     });
     setNewCategory({ ...newCategory, name: '' });
-    toast({ title: "Category added", description: `"${newCategory.name}" added.` });
+    toast({ title: "Category added" });
   };
 
   const deleteCategory = (id: string) => {
@@ -130,7 +132,7 @@ export default function BudgetPage() {
 
   const addFixedExpense = () => {
     if (!newFixed.name || !newFixed.amount || !newFixed.categoryId || !fixedExpensesRef) {
-      toast({ variant: 'destructive', title: 'Missing Info', description: 'Name, Amount, and Category are required.' });
+      toast({ variant: 'destructive', title: 'Missing Info' });
       return;
     }
     setLoading(true);
@@ -161,7 +163,7 @@ export default function BudgetPage() {
 
   const handleLogExpense = () => {
     if (!newExpense.amount || !newExpense.categoryId || !user || !expensesRef) {
-      toast({ variant: 'destructive', title: 'Missing Information', description: 'Please fill out Category and Amount.' });
+      toast({ variant: 'destructive', title: 'Missing Information' });
       return;
     }
     
@@ -188,29 +190,18 @@ export default function BudgetPage() {
   };
 
   const handleAiSuggest = async () => {
-    if (!newExpense.description || !dailyCategories.length) {
-      toast({ variant: 'destructive', title: 'Need info', description: 'Enter description and ensure you have daily categories.' });
-      return;
-    }
-    
+    if (!newExpense.description || !dailyCategories.length) return;
     setAiLoading(true);
     try {
       const result = await categorizeExpense({
         expenseDescription: newExpense.description,
         existingCategories: dailyCategories.map(c => c.name)
       });
-
-      toast({
-        title: "AI Suggested Category",
-        description: `${result.suggestedCategoryName}: ${result.reasoning}`,
-      });
-
       const matched = dailyCategories.find(c => c.name.toLowerCase() === result.suggestedCategoryName.toLowerCase());
-      if (matched) {
-        setNewExpense(prev => ({ ...prev, categoryId: matched.id }));
-      }
+      if (matched) setNewExpense(prev => ({ ...prev, categoryId: matched.id }));
+      toast({ title: "AI Suggestion", description: `Suggested: ${result.suggestedCategoryName}` });
     } catch (err) {
-      toast({ variant: 'destructive', title: 'AI Categorization failed' });
+      toast({ variant: 'destructive', title: 'AI failed' });
     } finally {
       setAiLoading(false);
     }
@@ -221,7 +212,7 @@ export default function BudgetPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           {/* Monthly Budget Initialization */}
-          <Card className="shadow-md">
+          <Card className="shadow-md border-t-4 border-t-primary">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Wallet className="h-5 w-5 text-primary" />
@@ -230,24 +221,26 @@ export default function BudgetPage() {
               <CardDescription>System auto-detected for {monthName}.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="total-budget">Total Monthly Budget (₹)</Label>
                   <Input 
                     id="total-budget" 
                     type="number" 
-                    placeholder="e.g. 40000"
+                    placeholder="e.g. 15000"
                     value={monthlyBudgetDoc?.totalBudgetAmount || ''} 
                     onChange={(e) => saveMonthlyBudget({ totalBudgetAmount: parseFloat(e.target.value) || 0 })}
                   />
-                  <p className="text-xs text-muted-foreground">User only provides the budget. System handles the rest.</p>
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    <Info className="h-3 w-3" /> User provides budget; system handles calculations.
+                  </p>
                 </div>
 
-                <div className="space-y-2 p-4 border rounded-lg bg-muted/20">
+                <div className="space-y-4 p-4 border rounded-xl bg-muted/20">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="weekend-toggle" className="flex items-center gap-2">
                       <CalendarDays className="h-4 w-4 text-primary" />
-                      Weekend Boost
+                      Weekend Bonuses
                     </Label>
                     <Switch 
                       id="weekend-toggle"
@@ -255,120 +248,88 @@ export default function BudgetPage() {
                       onCheckedChange={(checked) => saveMonthlyBudget({ isWeekendExtraBudgetEnabled: checked })}
                     />
                   </div>
+                  
                   {monthlyBudgetDoc?.isWeekendExtraBudgetEnabled && (
-                    <div className="pt-2 animate-in fade-in slide-in-from-top-1">
-                      <div className="text-sm font-medium text-primary flex items-center gap-1">
-                        <Plus className="h-3 w-3" />
-                        ₹{(todayReport?.extraBudget || 0).toFixed(2)} extra
+                    <div className="grid grid-cols-2 gap-2 pt-2 animate-in fade-in slide-in-from-top-2">
+                      <div className="space-y-1">
+                        <Label className="text-[10px]">Sat Bonus (₹)</Label>
+                        <Input 
+                          type="number" 
+                          className="h-8 text-xs" 
+                          value={monthlyBudgetDoc?.saturdayExtraAmount || ''}
+                          onChange={(e) => saveMonthlyBudget({ saturdayExtraAmount: parseFloat(e.target.value) || 0 })}
+                        />
                       </div>
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        Automatically calculated bonus (50% of daily base).
-                      </p>
+                      <div className="space-y-1">
+                        <Label className="text-[10px]">Sun Bonus (₹)</Label>
+                        <Input 
+                          type="number" 
+                          className="h-8 text-xs" 
+                          value={monthlyBudgetDoc?.sundayExtraAmount || ''}
+                          onChange={(e) => saveMonthlyBudget({ sundayExtraAmount: parseFloat(e.target.value) || 0 })}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="bg-muted/10 flex flex-col items-start gap-1 border-t py-3">
-              <div className="flex justify-between w-full text-sm">
-                <span>Net Spending Pool (After Fixed):</span>
-                <span className="font-bold">₹{netMonthlyPool.toFixed(2)}</span>
+            <CardFooter className="bg-muted/10 grid grid-cols-2 gap-4 py-4 border-t text-sm">
+              <div className="flex flex-col">
+                <span className="text-muted-foreground text-xs uppercase font-bold tracking-tighter">Net Spending Pool</span>
+                <span className="text-lg font-black">₹{netMonthlyPool.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between w-full text-sm">
-                <span>Standard Daily Base:</span>
-                <span className="font-medium">₹{(todayReport?.baseBudget || 0).toFixed(2)} / day</span>
+              <div className="flex flex-col border-l pl-4">
+                <span className="text-muted-foreground text-xs uppercase font-bold tracking-tighter">Daily Base Budget</span>
+                <span className="text-lg font-black">₹{(todayReport?.baseBudget || 0).toFixed(0)}</span>
               </div>
             </CardFooter>
           </Card>
 
           {/* Fixed Expenses */}
           <Card className="shadow-md">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
                 <ReceiptText className="h-5 w-5 text-primary" />
                 Fixed Monthly Expenses
               </CardTitle>
-              <CardDescription>Recurring bills like Rent, EMIs, or Subscriptions.</CardDescription>
+              <CardDescription>Costs like Rent, EMI, or Recharge.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Name</Label>
-                  <Input 
-                    placeholder="e.g. Rent" 
-                    value={newFixed.name}
-                    onChange={(e) => setNewFixed({ ...newFixed, name: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Category</Label>
-                  <Select 
-                    value={newFixed.categoryId} 
-                    onValueChange={(v) => setNewFixed({ ...newFixed, categoryId: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {fixedCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Amount (₹)</Label>
-                  <Input 
-                    type="number" 
-                    placeholder="0" 
-                    value={newFixed.amount}
-                    onChange={(e) => setNewFixed({ ...newFixed, amount: e.target.value })}
-                  />
-                </div>
-                <div className="flex items-end">
-                  <Button onClick={addFixedExpense} disabled={loading} className="w-full">
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <Input placeholder="Name" value={newFixed.name} onChange={(e) => setNewFixed({ ...newFixed, name: e.target.value })} className="h-9" />
+                <Select value={newFixed.categoryId} onValueChange={(v) => setNewFixed({ ...newFixed, categoryId: v })}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Category" /></SelectTrigger>
+                  <SelectContent>
+                    {fixedCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Input type="number" placeholder="Amount" value={newFixed.amount} onChange={(e) => setNewFixed({ ...newFixed, amount: e.target.value })} className="h-9" />
+                <Button onClick={addFixedExpense} className="h-9 w-full"><Plus className="h-4 w-4 mr-1" /> Add</Button>
               </div>
 
-              <div className="border rounded-md overflow-hidden bg-card">
+              <div className="border rounded-lg overflow-hidden">
                 <Table>
-                  <TableHeader className="bg-muted/50">
+                  <TableHeader className="bg-muted/50 h-10">
                     <TableRow>
-                      <TableHead>Expense</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Include</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
+                      <TableHead className="text-xs h-10">Item</TableHead>
+                      <TableHead className="text-xs h-10">Amount</TableHead>
+                      <TableHead className="text-xs h-10">Incl.</TableHead>
+                      <TableHead className="text-xs h-10 text-right">Delete</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {fixedExpenses && fixedExpenses.length > 0 ? (
-                      fixedExpenses.map((expense) => (
-                        <TableRow key={expense.id}>
-                          <TableCell className="font-medium">{expense.name}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {fixedCategories.find(c => c.id === expense.expenseCategoryId)?.name || 'Uncategorized'}
-                          </TableCell>
-                          <TableCell>₹{expense.amount.toFixed(2)}</TableCell>
-                          <TableCell>
-                            <Switch 
-                              checked={expense.includeInBudget} 
-                              onCheckedChange={() => toggleFixed(expense.id, expense.includeInBudget)} 
-                            />
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" onClick={() => deleteFixed(expense.id)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-6 text-muted-foreground italic text-xs">
-                          No fixed expenses recorded.
+                    {fixedExpenses?.length ? fixedExpenses.map((expense) => (
+                      <TableRow key={expense.id} className="h-12">
+                        <TableCell className="font-medium text-sm">{expense.name}</TableCell>
+                        <TableCell className="text-sm font-bold">₹{expense.amount.toLocaleString()}</TableCell>
+                        <TableCell><Switch checked={expense.includeInBudget} onCheckedChange={() => toggleFixed(expense.id, expense.includeInBudget)} /></TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" onClick={() => deleteFixed(expense.id)} className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button>
                         </TableCell>
                       </TableRow>
+                    )) : (
+                      <TableRow><TableCell colSpan={4} className="text-center py-4 text-xs italic text-muted-foreground">No fixed expenses.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -377,231 +338,158 @@ export default function BudgetPage() {
           </Card>
 
           {/* Daily Logger */}
-          <Card className="shadow-md border-t-2 border-primary">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <Card className="shadow-md border-l-4 border-l-primary">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
                 <BrainCircuit className="h-5 w-5 text-primary" />
-                Smart Expense Logger
+                Smart Logger
               </CardTitle>
-              <CardDescription>Log today's daily spending. Description is optional.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-2">
-                <Label htmlFor="expense-desc">Description (Optional)</Label>
-                <div className="flex gap-2">
-                  <Input 
-                    id="expense-desc" 
-                    placeholder="e.g. Lunch with team" 
-                    value={newExpense.description}
-                    onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
-                  />
-                  <Button 
-                    variant="outline" 
-                    size="icon" 
-                    onClick={handleAiSuggest} 
-                    disabled={aiLoading}
-                  >
-                    {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BrainCircuit className="h-4 w-4" />}
-                  </Button>
-                </div>
+              <div className="flex gap-2">
+                <Input placeholder="Description (Optional)" value={newExpense.description} onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })} />
+                <Button variant="outline" size="icon" onClick={handleAiSuggest} disabled={aiLoading}>
+                  {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BrainCircuit className="h-4 w-4" />}
+                </Button>
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>Category *</Label>
-                  <Select 
-                    value={newExpense.categoryId} 
-                    onValueChange={(val) => setNewExpense({ ...newExpense, categoryId: val })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {dailyCategories.map(cat => (
-                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="expense-amount">Amount (₹) *</Label>
-                  <Input 
-                    id="expense-amount" 
-                    type="number" 
-                    placeholder="0" 
-                    value={newExpense.amount}
-                    onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
-                  />
-                </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Select value={newExpense.categoryId} onValueChange={(val) => setNewExpense({ ...newExpense, categoryId: val })}>
+                  <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
+                  <SelectContent>{dailyCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}</SelectContent>
+                </Select>
+                <Input type="number" placeholder="Amount ₹" value={newExpense.amount} onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })} />
               </div>
+              <Button onClick={handleLogExpense} className="w-full" disabled={loading}>{loading ? "Saving..." : "Log Daily Expense"}</Button>
             </CardContent>
-            <CardFooter>
-              <Button onClick={handleLogExpense} className="w-full" disabled={loading}>
-                {loading ? "Saving..." : "Log Expense"}
-              </Button>
-            </CardFooter>
           </Card>
 
-          {/* Logged Expenses View */}
+          {/* Recent Expenses List */}
           <Card className="shadow-md">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <History className="h-5 w-5 text-primary" />
-                Recent Expenses
-              </CardTitle>
-              <CardDescription>Your logged spending for this month.</CardDescription>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2"><History className="h-5 w-5 text-primary" /> Logged Expenses</CardTitle>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[300px] w-full border rounded-md">
+              <ScrollArea className="h-[250px] w-full border rounded-lg">
                 <Table>
-                  <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableHeader className="bg-muted/50 sticky top-0 z-10">
                     <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead className="w-[50px]"></TableHead>
+                      <TableHead className="text-xs">Date</TableHead>
+                      <TableHead className="text-xs">Item</TableHead>
+                      <TableHead className="text-xs text-right">Amount</TableHead>
+                      <TableHead className="w-10"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {expenses && expenses.length > 0 ? (
-                      [...expenses]
-                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime() || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                        .map((exp) => (
-                        <TableRow key={exp.id}>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {format(new Date(exp.date), 'dd MMM')}
-                          </TableCell>
-                          <TableCell className="font-medium text-sm truncate max-w-[150px]">
-                            {exp.description || '-'}
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-[10px] px-2 py-0.5 bg-primary/10 text-primary rounded-full uppercase font-bold tracking-tighter">
-                              {dailyCategories.find(c => c.id === exp.expenseCategoryId)?.name || 'Misc'}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right font-bold text-sm">
-                            ₹{exp.amount.toFixed(2)}
-                          </TableCell>
-                          <TableCell>
-                            <Button variant="ghost" size="icon" onClick={() => deleteExpense(exp.id)} className="h-8 w-8">
-                              <Trash2 className="h-3 w-3 text-destructive" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-10 text-muted-foreground italic text-sm">
-                          No expenses logged yet.
-                        </TableCell>
+                    {expenses?.length ? [...expenses].sort((a,b) => b.date.localeCompare(a.date)).map((exp) => (
+                      <TableRow key={exp.id} className="h-10 text-xs">
+                        <TableCell className="text-muted-foreground">{format(new Date(exp.date), 'dd MMM')}</TableCell>
+                        <TableCell className="font-medium truncate max-w-[100px]">{exp.description || 'Expense'}</TableCell>
+                        <TableCell className="text-right font-bold">₹{exp.amount}</TableCell>
+                        <TableCell><Button variant="ghost" size="icon" onClick={() => deleteExpense(exp.id)} className="h-6 w-6"><Trash2 className="h-3 w-3 text-destructive" /></Button></TableCell>
                       </TableRow>
+                    )) : (
+                      <TableRow><TableCell colSpan={4} className="text-center py-10 text-muted-foreground italic">No spending logged yet.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
               </ScrollArea>
             </CardContent>
-            <CardFooter className="bg-muted/10 flex justify-between py-3 border-t">
-              <span className="text-xs font-medium">Total Spent (Month):</span>
-              <span className="text-sm font-bold">₹{expenses?.reduce((s, e) => s + e.amount, 0).toFixed(2)}</span>
+            <CardFooter className="py-3 border-t bg-muted/5 flex justify-between">
+              <span className="text-xs font-bold uppercase text-muted-foreground tracking-tighter">Total Daily Spending</span>
+              <span className="text-sm font-black">₹{expenses?.reduce((s,e) => s + e.amount, 0).toLocaleString()}</span>
             </CardFooter>
           </Card>
         </div>
 
         <div className="space-y-6">
           {/* DAILY BUDGET CALCULATION CARD */}
-          <Card className={`shadow-md text-primary-foreground ${todayReport && todayReport.extraBudget > 0 ? 'bg-secondary' : 'bg-primary'}`}>
+          <Card className={`shadow-xl text-primary-foreground transition-colors duration-500 ${(todayReport?.allowedBudget || 0) < 0 ? 'bg-destructive' : 'bg-primary'}`}>
             <CardHeader>
-              <CardTitle className="text-xl flex items-center gap-2">
-                <Coins className="h-5 w-5" />
+              <CardTitle className="text-2xl flex items-center gap-2">
+                <Coins className="h-6 w-6" />
                 Sustainable Today
               </CardTitle>
-              <CardDescription className="text-primary-foreground/80">
-                Adjusts dynamically with carry-forward.
+              <CardDescription className="text-primary-foreground/80 font-medium">
+                {todayStr} • Dynamic Carry-Forward
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold">₹{todayReport?.allowedBudget.toFixed(2) || '0.00'}</div>
-              <div className="mt-4 p-3 rounded-lg bg-white/10 text-xs space-y-2">
-                <div className="flex justify-between">
-                  <span>Daily Base Allocation:</span>
-                  <span>₹{todayReport?.baseBudget.toFixed(2) || '0.00'}</span>
+            <CardContent className="space-y-6">
+              <div className="text-5xl font-black tracking-tighter drop-shadow-sm">
+                ₹{Math.max(0, todayReport?.allowedBudget || 0).toFixed(0)}
+              </div>
+              
+              <div className="space-y-2 pt-4 border-t border-white/20">
+                <div className="flex justify-between text-xs opacity-90">
+                  <span>Daily Base Allowance:</span>
+                  <span className="font-bold">₹{(todayReport?.baseBudget || 0).toFixed(0)}</span>
                 </div>
-                {todayReport && todayReport.extraBudget > 0 && (
-                  <div className="flex justify-between text-secondary-foreground font-bold">
-                    <span>Weekend Bonus:</span>
-                    <span>+₹{todayReport.extraBudget.toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between border-t border-white/20 pt-1 font-bold">
-                  <span>Spent Today:</span>
-                  <span className={todayReport && todayReport.spent > todayReport.allowedBudget ? 'text-destructive font-black underline' : ''}>
-                    ₹{todayReport?.spent.toFixed(2) || '0.00'}
+                
+                <div className="flex justify-between text-xs opacity-90">
+                  <span>Carry Forward (Saved/Over):</span>
+                  <span className={`font-bold ${(todayReport?.carryForwardFromYesterday || 0) < 0 ? 'text-red-200' : 'text-green-200'}`}>
+                    {(todayReport?.carryForwardFromYesterday || 0) >= 0 ? '+' : ''}
+                    ₹{(todayReport?.carryForwardFromYesterday || 0).toFixed(0)}
                   </span>
                 </div>
-                <div className="flex justify-between border-t border-white/20 pt-1 opacity-80">
-                  <span>Remaining for Today:</span>
-                  <span>₹{Math.max(0, (todayReport?.allowedBudget || 0) - (todayReport?.spent || 0)).toFixed(2)}</span>
+
+                {todayReport && todayReport.extraBudget > 0 && (
+                  <div className="flex justify-between text-xs text-yellow-200 font-bold">
+                    <span>Weekend Bonus:</span>
+                    <span>+₹{todayReport.extraBudget.toFixed(0)}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between text-sm font-black pt-2 border-t border-white/10">
+                  <span>Spent Today:</span>
+                  <span>₹{(todayReport?.spent || 0).toFixed(0)}</span>
+                </div>
+                
+                <div className="flex justify-between text-sm font-black pt-1">
+                  <span>Remaining Today:</span>
+                  <span className="text-xl">₹{Math.max(0, (todayReport?.allowedBudget || 0) - (todayReport?.spent || 0)).toFixed(0)}</span>
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="pt-0 pb-3 flex justify-center">
-              <p className="text-[10px] opacity-70 italic">Carry-forward logic applied automatically.</p>
+            <CardFooter className="pt-0 pb-4 flex justify-center">
+              <div className="bg-white/10 px-3 py-1 rounded-full text-[10px] font-medium backdrop-blur-sm">
+                System maintains ₹{monthlyBudgetDoc?.totalBudgetAmount?.toLocaleString()} monthly cap.
+              </div>
             </CardFooter>
           </Card>
 
           {/* Category Management */}
           <Card className="shadow-md">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <LayoutGrid className="h-5 w-5 text-primary" />
-                Manage Categories
-              </CardTitle>
-              <CardDescription>Define separate labels for daily and fixed spending.</CardDescription>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2"><LayoutGrid className="h-5 w-5 text-primary" /> Categories</CardTitle>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="daily" className="w-full" onValueChange={(v) => setNewCategory({ ...newCategory, type: v })}>
+              <Tabs defaultValue="daily" onValueChange={(v) => setNewCategory({ ...newCategory, type: v })}>
                 <TabsList className="grid w-full grid-cols-2 mb-4">
                   <TabsTrigger value="daily">Daily</TabsTrigger>
                   <TabsTrigger value="fixed">Fixed</TabsTrigger>
                 </TabsList>
                 
                 <div className="flex gap-2 mb-6">
-                  <Input 
-                    placeholder={`New label...`} 
-                    value={newCategory.name} 
-                    onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                    onKeyDown={(e) => e.key === 'Enter' && addCategory()}
-                  />
-                  <Button size="icon" onClick={addCategory}><Plus className="h-4 w-4" /></Button>
+                  <Input placeholder="New label..." value={newCategory.name} onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && addCategory()} className="h-9" />
+                  <Button size="icon" onClick={addCategory} className="h-9 w-9"><Plus className="h-4 w-4" /></Button>
                 </div>
 
-                <TabsContent value="daily" className="mt-0">
-                  <div className="flex flex-wrap gap-2">
-                    {dailyCategories.map(c => (
-                      <div key={c.id} className="flex items-center gap-1 pl-2 pr-1 py-1 bg-primary/10 text-primary rounded-full text-xs">
-                        <Tag className="h-3 w-3" />
-                        {c.name}
-                        <button onClick={() => deleteCategory(c.id)} className="ml-1 text-destructive hover:bg-destructive/10 rounded-full p-0.5">
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                <TabsContent value="daily" className="flex flex-wrap gap-2">
+                  {dailyCategories.map(c => (
+                    <div key={c.id} className="flex items-center gap-1 pl-3 pr-1 py-1 bg-primary/10 text-primary rounded-full text-[10px] font-bold uppercase tracking-tight">
+                      {c.name}
+                      <button onClick={() => deleteCategory(c.id)} className="ml-1 text-destructive hover:bg-destructive/10 rounded-full p-0.5"><Trash2 className="h-3 w-3" /></button>
+                    </div>
+                  ))}
                 </TabsContent>
 
-                <TabsContent value="fixed" className="mt-0">
-                  <div className="flex flex-wrap gap-2">
-                    {fixedCategories.map(c => (
-                      <div key={c.id} className="flex items-center gap-1 pl-2 pr-1 py-1 bg-secondary/20 text-secondary-foreground rounded-full text-xs">
-                        <Tag className="h-3 w-3" />
-                        {c.name}
-                        <button onClick={() => deleteCategory(c.id)} className="ml-1 text-destructive hover:bg-destructive/10 rounded-full p-0.5">
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                <TabsContent value="fixed" className="flex flex-wrap gap-2">
+                  {fixedCategories.map(c => (
+                    <div key={c.id} className="flex items-center gap-1 pl-3 pr-1 py-1 bg-secondary/20 text-secondary-foreground rounded-full text-[10px] font-bold uppercase tracking-tight">
+                      {c.name}
+                      <button onClick={() => deleteCategory(c.id)} className="ml-1 text-destructive hover:bg-destructive/10 rounded-full p-0.5"><Trash2 className="h-3 w-3" /></button>
+                    </div>
+                  ))}
                 </TabsContent>
               </Tabs>
             </CardContent>

@@ -1,11 +1,13 @@
-import { getDaysInMonth } from 'date-fns';
+
+import { getDaysInMonth, startOfMonth, eachDayOfInterval, format } from 'date-fns';
 
 export interface MonthlyConfig {
   totalBudget: number;
   month: number; // 0-11
   year: number;
   fixedExpenses: FixedExpense[];
-  weekendExtra: number;
+  saturdayExtra: number;
+  sundayExtra: number;
   holidayExtra: number;
   isWeekendEnabled: boolean;
   isHolidayEnabled: boolean;
@@ -25,45 +27,70 @@ export interface DailyReport {
   allowedBudget: number;
   spent: number;
   rollingBalance: number;
+  carryForwardFromYesterday: number;
 }
 
 /**
  * Calculates the daily rolling budget based on spending.
- * Every day gets a base budget. 
- * If you spend less, it rolls to tomorrow.
- * Extra budgets (weekend/holiday) are added to the daily allowance but deducted from the monthly pool.
+ * Formula: todayBudget = dailyBase + carryForward + weekendBonus + holidayBonus
  */
 export function calculateRollingBudget(
   config: MonthlyConfig,
   dailyExpenses: Record<string, number>, // date string (YYYY-MM-DD) -> total spent
-  holidays: string[] // list of date strings (YYYY-MM-DD)
+  holidays: string[] = [] // list of date strings (YYYY-MM-DD)
 ): Record<string, DailyReport> {
-  const { totalBudget, month, year, fixedExpenses, weekendExtra, holidayExtra, isWeekendEnabled, isHolidayEnabled } = config;
+  const { 
+    totalBudget, 
+    month, 
+    year, 
+    fixedExpenses, 
+    saturdayExtra, 
+    sundayExtra, 
+    holidayExtra, 
+    isWeekendEnabled, 
+    isHolidayEnabled 
+  } = config;
   
-  const daysInMonth = getDaysInMonth(new Date(year, month));
+  const referenceDate = new Date(year, month, 1);
+  const daysInMonthCount = getDaysInMonth(referenceDate);
+  
+  // Included Fixed Total
   const fixedIncludedTotal = fixedExpenses
     .filter(e => e.included)
     .reduce((sum, e) => sum + e.amount, 0);
   
+  // Step 1: Remaining Budget for daily spending
   const remainingBudget = totalBudget - fixedIncludedTotal;
-  const dailyBase = remainingBudget / daysInMonth;
+  
+  // Step 2: Daily Base Budget
+  const dailyBase = remainingBudget / daysInMonthCount;
   
   let currentRollingBalance = 0;
   const reports: Record<string, DailyReport> = {};
 
-  for (let day = 1; day <= daysInMonth; day++) {
-    const date = new Date(year, month, day);
-    const dateStr = date.toISOString().split('T')[0];
-    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+  // Generate all dates in the month
+  const monthStart = startOfMonth(referenceDate);
+  const days = eachDayOfInterval({ 
+    start: monthStart, 
+    end: new Date(year, month, daysInMonthCount) 
+  });
+
+  for (const date of days) {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const dayOfWeek = date.getDay(); // 0 is Sunday, 6 is Saturday
     const isHoliday = holidays.includes(dateStr);
     
     let extra = 0;
-    if (isWeekend && isWeekendEnabled) extra += weekendExtra;
+    if (isWeekendEnabled) {
+      if (dayOfWeek === 6) extra += saturdayExtra; // Sat
+      if (dayOfWeek === 0) extra += sundayExtra;   // Sun
+    }
     if (isHoliday && isHolidayEnabled) extra += holidayExtra;
     
-    // The base daily budget + any carry forward from previous days
-    const baseAllowance = dailyBase;
-    const todayAllowance = baseAllowance + extra + currentRollingBalance;
+    const yesterdayBalance = currentRollingBalance;
+    
+    // Formula: todayBudget = dailyBase + carryForward + weekendBonus
+    const todayAllowance = dailyBase + yesterdayBalance + extra;
     
     const spentToday = dailyExpenses[dateStr] || 0;
     const balanceAfterToday = todayAllowance - spentToday;
@@ -72,9 +99,10 @@ export function calculateRollingBudget(
       date: dateStr,
       baseBudget: dailyBase,
       extraBudget: extra,
-      allowedBudget: Math.max(0, todayAllowance),
+      allowedBudget: todayAllowance, // Can be negative if overspent heavily
       spent: spentToday,
-      rollingBalance: balanceAfterToday
+      rollingBalance: balanceAfterToday,
+      carryForwardFromYesterday: yesterdayBalance
     };
     
     // Carry over for tomorrow
