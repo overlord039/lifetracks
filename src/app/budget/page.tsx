@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,12 +11,13 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
-import { Plus, Trash2, Tag, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid } from 'lucide-react';
+import { Plus, Trash2, Tag, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { categorizeExpense } from '@/ai/flows/categorize-expense-flow';
 import { format, getDaysInMonth, isWeekend } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function BudgetPage() {
   const { user } = useUser();
@@ -69,6 +70,7 @@ export default function BudgetPage() {
   const { data: categories } = useCollection(categoriesRef);
   const { data: fixedExpenses } = useCollection(fixedExpensesRef);
   const { data: monthlyBudgetDoc } = useDoc(monthlyBudgetRef);
+  const { data: expenses } = useCollection(expensesRef);
 
   const dailyCategories = categories?.filter(c => c.type === 'daily') || [];
   const fixedCategories = categories?.filter(c => c.type === 'fixed') || [];
@@ -187,6 +189,12 @@ export default function BudgetPage() {
     toast({ title: "Expense logged", description: "Successfully saved your spending." });
   };
 
+  const deleteExpense = (id: string) => {
+    if (!expensesRef) return;
+    deleteDocumentNonBlocking(doc(expensesRef, id));
+    toast({ title: "Expense removed" });
+  };
+
   // Automated Budget Calculations
   const totalBudgetAmount = monthlyBudgetDoc?.totalBudgetAmount || 0;
   const totalFixedIncluded = fixedExpenses?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
@@ -204,7 +212,39 @@ export default function BudgetPage() {
   
   const weekendRate = isWeekendEnabled ? weekdayRate * multiplier : weekdayRate;
   const autoWeekendBonus = isWeekendEnabled ? (weekendRate - weekdayRate) : 0;
-  const todayAllowed = isTodayWeekend ? weekendRate : weekdayRate;
+  
+  // Rolling budget logic: compare total allowed up to today vs total spent up to today
+  const calculateRollingAllowance = () => {
+    if (!expenses) return weekendRate; // Fallback
+
+    let totalAllowedUntilToday = 0;
+    let totalSpentUntilToday = 0;
+
+    for (let i = 1; i <= now.getDate(); i++) {
+      const d = new Date(now.getFullYear(), now.getMonth(), i);
+      const dStr = format(d, 'yyyy-MM-dd');
+      const dayIsWeekend = isWeekend(d);
+      
+      const allowedForDay = dayIsWeekend && isWeekendEnabled ? weekendRate : weekdayRate;
+      
+      if (i < now.getDate()) {
+        totalAllowedUntilToday += allowedForDay;
+        // Filter expenses for that specific day
+        const spentOnDay = expenses
+          .filter(e => e.date === dStr)
+          .reduce((sum, e) => sum + e.amount, 0);
+        totalSpentUntilToday += spentOnDay;
+      } else {
+        // Today's base allowance + the carry over from previous days
+        const carryOver = totalAllowedUntilToday - totalSpentUntilToday;
+        return allowedForDay + carryOver;
+      }
+    }
+    return weekdayRate;
+  };
+
+  const todayAllowed = calculateRollingAllowance();
+  const spentToday = expenses?.filter(e => e.date === todayStr).reduce((s, e) => s + e.amount, 0) || 0;
 
   return (
     <AppShell>
@@ -437,6 +477,71 @@ export default function BudgetPage() {
               </Button>
             </CardFooter>
           </Card>
+
+          {/* Logged Expenses View */}
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5 text-primary" />
+                Recent Expenses
+              </CardTitle>
+              <CardDescription>Your logged spending for this month.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[300px] w-full border rounded-md">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-background z-10">
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {expenses && expenses.length > 0 ? (
+                      [...expenses]
+                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime() || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                        .map((exp) => (
+                        <TableRow key={exp.id}>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {format(new Date(exp.date), 'dd MMM')}
+                          </TableCell>
+                          <TableCell className="font-medium text-sm truncate max-w-[150px]">
+                            {exp.description}
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-[10px] px-2 py-0.5 bg-primary/10 text-primary rounded-full uppercase font-bold tracking-tighter">
+                              {dailyCategories.find(c => c.id === exp.expenseCategoryId)?.name || 'Misc'}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right font-bold text-sm">
+                            ₹{exp.amount.toFixed(2)}
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" onClick={() => deleteExpense(exp.id)} className="h-8 w-8">
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-10 text-muted-foreground italic text-sm">
+                          No expenses logged yet.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </CardContent>
+            <CardFooter className="bg-muted/10 flex justify-between py-3 border-t">
+              <span className="text-xs font-medium">Total Spent (Month):</span>
+              <span className="text-sm font-bold">₹{expenses?.reduce((s, e) => s + e.amount, 0).toFixed(2) || '0.00'}</span>
+            </CardFooter>
+          </Card>
         </div>
 
         <div className="space-y-6">
@@ -453,7 +558,7 @@ export default function BudgetPage() {
             </CardHeader>
             <CardContent>
               <div className="text-4xl font-bold">₹{todayAllowed.toFixed(2)}</div>
-              <div className="mt-4 p-3 rounded-lg bg-white/10 text-xs space-y-1">
+              <div className="mt-4 p-3 rounded-lg bg-white/10 text-xs space-y-2">
                 <div className="flex justify-between">
                   <span>Standard Rate:</span>
                   <span>₹{weekdayRate.toFixed(2)}</span>
@@ -464,6 +569,16 @@ export default function BudgetPage() {
                     <span>+₹{autoWeekendBonus.toFixed(2)}</span>
                   </div>
                 )}
+                <div className="flex justify-between border-t border-white/20 pt-1 font-bold">
+                  <span>Spent Today:</span>
+                  <span className={spentToday > todayAllowed ? 'text-destructive font-black' : ''}>
+                    ₹{spentToday.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between border-t border-white/20 pt-1 opacity-80">
+                  <span>Remaining:</span>
+                  <span>₹{Math.max(0, todayAllowed - spentToday).toFixed(2)}</span>
+                </div>
               </div>
             </CardContent>
           </Card>
