@@ -168,8 +168,8 @@ export default function BudgetPage() {
   };
 
   const handleLogExpense = () => {
-    if (!newExpense.description || !newExpense.amount || !newExpense.categoryId || !user || !expensesRef) {
-      toast({ variant: 'destructive', title: 'Missing Information', description: 'Please fill out all mandatory fields.' });
+    if (!newExpense.amount || !newExpense.categoryId || !user || !expensesRef) {
+      toast({ variant: 'destructive', title: 'Missing Information', description: 'Please fill out all mandatory fields (Category and Amount).' });
       return;
     }
     
@@ -177,7 +177,7 @@ export default function BudgetPage() {
     addDocumentNonBlocking(expensesRef, {
       userId: user.uid,
       monthlyBudgetId: monthId,
-      description: newExpense.description,
+      description: newExpense.description || 'No description',
       amount: parseFloat(newExpense.amount),
       expenseCategoryId: newExpense.categoryId,
       date: todayStr,
@@ -417,9 +417,7 @@ export default function BudgetPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="expense-desc">
-                  Description <span className="text-destructive font-bold">*</span>
-                </Label>
+                <Label htmlFor="expense-desc">Description</Label>
                 <div className="flex gap-2">
                   <Input 
                     id="expense-desc" 
