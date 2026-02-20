@@ -14,7 +14,7 @@ import { collection, doc } from 'firebase/firestore';
 import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { categorizeExpense } from '@/ai/flows/categorize-expense-flow';
-import { format } from 'date-fns';
+import { format, getDaysInMonth } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -32,13 +32,12 @@ export default function BudgetPage() {
   const [newFixed, setNewFixed] = useState({ name: '', amount: '', categoryId: '' });
   const [newExpense, setNewExpense] = useState({ description: '', amount: '', categoryId: '' });
 
-  // 1. System Auto-Detects Current Month & Year
   const now = new Date();
   const monthId = format(now, 'yyyyMM');
   const todayStr = format(now, 'yyyy-MM-dd');
   const monthName = format(now, 'MMMM yyyy');
+  const daysInMonth = getDaysInMonth(now);
 
-  // Firestore References
   const categoriesRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return collection(db, 'users', user.uid, 'expenseCategories');
@@ -59,7 +58,6 @@ export default function BudgetPage() {
     return collection(db, 'users', user.uid, 'monthlyBudgets', monthId, 'expenses');
   }, [db, user, monthId]);
 
-  // Data fetching
   const { data: categories } = useCollection(categoriesRef);
   const { data: fixedExpenses } = useCollection(fixedExpensesRef);
   const { data: monthlyBudgetDoc } = useDoc(monthlyBudgetRef);
@@ -68,7 +66,11 @@ export default function BudgetPage() {
   const dailyCategories = categories?.filter(c => c.type === 'daily') || [];
   const fixedCategories = categories?.filter(c => c.type === 'fixed') || [];
 
-  // Budget Calculation Logic
+  const totalIncludedFixed = fixedExpenses?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
+  const netMonthlyPool = (monthlyBudgetDoc?.totalBudgetAmount || 0) - totalIncludedFixed;
+  const dailyBase = netMonthlyPool / daysInMonth;
+  const calculatedWeekendBonus = Math.round(dailyBase * 0.5);
+
   const budgetReport = useMemo(() => {
     if (!monthlyBudgetDoc || !expenses) return null;
 
@@ -87,22 +89,20 @@ export default function BudgetPage() {
         amount: f.amount,
         included: f.includeInBudget
       })),
-      saturdayExtra: monthlyBudgetDoc.saturdayExtraAmount || 0,
-      sundayExtra: monthlyBudgetDoc.sundayExtraAmount || 0,
+      // Automatically use the calculated 50% bonus if enabled
+      saturdayExtra: monthlyBudgetDoc.isWeekendExtraBudgetEnabled ? calculatedWeekendBonus : 0,
+      sundayExtra: monthlyBudgetDoc.isWeekendExtraBudgetEnabled ? calculatedWeekendBonus : 0,
       holidayExtra: 0,
       isWeekendEnabled: monthlyBudgetDoc.isWeekendExtraBudgetEnabled || false,
       isHolidayEnabled: false
     };
 
     return calculateRollingBudget(config, dailyExpensesMap, []);
-  }, [monthlyBudgetDoc, expenses, fixedExpenses, now]);
+  }, [monthlyBudgetDoc, expenses, fixedExpenses, now, calculatedWeekendBonus]);
 
   const todayReport = budgetReport?.[todayStr];
   const isOverspentToday = todayReport && todayReport.spent > todayReport.allowedBudget;
-  const totalIncludedFixed = fixedExpenses?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
-  const netMonthlyPool = (monthlyBudgetDoc?.totalBudgetAmount || 0) - totalIncludedFixed;
 
-  // Notification for overspending
   useEffect(() => {
     if (isOverspentToday) {
       toast({
@@ -113,7 +113,6 @@ export default function BudgetPage() {
     }
   }, [isOverspentToday, todayReport?.spent, toast]);
 
-  // Handlers
   const saveMonthlyBudget = (updates: any) => {
     if (!monthlyBudgetRef || !user) return;
     setDocumentNonBlocking(monthlyBudgetRef, {
@@ -233,7 +232,6 @@ export default function BudgetPage() {
             </Alert>
           )}
 
-          {/* Monthly Budget Initialization */}
           <Card className="shadow-md border-t-4 border-t-primary">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -269,24 +267,11 @@ export default function BudgetPage() {
                   </div>
                   
                   {monthlyBudgetDoc?.isWeekendExtraBudgetEnabled && (
-                    <div className="grid grid-cols-2 gap-2 pt-2 animate-in fade-in slide-in-from-top-2">
-                      <div className="space-y-1">
-                        <Label className="text-[10px]">Sat Bonus (₹)</Label>
-                        <Input 
-                          type="number" 
-                          className="h-8 text-xs" 
-                          value={monthlyBudgetDoc?.saturdayExtraAmount || ''}
-                          onChange={(e) => saveMonthlyBudget({ saturdayExtraAmount: parseFloat(e.target.value) || 0 })}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[10px]">Sun Bonus (₹)</Label>
-                        <Input 
-                          type="number" 
-                          className="h-8 text-xs" 
-                          value={monthlyBudgetDoc?.sundayExtraAmount || ''}
-                          onChange={(e) => saveMonthlyBudget({ sundayExtraAmount: parseFloat(e.target.value) || 0 })}
-                        />
+                    <div className="pt-2 animate-in fade-in slide-in-from-top-2">
+                      <div className="p-3 bg-white/50 rounded-lg border border-dashed border-primary/30">
+                        <p className="text-xs text-muted-foreground mb-1">Calculated Bonus (50% of daily base)</p>
+                        <p className="text-xl font-black text-primary">₹{calculatedWeekendBonus}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1 italic">Applied automatically to Saturday & Sunday</p>
                       </div>
                     </div>
                   )}
@@ -300,12 +285,11 @@ export default function BudgetPage() {
               </div>
               <div className="flex flex-col border-l pl-4">
                 <span className="text-muted-foreground text-xs uppercase font-bold tracking-tighter">Daily Base Budget</span>
-                <span className="text-lg font-black">₹{(todayReport?.baseBudget || 0).toFixed(0)}</span>
+                <span className="text-lg font-black">₹{dailyBase.toFixed(0)}</span>
               </div>
             </CardFooter>
           </Card>
 
-          {/* Fixed Expenses */}
           <Card className="shadow-md">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -355,7 +339,6 @@ export default function BudgetPage() {
             </CardContent>
           </Card>
 
-          {/* Daily Logger */}
           <Card className="shadow-md border-l-4 border-l-primary">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -381,7 +364,6 @@ export default function BudgetPage() {
             </CardContent>
           </Card>
 
-          {/* Recent Expenses List */}
           <Card className="shadow-md">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2"><History className="h-5 w-5 text-primary" /> Logged Expenses</CardTitle>
@@ -416,7 +398,6 @@ export default function BudgetPage() {
         </div>
 
         <div className="space-y-6">
-          {/* DAILY BUDGET CALCULATION CARD */}
           <Card className={`shadow-xl text-primary-foreground transition-colors duration-500 ${isOverspentToday ? 'bg-destructive animate-pulse' : 'bg-primary'}`}>
             <CardHeader>
               <CardTitle className="text-2xl flex items-center gap-2">
@@ -435,7 +416,7 @@ export default function BudgetPage() {
               <div className="space-y-2 pt-4 border-t border-white/20">
                 <div className="flex justify-between text-xs opacity-90">
                   <span>Daily Base Allowance:</span>
-                  <span className="font-bold">₹{(todayReport?.baseBudget || 0).toFixed(0)}</span>
+                  <span className="font-bold">₹{dailyBase.toFixed(0)}</span>
                 </div>
                 
                 <div className="flex justify-between text-xs opacity-90">
@@ -477,7 +458,6 @@ export default function BudgetPage() {
             </CardFooter>
           </Card>
 
-          {/* Category Management */}
           <Card className="shadow-md">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2"><LayoutGrid className="h-5 w-5 text-primary" /> Categories</CardTitle>
