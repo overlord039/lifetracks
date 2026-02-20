@@ -5,8 +5,8 @@ import React, { useMemo } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
-import { collection, doc, query, where } from 'firebase/firestore';
+import { format, endOfMonth, eachDayOfInterval, isWeekend } from 'date-fns';
+import { collection, doc } from 'firebase/firestore';
 import { 
   TrendingUp, 
   CheckCircle2, 
@@ -16,7 +16,6 @@ import {
   DollarSign
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
 
 export default function Dashboard() {
   const { user } = useUser();
@@ -61,42 +60,41 @@ export default function Dashboard() {
   }, [firestore, user, todayStr]);
   const { data: todayDiary } = useDoc(diaryRef);
 
-  // Calculations
-  const { allowedToday, spentToday, dailyProgress } = useMemo(() => {
+  // Sustainable Calculations
+  const { allowedToday, spentToday } = useMemo(() => {
     if (!monthlyBudgetDoc || !monthExpenses) {
-      return { allowedToday: 0, spentToday: 0, dailyProgress: 0 };
+      return { allowedToday: 0, spentToday: 0 };
     }
 
-    // Prepare daily expenses map
-    const dailyExpensesMap: Record<string, number> = {};
-    monthExpenses.forEach(exp => {
-      dailyExpensesMap[exp.date] = (dailyExpensesMap[exp.date] || 0) + exp.amount;
+    const totalBudget = monthlyBudgetDoc.totalBudgetAmount || 0;
+    const totalFixed = fixedExpenses?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
+    const totalSpentBeforeToday = monthExpenses.filter(e => e.date < todayStr).reduce((s, e) => s + e.amount, 0) || 0;
+    const spentTodayValue = monthExpenses.filter(e => e.date === todayStr).reduce((s, e) => s + e.amount, 0) || 0;
+
+    const netMonthlyPool = Math.max(0, totalBudget - totalFixed);
+    const remainingBudgetPool = Math.max(0, netMonthlyPool - totalSpentBeforeToday);
+    
+    const isWeekendEnabled = monthlyBudgetDoc.isWeekendExtraBudgetEnabled || false;
+    const weekendMultiplier = 1.5;
+
+    const remainingDaysInMonth = eachDayOfInterval({ start: now, end: endOfMonth(now) });
+    let remainingWeight = 0;
+    remainingDaysInMonth.forEach(d => {
+      if (isWeekend(d) && isWeekendEnabled) {
+        remainingWeight += weekendMultiplier;
+      } else {
+        remainingWeight += 1;
+      }
     });
 
-    const config: MonthlyConfig = {
-      totalBudget: monthlyBudgetDoc.totalBudgetAmount || 0,
-      month: now.getMonth(),
-      year: now.getFullYear(),
-      fixedExpenses: (fixedExpenses || []).map(f => ({
-        id: f.id,
-        name: f.name,
-        amount: f.amount,
-        included: f.includeInBudget
-      })),
-      weekendExtra: monthlyBudgetDoc.isWeekendExtraBudgetEnabled ? 100 : 0, // Fallback placeholder if not computed
-      holidayExtra: 0,
-      isWeekendEnabled: monthlyBudgetDoc.isWeekendExtraBudgetEnabled || false,
-      isHolidayEnabled: false
-    };
-
-    // Use our logic lib to get the rolling reports
-    const reports = calculateRollingBudget(config, dailyExpensesMap, []);
-    const todayReport = reports[todayStr];
+    const sustainableWeekdayRate = remainingWeight > 0 ? remainingBudgetPool / remainingWeight : 0;
+    const todaySustainableAllowed = (isWeekend(now) && isWeekendEnabled) 
+      ? sustainableWeekdayRate * weekendMultiplier 
+      : sustainableWeekdayRate;
 
     return {
-      allowedToday: todayReport?.allowedBudget || 0,
-      spentToday: todayReport?.spent || 0,
-      dailyProgress: todayReport?.allowedBudget > 0 ? Math.min(100, (todayReport.spent / todayReport.allowedBudget) * 100) : 0
+      allowedToday: todaySustainableAllowed,
+      spentToday: spentTodayValue
     };
   }, [monthlyBudgetDoc, monthExpenses, fixedExpenses, todayStr, now]);
 
@@ -115,7 +113,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">₹{allowedToday.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">Allowed for today (incl. carry)</p>
+            <p className="text-xs text-muted-foreground">Sustainable limit for today</p>
           </CardContent>
         </Card>
 
@@ -127,7 +125,7 @@ export default function Dashboard() {
           <CardContent>
             <div className="text-2xl font-bold">₹{spentToday.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">
-              {spentToday > allowedToday ? "Overspent!" : "Within limits"}
+              {spentToday > allowedToday ? "Exceeding daily plan" : "Within daily plan"}
             </p>
           </CardContent>
         </Card>
@@ -168,7 +166,7 @@ export default function Dashboard() {
         <Card className="shadow-md">
           <CardHeader>
             <CardTitle>Daily Insights</CardTitle>
-            <CardDescription>Real-time view of your current metrics.</CardDescription>
+            <CardDescription>Real-time view of your sustainable metrics.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -179,18 +177,7 @@ export default function Dashboard() {
                 <div>
                   <h4 className="font-semibold text-primary">Budget Status</h4>
                   <p className="text-sm text-muted-foreground">
-                    ₹{(allowedToday - spentToday).toFixed(2)} remaining for the day.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 p-4 rounded-lg bg-secondary/10 border border-secondary/20">
-                <div className="bg-secondary/20 p-2 rounded-full text-secondary-foreground">
-                  <BookOpen className="w-6 h-6" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-secondary-foreground">Learning Milestone</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {completedGoals} of {totalGoals} goals completed today.
+                    ₹{Math.max(0, allowedToday - spentToday).toFixed(2)} remaining for today.
                   </p>
                 </div>
               </div>

@@ -14,7 +14,7 @@ import { collection, doc } from 'firebase/firestore';
 import { Plus, Trash2, Tag, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { categorizeExpense } from '@/ai/flows/categorize-expense-flow';
-import { format, getDaysInMonth, isWeekend } from 'date-fns';
+import { format, getDaysInMonth, isWeekend, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -35,15 +35,6 @@ export default function BudgetPage() {
   const todayStr = format(now, 'yyyy-MM-dd');
   const daysInMonth = getDaysInMonth(now);
   const isTodayWeekend = isWeekend(now);
-
-  // Count weekend and weekday occurrences in the current month
-  let weekendDaysInMonth = 0;
-  let weekdaysInMonth = 0;
-  for (let i = 1; i <= daysInMonth; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth(), i);
-    if (isWeekend(d)) weekendDaysInMonth++;
-    else weekdaysInMonth++;
-  }
 
   // Firestore References
   const categoriesRef = useMemoFirebase(() => {
@@ -97,7 +88,7 @@ export default function BudgetPage() {
       createdAt: new Date().toISOString()
     });
     setNewCategory({ ...newCategory, name: '' });
-    toast({ title: "Category added", description: `"${newCategory.name}" added to ${newCategory.type} expenses.` });
+    toast({ title: "Category added", description: `"${newCategory.name}" added.` });
   };
 
   const deleteCategory = (id: string) => {
@@ -157,8 +148,6 @@ export default function BudgetPage() {
       const matched = dailyCategories.find(c => c.name.toLowerCase() === result.suggestedCategoryName.toLowerCase());
       if (matched) {
         setNewExpense(prev => ({ ...prev, categoryId: matched.id }));
-      } else if (result.isNewCategorySuggested) {
-        toast({ title: "New category suggested", description: `You might want to add "${result.suggestedCategoryName}" to your daily categories.` });
       }
     } catch (err) {
       toast({ variant: 'destructive', title: 'AI Categorization failed' });
@@ -169,7 +158,7 @@ export default function BudgetPage() {
 
   const handleLogExpense = () => {
     if (!newExpense.amount || !newExpense.categoryId || !user || !expensesRef) {
-      toast({ variant: 'destructive', title: 'Missing Information', description: 'Please fill out all mandatory fields (Category and Amount).' });
+      toast({ variant: 'destructive', title: 'Missing Information', description: 'Please fill out Category and Amount.' });
       return;
     }
     
@@ -186,7 +175,7 @@ export default function BudgetPage() {
 
     setNewExpense({ description: '', amount: '', categoryId: '' });
     setLoading(false);
-    toast({ title: "Expense logged", description: "Successfully saved your spending." });
+    toast({ title: "Expense logged" });
   };
 
   const deleteExpense = (id: string) => {
@@ -195,56 +184,37 @@ export default function BudgetPage() {
     toast({ title: "Expense removed" });
   };
 
-  // Automated Budget Calculations
+  // --- RECONSTRUCTED BUDGET LOGIC: SUSTAINABLE DAILY BUDGET ---
+  
   const totalBudgetAmount = monthlyBudgetDoc?.totalBudgetAmount || 0;
   const totalFixedIncluded = fixedExpenses?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
-  const netMonthly = Math.max(0, totalBudgetAmount - totalFixedIncluded);
+  const totalSpentSoFar = expenses?.reduce((s, e) => s + e.amount, 0) || 0;
+  const totalSpentBeforeToday = expenses?.filter(e => e.date < todayStr).reduce((s, e) => s + e.amount, 0) || 0;
   
-  // Logic for Auto-Calculation (50% extra on weekends)
+  const netMonthlyPool = Math.max(0, totalBudgetAmount - totalFixedIncluded);
+  const remainingBudgetPool = Math.max(0, netMonthlyPool - totalSpentBeforeToday);
+  
   const isWeekendEnabled = monthlyBudgetDoc?.isWeekendExtraBudgetEnabled || false;
-  const multiplier = 1.5; 
-  
-  const weekdayRate = netMonthly > 0 
-    ? (isWeekendEnabled 
-        ? netMonthly / (weekdaysInMonth + (multiplier * weekendDaysInMonth))
-        : netMonthly / daysInMonth)
-    : 0;
-  
-  const weekendRate = isWeekendEnabled ? weekdayRate * multiplier : weekdayRate;
-  const autoWeekendBonus = isWeekendEnabled ? (weekendRate - weekdayRate) : 0;
-  
-  // Rolling budget logic: compare total allowed up to today vs total spent up to today
-  const calculateRollingAllowance = () => {
-    if (!expenses) return weekendRate; // Fallback
+  const weekendMultiplier = 1.5;
 
-    let totalAllowedUntilToday = 0;
-    let totalSpentUntilToday = 0;
-
-    for (let i = 1; i <= now.getDate(); i++) {
-      const d = new Date(now.getFullYear(), now.getMonth(), i);
-      const dStr = format(d, 'yyyy-MM-dd');
-      const dayIsWeekend = isWeekend(d);
-      
-      const allowedForDay = dayIsWeekend && isWeekendEnabled ? weekendRate : weekdayRate;
-      
-      if (i < now.getDate()) {
-        totalAllowedUntilToday += allowedForDay;
-        // Filter expenses for that specific day
-        const spentOnDay = expenses
-          .filter(e => e.date === dStr)
-          .reduce((sum, e) => sum + e.amount, 0);
-        totalSpentUntilToday += spentOnDay;
-      } else {
-        // Today's base allowance + the carry over from previous days
-        const carryOver = totalAllowedUntilToday - totalSpentUntilToday;
-        return allowedForDay + carryOver;
-      }
+  // Calculate remaining days and their weights
+  const remainingDaysInMonth = eachDayOfInterval({ start: now, end: endOfMonth(now) });
+  let remainingWeight = 0;
+  remainingDaysInMonth.forEach(d => {
+    if (isWeekend(d) && isWeekendEnabled) {
+      remainingWeight += weekendMultiplier;
+    } else {
+      remainingWeight += 1;
     }
-    return weekdayRate;
-  };
+  });
 
-  const todayAllowed = calculateRollingAllowance();
+  const sustainableWeekdayRate = remainingWeight > 0 ? remainingBudgetPool / remainingWeight : 0;
+  const todaySustainableAllowed = (isTodayWeekend && isWeekendEnabled) 
+    ? sustainableWeekdayRate * weekendMultiplier 
+    : sustainableWeekdayRate;
+
   const spentToday = expenses?.filter(e => e.date === todayStr).reduce((s, e) => s + e.amount, 0) || 0;
+  const remainingForToday = Math.max(0, todaySustainableAllowed - spentToday);
 
   return (
     <AppShell>
@@ -289,10 +259,10 @@ export default function BudgetPage() {
                     <div className="pt-2 animate-in fade-in slide-in-from-top-1">
                       <div className="text-sm font-medium text-primary flex items-center gap-1">
                         <Plus className="h-3 w-3" />
-                        ₹{autoWeekendBonus.toFixed(2)} extra / day
+                        ₹{(sustainableWeekdayRate * 0.5).toFixed(2)} extra / day
                       </div>
                       <p className="text-[10px] text-muted-foreground mt-1">
-                        Calculated automatically (50% bonus on weekends).
+                        50% bonus applied to weekend allocations.
                       </p>
                     </div>
                   )}
@@ -302,7 +272,7 @@ export default function BudgetPage() {
             <CardFooter className="bg-muted/10 flex flex-col items-start gap-1 border-t py-3">
               <div className="flex justify-between w-full text-sm">
                 <span>Net Spending Pool:</span>
-                <span className="font-bold">₹{netMonthly.toFixed(2)}</span>
+                <span className="font-bold">₹{netMonthlyPool.toFixed(2)}</span>
               </div>
             </CardFooter>
           </Card>
@@ -417,7 +387,7 @@ export default function BudgetPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="expense-desc">Description</Label>
+                <Label htmlFor="expense-desc">Description (Optional)</Label>
                 <div className="flex gap-2">
                   <Input 
                     id="expense-desc" 
@@ -537,48 +507,45 @@ export default function BudgetPage() {
             </CardContent>
             <CardFooter className="bg-muted/10 flex justify-between py-3 border-t">
               <span className="text-xs font-medium">Total Spent (Month):</span>
-              <span className="text-sm font-bold">₹{expenses?.reduce((s, e) => s + e.amount, 0).toFixed(2) || '0.00'}</span>
+              <span className="text-sm font-bold">₹{totalSpentSoFar.toFixed(2)}</span>
             </CardFooter>
           </Card>
         </div>
 
         <div className="space-y-6">
-          {/* Daily Status Card */}
-          <Card className={`shadow-md text-primary-foreground ${isTodayWeekend ? 'bg-secondary' : 'bg-primary'}`}>
+          {/* Reconstructed Daily Status Card */}
+          <Card className={`shadow-md text-primary-foreground ${isTodayWeekend && isWeekendEnabled ? 'bg-secondary' : 'bg-primary'}`}>
             <CardHeader>
               <CardTitle className="text-xl flex items-center gap-2">
                 <Coins className="h-5 w-5" />
-                Allowed Today
+                Sustainable Today
               </CardTitle>
               <CardDescription className="text-primary-foreground/80">
-                {isTodayWeekend ? 'Weekend Bonus Active! 🚀' : 'Weekday Allocation'}
+                Adjusts to keep you on track.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold">₹{todayAllowed.toFixed(2)}</div>
+              <div className="text-4xl font-bold">₹{todaySustainableAllowed.toFixed(2)}</div>
               <div className="mt-4 p-3 rounded-lg bg-white/10 text-xs space-y-2">
                 <div className="flex justify-between">
-                  <span>Standard Rate:</span>
-                  <span>₹{weekdayRate.toFixed(2)}</span>
+                  <span>Sustainable Rate:</span>
+                  <span>₹{todaySustainableAllowed.toFixed(2)}</span>
                 </div>
-                {isWeekendEnabled && isTodayWeekend && (
-                  <div className="flex justify-between border-t border-white/20 pt-1">
-                    <span>Weekend Bonus:</span>
-                    <span>+₹{autoWeekendBonus.toFixed(2)}</span>
-                  </div>
-                )}
                 <div className="flex justify-between border-t border-white/20 pt-1 font-bold">
                   <span>Spent Today:</span>
-                  <span className={spentToday > todayAllowed ? 'text-destructive font-black' : ''}>
+                  <span className={spentToday > todaySustainableAllowed ? 'text-destructive font-black' : ''}>
                     ₹{spentToday.toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between border-t border-white/20 pt-1 opacity-80">
-                  <span>Remaining:</span>
-                  <span>₹{Math.max(0, todayAllowed - spentToday).toFixed(2)}</span>
+                  <span>Remaining for Today:</span>
+                  <span>₹{remainingForToday.toFixed(2)}</span>
                 </div>
               </div>
             </CardContent>
+            <CardFooter className="pt-0 pb-3 flex justify-center">
+              <p className="text-[10px] opacity-70 italic">Calculated over {remainingDaysInMonth.length} remaining days.</p>
+            </CardFooter>
           </Card>
 
           {/* Category Management */}
@@ -588,7 +555,7 @@ export default function BudgetPage() {
                 <LayoutGrid className="h-5 w-5 text-primary" />
                 Manage Categories
               </CardTitle>
-              <CardDescription>Define separate labels for daily and fixed spending.</CardDescription>
+              <CardDescription>Define labels for daily and fixed spending.</CardDescription>
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="daily" className="w-full" onValueChange={(v) => setNewCategory({ ...newCategory, type: v })}>
@@ -599,7 +566,7 @@ export default function BudgetPage() {
                 
                 <div className="flex gap-2 mb-6">
                   <Input 
-                    placeholder={`New ${newCategory.type} label...`} 
+                    placeholder={`New label...`} 
                     value={newCategory.name} 
                     onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
                     onKeyDown={(e) => e.key === 'Enter' && addCategory()}
@@ -618,7 +585,6 @@ export default function BudgetPage() {
                         </button>
                       </div>
                     ))}
-                    {!dailyCategories.length && <p className="text-xs text-muted-foreground italic">No daily categories.</p>}
                   </div>
                 </TabsContent>
 
@@ -633,7 +599,6 @@ export default function BudgetPage() {
                         </button>
                       </div>
                     ))}
-                    {!fixedCategories.length && <p className="text-xs text-muted-foreground italic">No fixed categories.</p>}
                   </div>
                 </TabsContent>
               </Tabs>
