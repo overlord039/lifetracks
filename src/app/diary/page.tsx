@@ -7,11 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { useUser, useFirestore, useDoc, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
-import { doc } from 'firebase/firestore';
-import { format } from 'date-fns';
-import { BookText, Save, Sparkles } from 'lucide-react';
+import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
+import { doc, collection } from 'firebase/firestore';
+import { format, parseISO } from 'date-fns';
+import { BookText, Save, Sparkles, History, Calendar, Quote } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 export default function DiaryPage() {
   const { user } = useUser();
@@ -21,12 +23,20 @@ export default function DiaryPage() {
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
+  // Today's entry ref
   const diaryRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return doc(db, 'users', user.uid, 'dailyDiaries', todayStr);
   }, [db, user, todayStr]);
 
+  // All entries collection ref
+  const allDiariesRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return collection(db, 'users', user.uid, 'dailyDiaries');
+  }, [db, user]);
+
   const { data: entry } = useDoc(diaryRef);
+  const { data: allEntries } = useCollection(allDiariesRef);
 
   const [localEntry, setLocalEntry] = useState({
     whatIDidToday: '',
@@ -36,7 +46,7 @@ export default function DiaryPage() {
     mood: '😊'
   });
 
-  // Update local state when Firestore data loads
+  // Update local state when Firestore data loads for today
   React.useEffect(() => {
     if (entry) {
       setLocalEntry({
@@ -66,85 +76,179 @@ export default function DiaryPage() {
 
   const moods = ['😊', '🤩', '🤔', '😴', '😤', '😔', '🤯'];
 
+  // Sort entries by date descending
+  const sortedEntries = allEntries ? [...allEntries].sort((a, b) => b.date.localeCompare(a.date)) : [];
+
   return (
     <AppShell>
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="max-w-5xl mx-auto space-y-8 pb-12">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/20 rounded-lg text-primary">
-              < BookText className="w-6 h-6" />
+            <div className="p-3 bg-primary/20 rounded-xl text-primary shadow-sm">
+              <BookText className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold font-headline">Daily Reflection</h2>
-              <p className="text-sm text-muted-foreground">{format(new Date(), 'EEEE, MMMM do yyyy')}</p>
+              <h2 className="text-3xl font-black font-headline tracking-tight text-foreground">My Diary</h2>
+              <p className="text-sm font-medium text-muted-foreground">{format(new Date(), 'EEEE, MMMM do yyyy')}</p>
             </div>
           </div>
-          <Button onClick={saveEntry} disabled={loading}>
-            <Save className="mr-2 h-4 w-4" /> Save Entry
+          <Button onClick={saveEntry} disabled={loading} className="w-full md:w-auto shadow-md">
+            <Save className="mr-2 h-4 w-4" /> Save Today's Reflection
           </Button>
         </div>
 
-        <Card className="shadow-lg border-t-4 border-t-primary">
-          <CardContent className="pt-6 space-y-6">
-            <div className="space-y-4">
-              <Label className="text-lg font-semibold">How are you feeling today?</Label>
-              <div className="flex gap-4 justify-between bg-muted/30 p-4 rounded-xl">
-                {moods.map(m => (
-                  <button
-                    key={m}
-                    onClick={() => setLocalEntry({...localEntry, mood: m})}
-                    className={`text-3xl transition-transform hover:scale-125 ${localEntry.mood === m ? 'scale-125 drop-shadow-md' : 'grayscale opacity-50'}`}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
-            </div>
+        <div className="grid gap-8 lg:grid-cols-3">
+          {/* Main Entry Section */}
+          <div className="lg:col-span-2 space-y-6">
+            <Card className="shadow-xl border-t-4 border-t-primary overflow-hidden">
+              <CardHeader className="bg-muted/30 border-b pb-4">
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  Today's Reflection
+                </CardTitle>
+                <CardDescription>Capture your thoughts and progress for today.</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-8">
+                {/* Mood Selector */}
+                <div className="space-y-4">
+                  <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Daily Mood</Label>
+                  <div className="flex gap-2 justify-between bg-muted/30 p-4 rounded-xl border">
+                    {moods.map(m => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setLocalEntry({...localEntry, mood: m})}
+                        className={`text-3xl transition-all duration-200 hover:scale-125 focus:outline-none ${localEntry.mood === m ? 'scale-125 drop-shadow-md brightness-110' : 'grayscale opacity-40 hover:opacity-80'}`}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>What I did today</Label>
-                <Textarea 
-                  placeholder="Key accomplishments and activities..." 
-                  className="min-h-[120px]" 
-                  value={localEntry.whatIDidToday}
-                  onChange={e => setLocalEntry({...localEntry, whatIDidToday: e.target.value})}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>What I learned</Label>
-                <Textarea 
-                  placeholder="New skills or insights gained..." 
-                  className="min-h-[120px]" 
-                  value={localEntry.whatILearned}
-                  onChange={e => setLocalEntry({...localEntry, whatILearned: e.target.value})}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Challenges / Blockers</Label>
-                <Textarea 
-                  placeholder="What stopped your progress?" 
-                  className="min-h-[120px]" 
-                  value={localEntry.challengesBlockers}
-                  onChange={e => setLocalEntry({...localEntry, challengesBlockers: e.target.value})}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Tomorrow&apos;s Plan</Label>
-                <Textarea 
-                  placeholder="Goals for the next day..." 
-                  className="min-h-[120px]" 
-                  value={localEntry.tomorrowsPlan}
-                  onChange={e => setLocalEntry({...localEntry, tomorrowsPlan: e.target.value})}
-                />
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter className="bg-primary/5 text-primary text-sm flex items-center gap-2">
-            <Sparkles className="w-4 h-4" />
-            Keep it up! Consistent reflection leads to better productivity.
-          </CardFooter>
-        </Card>
+                {/* Form Fields */}
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">What I did today</Label>
+                    <Textarea 
+                      placeholder="Key accomplishments and activities..." 
+                      className="min-h-[140px] resize-none border-primary/20 focus:border-primary transition-colors" 
+                      value={localEntry.whatIDidToday}
+                      onChange={e => setLocalEntry({...localEntry, whatIDidToday: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">What I learned</Label>
+                    <Textarea 
+                      placeholder="New skills or insights gained..." 
+                      className="min-h-[140px] resize-none border-primary/20 focus:border-primary transition-colors" 
+                      value={localEntry.whatILearned}
+                      onChange={e => setLocalEntry({...localEntry, whatILearned: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Challenges / Blockers</Label>
+                    <Textarea 
+                      placeholder="What stopped your progress?" 
+                      className="min-h-[140px] resize-none border-primary/20 focus:border-primary transition-colors" 
+                      value={localEntry.challengesBlockers}
+                      onChange={e => setLocalEntry({...localEntry, challengesBlockers: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Tomorrow's Plan</Label>
+                    <Textarea 
+                      placeholder="Goals for the next day..." 
+                      className="min-h-[140px] resize-none border-primary/20 focus:border-primary transition-colors" 
+                      value={localEntry.tomorrowsPlan}
+                      onChange={e => setLocalEntry({...localEntry, tomorrowsPlan: e.target.value})}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter className="bg-primary/5 text-primary text-xs flex items-center gap-2 py-4 px-6 border-t">
+                <Quote className="w-3 h-3" />
+                <span>"Consistency is what transforms average into excellence."</span>
+              </CardFooter>
+            </Card>
+          </div>
+
+          {/* History Section */}
+          <div className="space-y-6">
+            <Card className="shadow-lg h-full max-h-[800px] flex flex-col">
+              <CardHeader className="bg-muted/30 border-b pb-4 shrink-0">
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <History className="w-5 h-5 text-primary" />
+                  Entry History
+                </CardTitle>
+                <CardDescription>Revisit your past reflections.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0 overflow-hidden">
+                <ScrollArea className="h-[600px]">
+                  <div className="p-4 space-y-4">
+                    {sortedEntries.length > 0 ? (
+                      sortedEntries.map((item, index) => (
+                        <div 
+                          key={item.id} 
+                          className={`group p-4 rounded-xl border bg-card hover:border-primary/50 transition-all duration-200 shadow-sm hover:shadow-md ${item.date === todayStr ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : ''}`}
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-4 h-4 text-muted-foreground" />
+                              <span className="text-sm font-black text-foreground">
+                                {format(parseISO(item.date), 'MMM dd, yyyy')}
+                              </span>
+                            </div>
+                            <span className="text-2xl drop-shadow-sm">{item.mood || '😊'}</span>
+                          </div>
+                          
+                          <div className="space-y-3">
+                            {item.whatIDidToday && (
+                              <div>
+                                <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest mb-1">Highlights</p>
+                                <p className="text-xs text-foreground/80 line-clamp-2 italic leading-relaxed">
+                                  "{item.whatIDidToday}"
+                                </p>
+                              </div>
+                            )}
+                            
+                            {item.whatILearned && (
+                              <div className="pt-2 border-t border-dashed">
+                                <p className="text-[10px] font-bold uppercase text-primary/80 tracking-widest mb-1">Key Learning</p>
+                                <p className="text-xs text-foreground/80 line-clamp-1 italic">
+                                  {item.whatILearned}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
+                          {item.date === todayStr && (
+                            <div className="mt-3 text-[10px] font-bold text-primary uppercase text-center bg-primary/10 py-1 rounded-full animate-pulse">
+                              Active Entry
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
+                        <div className="p-4 bg-muted rounded-full">
+                          <BookText className="w-8 h-8 text-muted-foreground/50" />
+                        </div>
+                        <p className="text-sm text-muted-foreground italic font-medium">Your diary is waiting for its first entry.</p>
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+              <CardFooter className="shrink-0 p-4 border-t bg-muted/10">
+                <p className="text-[10px] text-muted-foreground font-medium w-full text-center uppercase tracking-tighter">
+                  Showing {sortedEntries.length} total reflections
+                </p>
+              </CardFooter>
+            </Card>
+          </div>
+        </div>
       </div>
     </AppShell>
   );
