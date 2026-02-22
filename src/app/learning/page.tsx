@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,9 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
-import { CheckCircle2, GraduationCap, Plus } from 'lucide-react';
+import { CheckCircle2, GraduationCap, Plus, Flame } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { format, subDays, parseISO } from 'date-fns';
 
 export default function LearningPage() {
   const { user } = useUser();
@@ -24,9 +25,40 @@ export default function LearningPage() {
     return collection(db, 'users', user.uid, 'learningGoals');
   }, [db, user]);
 
+  const diariesRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return collection(db, 'users', user.uid, 'dailyDiaries');
+  }, [db, user]);
+
   const { data: goals } = useCollection(goalsRef);
+  const { data: diaries } = useCollection(diariesRef);
   
   const [newGoal, setNewGoal] = useState({ skill: '', difficulty: 'Easy', target: '2' });
+
+  const streak = useMemo(() => {
+    if (!diaries || diaries.length === 0) return 0;
+
+    // Extract unique dates and sort descending
+    const dates = Array.from(new Set(diaries.map(d => d.date))).sort().reverse();
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+
+    // If latest entry isn't today or yesterday, streak is broken
+    if (dates[0] !== today && dates[0] !== yesterday) return 0;
+
+    let currentStreak = 1;
+    for (let i = 0; i < dates.length - 1; i++) {
+      const current = parseISO(dates[i]);
+      const expectedPrev = format(subDays(current, 1), 'yyyy-MM-dd');
+      
+      if (dates[i + 1] === expectedPrev) {
+        currentStreak++;
+      } else {
+        break;
+      }
+    }
+    return currentStreak;
+  }, [diaries]);
 
   const addGoal = () => {
     if (!newGoal.skill || !newGoal.target || !goalsRef) return;
@@ -41,6 +73,7 @@ export default function LearningPage() {
     }).then(() => {
       setNewGoal({ skill: '', difficulty: 'Easy', target: '2' });
       setLoading(false);
+      toast({ title: "Goal added!" });
     });
   };
 
@@ -137,13 +170,14 @@ export default function LearningPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-muted rounded-lg text-center">
-                  <div className="text-2xl font-bold">12</div>
-                  <div className="text-xs text-muted-foreground">Day Streak</div>
+                <div className="p-4 bg-muted rounded-lg text-center flex flex-col items-center justify-center relative overflow-hidden">
+                  <Flame className={`h-4 w-4 absolute top-2 right-2 ${streak > 0 ? 'text-orange-500 animate-pulse' : 'text-muted-foreground'}`} />
+                  <div className="text-3xl font-black">{streak}</div>
+                  <div className="text-[10px] font-bold uppercase text-muted-foreground tracking-tighter">Day Streak</div>
                 </div>
                 <div className="p-4 bg-muted rounded-lg text-center">
-                  <div className="text-2xl font-bold">{goals?.reduce((s, g) => s + (g.completedCount || 0), 0)}</div>
-                  <div className="text-xs text-muted-foreground">Tasks Done</div>
+                  <div className="text-3xl font-black">{goals?.reduce((s, g) => s + (g.completedCount || 0), 0)}</div>
+                  <div className="text-[10px] font-bold uppercase text-muted-foreground tracking-tighter">Tasks Done</div>
                 </div>
               </div>
               <div className="space-y-3">
@@ -151,13 +185,13 @@ export default function LearningPage() {
                 {goals?.map(g => (
                   <div key={g.id} className="space-y-1">
                     <div className="flex justify-between text-xs">
-                      <span>{g.skill}</span>
-                      <span>{Math.round(((g.completedCount || 0) / g.target) * 100)}%</span>
+                      <span className="font-medium">{g.skill}</span>
+                      <span className="text-muted-foreground">{Math.round(((g.completedCount || 0) / (g.target || 1)) * 100)}%</span>
                     </div>
                     <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-primary transition-all duration-500" 
-                        style={{ width: `${Math.min(100, ((g.completedCount || 0) / g.target) * 100)}%` }}
+                        style={{ width: `${Math.min(100, ((g.completedCount || 0) / (g.target || 1)) * 100)}%` }}
                       />
                     </div>
                   </div>
