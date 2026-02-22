@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -70,6 +69,9 @@ export default function BudgetPage() {
   const netMonthlyPool = (monthlyBudgetDoc?.totalBudgetAmount || 0) - totalIncludedFixed;
   const dailyBase = netMonthlyPool / daysInMonth;
   const calculatedWeekendBonus = Math.round(dailyBase * 0.5);
+
+  const totalSpentThisMonth = expenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
+  const remainingNetPool = netMonthlyPool - totalSpentThisMonth;
 
   const budgetReport = useMemo(() => {
     if (!monthlyBudgetDoc || !expenses) return null;
@@ -280,8 +282,11 @@ export default function BudgetPage() {
             </CardContent>
             <CardFooter className="bg-muted/10 grid grid-cols-2 gap-4 py-4 border-t text-sm">
               <div className="flex flex-col">
-                <span className="text-muted-foreground text-xs uppercase font-bold tracking-tighter">Net Spending Pool</span>
-                <span className="text-lg font-black">₹{netMonthlyPool.toLocaleString()}</span>
+                <span className="text-muted-foreground text-xs uppercase font-bold tracking-tighter">Net Pool Remaining</span>
+                <div className="flex flex-col">
+                  <span className="text-lg font-black">₹{remainingNetPool.toLocaleString()}</span>
+                  <span className="text-[10px] text-muted-foreground">of ₹{netMonthlyPool.toLocaleString()} pool</span>
+                </div>
               </div>
               <div className="flex flex-col border-l pl-4">
                 <span className="text-muted-foreground text-xs uppercase font-bold tracking-tighter">Daily Base Budget</span>
