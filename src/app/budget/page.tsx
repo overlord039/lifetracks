@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -70,9 +71,8 @@ export default function BudgetPage() {
   const totalSpentThisMonth = expenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
   const remainingNetPool = netMonthlyPool - totalSpentThisMonth;
 
-  // Calculate dynamic daily base budget based on remaining pool and remaining days
-  const remainingDays = Math.max(1, daysInMonth - now.getDate() + 1);
-  const dailyBase = Math.max(0, remainingNetPool / remainingDays);
+  // Standard static daily base budget (Net Pool / Days in Month)
+  const dailyBase = netMonthlyPool / daysInMonth;
   const calculatedWeekendBonus = Math.round(dailyBase * 0.5);
 
   const budgetReport = useMemo(() => {
@@ -231,7 +231,7 @@ export default function BudgetPage() {
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>Daily Limit Exceeded</AlertTitle>
               <AlertDescription>
-                You've spent more than your daily slice. While you may have unspent funds from previous days, try to stay within your daily target to maximize savings.
+                You've spent more than your daily slice. Stay within your daily target to sustain your monthly goal.
               </AlertDescription>
             </Alert>
           )}
@@ -261,7 +261,7 @@ export default function BudgetPage() {
                   <div className="flex items-center justify-between">
                     <Label htmlFor="weekend-toggle" className="flex items-center gap-2">
                       <CalendarDays className="h-4 w-4 text-primary" />
-                      Weekend Bonuses
+                      Weekend Boost
                     </Label>
                     <Switch 
                       id="weekend-toggle"
@@ -412,7 +412,7 @@ export default function BudgetPage() {
                 Sustainable Today
               </CardTitle>
               <CardDescription className="text-primary-foreground/80 font-medium">
-                {todayStr} • Dynamic Redistribution
+                {todayStr} • Dynamic Daily Budget
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -440,7 +440,7 @@ export default function BudgetPage() {
             </CardContent>
             <CardFooter className="pt-0 pb-4 flex justify-center">
               <div className="bg-white/10 px-3 py-1 rounded-full text-[10px] font-medium backdrop-blur-sm">
-                Adjusting daily to sustain the month.
+                System maintains your monthly budget cap.
               </div>
             </CardFooter>
           </Card>
