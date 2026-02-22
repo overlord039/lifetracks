@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { cn } from '@/lib/utils';
 
 export default function BudgetPage() {
   const { user } = useUser();
@@ -106,6 +107,7 @@ export default function BudgetPage() {
   const todayReport = budgetReport?.[todayStr];
   const dailyAllocationToday = dailyBase + (todayReport?.extraBudget || 0);
   const isOverspentToday = (todayReport?.spent || 0) > dailyAllocationToday;
+  const isWithinBudget = (todayReport?.spent || 0) > 0 && !isOverspentToday;
 
   useEffect(() => {
     if (isOverspentToday) {
@@ -405,13 +407,18 @@ export default function BudgetPage() {
         </div>
 
         <div className="space-y-6">
-          <Card className={`shadow-xl text-primary-foreground transition-colors duration-500 ${isOverspentToday ? 'bg-destructive animate-pulse' : 'bg-primary'}`}>
+          <Card className={cn(
+            "shadow-xl transition-colors duration-500",
+            isOverspentToday ? "bg-destructive text-destructive-foreground animate-pulse" : 
+            isWithinBudget ? "bg-secondary text-secondary-foreground" : 
+            "bg-primary text-primary-foreground"
+          )}>
             <CardHeader>
               <CardTitle className="text-2xl flex items-center gap-2">
                 <Coins className="h-6 w-6" />
                 Sustainable Today
               </CardTitle>
-              <CardDescription className="text-primary-foreground/80 font-medium">
+              <CardDescription className="text-inherit opacity-80 font-medium">
                 {todayStr} • Dynamic Daily Budget
               </CardDescription>
             </CardHeader>
