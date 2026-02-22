@@ -67,11 +67,13 @@ export default function BudgetPage() {
 
   const totalIncludedFixed = fixedExpenses?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
   const netMonthlyPool = (monthlyBudgetDoc?.totalBudgetAmount || 0) - totalIncludedFixed;
-  const dailyBase = netMonthlyPool / daysInMonth;
-  const calculatedWeekendBonus = Math.round(dailyBase * 0.5);
-
   const totalSpentThisMonth = expenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
   const remainingNetPool = netMonthlyPool - totalSpentThisMonth;
+
+  // Calculate dynamic daily base budget based on remaining pool and remaining days
+  const remainingDays = Math.max(1, daysInMonth - now.getDate() + 1);
+  const dailyBase = Math.max(0, remainingNetPool / remainingDays);
+  const calculatedWeekendBonus = Math.round(dailyBase * 0.5);
 
   const budgetReport = useMemo(() => {
     if (!monthlyBudgetDoc || !expenses) return null;
@@ -103,7 +105,7 @@ export default function BudgetPage() {
 
   const todayReport = budgetReport?.[todayStr];
   const dailyAllocationToday = dailyBase + (todayReport?.extraBudget || 0);
-  const isOverspentToday = todayReport && todayReport.spent > dailyAllocationToday;
+  const isOverspentToday = (todayReport?.spent || 0) > dailyAllocationToday;
 
   useEffect(() => {
     if (isOverspentToday) {
@@ -410,7 +412,7 @@ export default function BudgetPage() {
                 Sustainable Today
               </CardTitle>
               <CardDescription className="text-primary-foreground/80 font-medium">
-                {todayStr} • Daily Allocation
+                {todayStr} • Dynamic Redistribution
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -438,7 +440,7 @@ export default function BudgetPage() {
             </CardContent>
             <CardFooter className="pt-0 pb-4 flex justify-center">
               <div className="bg-white/10 px-3 py-1 rounded-full text-[10px] font-medium backdrop-blur-sm">
-                Focusing on your daily target.
+                Adjusting daily to sustain the month.
               </div>
             </CardFooter>
           </Card>
