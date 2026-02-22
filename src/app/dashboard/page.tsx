@@ -91,13 +91,15 @@ export default function Dashboard() {
 
   const todayReport = budgetReport?.[todayStr];
   const allowedToday = todayReport?.allowedBudget || 0;
+  // User specifically requested to display only the daily base allowance (base + extra)
+  const dailyBaseAllowance = (todayReport?.baseBudget || 0) + (todayReport?.extraBudget || 0);
   const spentToday = todayReport?.spent || 0;
-  const remaining = Math.max(0, allowedToday - spentToday);
+  const remaining = Math.max(0, dailyBaseAllowance - spentToday);
 
   const goalsProgress = learningGoals?.length ? Math.round((learningGoals.filter(g => (g.completedCount || 0) >= (g.target || 0)).length / learningGoals.length) * 100) : 0;
 
-  const isOverspent = spentToday > allowedToday;
-  const isWithinBudget = spentToday <= allowedToday && spentToday > 0;
+  const isOverspent = spentToday > dailyBaseAllowance;
+  const isWithinBudget = spentToday <= dailyBaseAllowance && spentToday > 0;
 
   return (
     <AppShell>
@@ -109,8 +111,8 @@ export default function Dashboard() {
               <DollarSign className="w-4 h-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-black">₹{allowedToday.toFixed(0)}</div>
-              <p className="text-[10px] text-muted-foreground mt-1">Including carry-forward balance</p>
+              <div className="text-3xl font-black">₹{dailyBaseAllowance.toFixed(0)}</div>
+              <p className="text-[10px] text-muted-foreground mt-1">Daily target allocation</p>
             </CardContent>
           </Card>
         </Link>
@@ -137,7 +139,7 @@ export default function Dashboard() {
                 "text-[10px] mt-1",
                 isOverspent || isWithinBudget ? "text-inherit/80" : "text-muted-foreground"
               )}>
-                {spentToday > allowedToday ? "Exceeding daily target" : "Within sustainable limits"}
+                {spentToday > dailyBaseAllowance ? "Exceeding daily target" : "Within sustainable limits"}
               </p>
             </CardContent>
           </Card>
