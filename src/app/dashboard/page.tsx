@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
+import Link from 'next/link';
 
 export default function Dashboard() {
   const { user } = useUser();
@@ -97,108 +98,120 @@ export default function Dashboard() {
   return (
     <AppShell>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="shadow-md border-b-4 border-b-primary">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-bold uppercase tracking-tighter text-muted-foreground">Allowed Today</CardTitle>
-            <DollarSign className="w-4 h-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-black">₹{allowedToday.toFixed(0)}</div>
-            <p className="text-[10px] text-muted-foreground mt-1">Including carry-forward balance</p>
-          </CardContent>
-        </Card>
+        <Link href="/budget" className="block transition-transform hover:scale-[1.02] active:scale-[0.98]">
+          <Card className="shadow-md border-b-4 border-b-primary h-full">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-sm font-bold uppercase tracking-tighter text-muted-foreground">Allowed Today</CardTitle>
+              <DollarSign className="w-4 h-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-black">₹{allowedToday.toFixed(0)}</div>
+              <p className="text-[10px] text-muted-foreground mt-1">Including carry-forward balance</p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-bold uppercase tracking-tighter text-muted-foreground">Spent Today</CardTitle>
-            <TrendingUp className="w-4 h-4 text-secondary-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-black">₹{spentToday.toFixed(0)}</div>
-            <p className="text-[10px] text-muted-foreground mt-1">
-              {spentToday > allowedToday ? "Exceeding daily target" : "Within sustainable limits"}
-            </p>
-          </CardContent>
-        </Card>
+        <Link href="/budget" className="block transition-transform hover:scale-[1.02] active:scale-[0.98]">
+          <Card className="shadow-md h-full">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-sm font-bold uppercase tracking-tighter text-muted-foreground">Spent Today</CardTitle>
+              <TrendingUp className="w-4 h-4 text-secondary-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-black">₹{spentToday.toFixed(0)}</div>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {spentToday > allowedToday ? "Exceeding daily target" : "Within sustainable limits"}
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-bold uppercase tracking-tighter text-muted-foreground">Goal Progress</CardTitle>
-            <BookOpen className="w-4 h-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-black">{goalsProgress}%</div>
-            <Progress value={goalsProgress} className="h-1.5 mt-2" />
-          </CardContent>
-        </Card>
+        <Link href="/learning" className="block transition-transform hover:scale-[1.02] active:scale-[0.98]">
+          <Card className="shadow-md h-full">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-sm font-bold uppercase tracking-tighter text-muted-foreground">Goal Progress</CardTitle>
+              <BookOpen className="w-4 h-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-black">{goalsProgress}%</div>
+              <Progress value={goalsProgress} className="h-1.5 mt-2" />
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-bold uppercase tracking-tighter text-muted-foreground">Diary Entry</CardTitle>
-            <Calendar className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              {todayDiary ? <CheckCircle2 className="w-6 h-6 text-secondary-foreground" /> : <AlertCircle className="w-6 h-6 text-destructive" />}
-              <div className="text-lg font-black">{todayDiary ? "Complete" : "Pending"}</div>
-            </div>
-          </CardContent>
-        </Card>
+        <Link href="/diary" className="block transition-transform hover:scale-[1.02] active:scale-[0.98]">
+          <Card className="shadow-md h-full">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-sm font-bold uppercase tracking-tighter text-muted-foreground">Diary Entry</CardTitle>
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2">
+                {todayDiary ? <CheckCircle2 className="w-6 h-6 text-secondary-foreground" /> : <AlertCircle className="w-6 h-6 text-destructive" />}
+                <div className="text-lg font-black">{todayDiary ? "Complete" : "Pending"}</div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <div className="grid gap-6 mt-8 md:grid-cols-2">
-        <Card className="shadow-md overflow-hidden">
-          <CardHeader className="bg-primary/5">
-            <CardTitle>Budget Insights</CardTitle>
-            <CardDescription>Real-time sustainability check.</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6 space-y-4">
-            <div className={`p-4 rounded-xl border flex items-center justify-between ${remaining > 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-full ${remaining > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                  {remaining > 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase text-muted-foreground tracking-tighter">Remaining Today</p>
-                  <p className="text-2xl font-black">₹{remaining.toFixed(0)}</p>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Daily Base Allocation:</span>
-                <span className="font-bold">₹{todayReport?.baseBudget.toFixed(0)}</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Carry-Forward Adjustment:</span>
-                <span className={`font-bold ${(todayReport?.carryForwardFromYesterday || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {(todayReport?.carryForwardFromYesterday || 0) >= 0 ? '+' : ''}₹{todayReport?.carryForwardFromYesterday.toFixed(0)}
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle>Learning Mastery</CardTitle>
-            <CardDescription>Tracking your active goals.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {learningGoals?.length ? learningGoals.map((goal) => {
-              const p = Math.min(100, Math.round(((goal.completedCount || 0) / (goal.target || 1)) * 100));
-              return (
-                <div key={goal.id} className="space-y-1">
-                  <div className="flex justify-between text-xs font-bold">
-                    <span>{goal.skill}</span>
-                    <span className="text-muted-foreground">{p}%</span>
+        <Link href="/reports" className="block transition-transform hover:scale-[1.01] active:scale-[0.99]">
+          <Card className="shadow-md overflow-hidden h-full">
+            <CardHeader className="bg-primary/5">
+              <CardTitle>Budget Insights</CardTitle>
+              <CardDescription>Real-time sustainability check.</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              <div className={`p-4 rounded-xl border flex items-center justify-between ${remaining > 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-full ${remaining > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    {remaining > 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
                   </div>
-                  <Progress value={p} className="h-1.5" />
+                  <div>
+                    <p className="text-xs font-bold uppercase text-muted-foreground tracking-tighter">Remaining Today</p>
+                    <p className="text-2xl font-black">₹{remaining.toFixed(0)}</p>
+                  </div>
                 </div>
-              );
-            }) : <p className="text-xs italic text-muted-foreground">No goals active.</p>}
-          </CardContent>
-        </Card>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Daily Base Allocation:</span>
+                  <span className="font-bold">₹{todayReport?.baseBudget.toFixed(0)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Carry-Forward Adjustment:</span>
+                  <span className={`font-bold ${(todayReport?.carryForwardFromYesterday || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {(todayReport?.carryForwardFromYesterday || 0) >= 0 ? '+' : ''}₹{todayReport?.carryForwardFromYesterday.toFixed(0)}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/learning" className="block transition-transform hover:scale-[1.01] active:scale-[0.99]">
+          <Card className="shadow-md h-full">
+            <CardHeader>
+              <CardTitle>Learning Mastery</CardTitle>
+              <CardDescription>Tracking your active goals.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {learningGoals?.length ? learningGoals.map((goal) => {
+                const p = Math.min(100, Math.round(((goal.completedCount || 0) / (goal.target || 1)) * 100));
+                return (
+                  <div key={goal.id} className="space-y-1">
+                    <div className="flex justify-between text-xs font-bold">
+                      <span>{goal.skill}</span>
+                      <span className="text-muted-foreground">{p}%</span>
+                    </div>
+                    <Progress value={p} className="h-1.5" />
+                  </div>
+                );
+              }) : <p className="text-xs italic text-muted-foreground">No goals active.</p>}
+            </CardContent>
+          </Card>
+        </Link>
       </div>
     </AppShell>
   );
