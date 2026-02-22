@@ -19,6 +19,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 export default function Dashboard() {
   const { user } = useUser();
@@ -95,6 +96,9 @@ export default function Dashboard() {
 
   const goalsProgress = learningGoals?.length ? Math.round((learningGoals.filter(g => (g.completedCount || 0) >= (g.target || 0)).length / learningGoals.length) * 100) : 0;
 
+  const isOverspent = spentToday > allowedToday;
+  const isWithinBudget = spentToday <= allowedToday && spentToday > 0;
+
   return (
     <AppShell>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -112,14 +116,27 @@ export default function Dashboard() {
         </Link>
 
         <Link href="/budget" className="block transition-transform hover:scale-[1.02] active:scale-[0.98]">
-          <Card className="shadow-md h-full">
+          <Card className={cn(
+            "shadow-md h-full transition-colors duration-300",
+            isOverspent ? "bg-destructive text-destructive-foreground" : 
+            isWithinBudget ? "bg-secondary text-secondary-foreground" : "bg-card"
+          )}>
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-bold uppercase tracking-tighter text-muted-foreground">Spent Today</CardTitle>
-              <TrendingUp className="w-4 h-4 text-secondary-foreground" />
+              <CardTitle className={cn(
+                "text-sm font-bold uppercase tracking-tighter",
+                isOverspent || isWithinBudget ? "text-inherit" : "text-muted-foreground"
+              )}>Spent Today</CardTitle>
+              <TrendingUp className={cn(
+                "w-4 h-4",
+                isOverspent || isWithinBudget ? "text-inherit" : "text-secondary-foreground"
+              )} />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-black">₹{spentToday.toFixed(0)}</div>
-              <p className="text-[10px] text-muted-foreground mt-1">
+              <p className={cn(
+                "text-[10px] mt-1",
+                isOverspent || isWithinBudget ? "text-inherit/80" : "text-muted-foreground"
+              )}>
                 {spentToday > allowedToday ? "Exceeding daily target" : "Within sustainable limits"}
               </p>
             </CardContent>
