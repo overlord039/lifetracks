@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 
 export default function ReportsPage() {
@@ -396,4 +397,3 @@ export default function ReportsPage() {
     </AppShell>
   );
 }
-
