@@ -227,6 +227,17 @@ export default function BudgetPage() {
   return (
     <AppShell>
       <div className="grid gap-6 lg:grid-cols-3">
+        {/* On mobile, show the "Sustainable Today" card first */}
+        <div className="lg:hidden">
+          <SustainableTodayCard 
+            isOverspentToday={isOverspentToday}
+            isWithinBudget={isWithinBudget}
+            todayStr={todayStr}
+            dailyAllocationToday={dailyAllocationToday}
+            todayReport={todayReport}
+          />
+        </div>
+
         <div className="lg:col-span-2 space-y-6">
           {isOverspentToday && (
             <Alert variant="destructive" className="animate-in fade-in slide-in-from-top-4 duration-500 shadow-lg">
@@ -307,7 +318,7 @@ export default function BudgetPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
                 <Input placeholder="Name" value={newFixed.name} onChange={(e) => setNewFixed({ ...newFixed, name: e.target.value })} className="h-9" />
                 <Select value={newFixed.categoryId} onValueChange={(v) => setNewFixed({ ...newFixed, categoryId: v })}>
                   <SelectTrigger className="h-9"><SelectValue placeholder="Category" /></SelectTrigger>
@@ -362,7 +373,7 @@ export default function BudgetPage() {
                   {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BrainCircuit className="h-4 w-4" />}
                 </Button>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <Select value={newExpense.categoryId} onValueChange={(val) => setNewExpense({ ...newExpense, categoryId: val })}>
                   <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
                   <SelectContent>{dailyCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}</SelectContent>
@@ -406,51 +417,14 @@ export default function BudgetPage() {
           </Card>
         </div>
 
-        <div className="space-y-6">
-          <Card className={cn(
-            "shadow-xl transition-colors duration-500",
-            isOverspentToday ? "bg-destructive text-destructive-foreground animate-pulse" : 
-            isWithinBudget ? "bg-secondary text-secondary-foreground" : 
-            "bg-primary text-primary-foreground"
-          )}>
-            <CardHeader>
-              <CardTitle className="text-2xl flex items-center gap-2">
-                <Coins className="h-6 w-6" />
-                Sustainable Today
-              </CardTitle>
-              <CardDescription className="text-inherit opacity-80 font-medium">
-                {todayStr} • Dynamic Daily Budget
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="text-5xl font-black tracking-tighter drop-shadow-sm">
-                ₹{Math.max(0, dailyAllocationToday - (todayReport?.spent || 0)).toFixed(0)}
-              </div>
-              
-              <div className="space-y-4 pt-4 border-t border-white/20">
-                <div className="flex justify-between items-center text-sm font-bold opacity-90">
-                  <span>Spent Today:</span>
-                  <span className="text-lg">₹{(todayReport?.spent || 0).toFixed(0)}</span>
-                </div>
-                
-                <div className="flex justify-between items-center text-sm font-black pt-2 border-t border-white/10">
-                  <span>Remaining Daily Base Budget:</span>
-                  <span className="text-2xl">₹{Math.max(0, dailyAllocationToday - (todayReport?.spent || 0)).toFixed(0)}</span>
-                </div>
-
-                {isOverspentToday && (
-                  <div className="pt-2 flex items-center justify-center gap-2 text-xs font-bold text-white uppercase animate-bounce bg-white/10 py-2 rounded-lg">
-                    <AlertTriangle className="h-4 w-4" /> Overspent by ₹{((todayReport?.spent || 0) - dailyAllocationToday).toFixed(0)}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-            <CardFooter className="pt-0 pb-4 flex justify-center">
-              <div className="bg-white/10 px-3 py-1 rounded-full text-[10px] font-medium backdrop-blur-sm">
-                System maintains your monthly budget cap.
-              </div>
-            </CardFooter>
-          </Card>
+        <div className="hidden lg:block space-y-6">
+          <SustainableTodayCard 
+            isOverspentToday={isOverspentToday}
+            isWithinBudget={isWithinBudget}
+            todayStr={todayStr}
+            dailyAllocationToday={dailyAllocationToday}
+            todayReport={todayReport}
+          />
 
           <Card className="shadow-md">
             <CardHeader className="pb-3">
@@ -491,5 +465,54 @@ export default function BudgetPage() {
         </div>
       </div>
     </AppShell>
+  );
+}
+
+function SustainableTodayCard({ isOverspentToday, isWithinBudget, todayStr, dailyAllocationToday, todayReport }: any) {
+  return (
+    <Card className={cn(
+      "shadow-xl transition-colors duration-500",
+      isOverspentToday ? "bg-destructive text-destructive-foreground animate-pulse" : 
+      isWithinBudget ? "bg-secondary text-secondary-foreground" : 
+      "bg-primary text-primary-foreground"
+    )}>
+      <CardHeader>
+        <CardTitle className="text-2xl flex items-center gap-2">
+          <Coins className="h-6 w-6" />
+          Sustainable Today
+        </CardTitle>
+        <CardDescription className="text-inherit opacity-80 font-medium">
+          {todayStr} • Dynamic Daily Budget
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="text-5xl font-black tracking-tighter drop-shadow-sm">
+          ₹{Math.max(0, dailyAllocationToday - (todayReport?.spent || 0)).toFixed(0)}
+        </div>
+        
+        <div className="space-y-4 pt-4 border-t border-white/20">
+          <div className="flex justify-between items-center text-sm font-bold opacity-90">
+            <span>Spent Today:</span>
+            <span className="text-lg">₹{(todayReport?.spent || 0).toFixed(0)}</span>
+          </div>
+          
+          <div className="flex justify-between items-center text-sm font-black pt-2 border-t border-white/10">
+            <span>Remaining Daily Base Budget:</span>
+            <span className="text-2xl">₹{Math.max(0, dailyAllocationToday - (todayReport?.spent || 0)).toFixed(0)}</span>
+          </div>
+
+          {isOverspentToday && (
+            <div className="pt-2 flex items-center justify-center gap-2 text-xs font-bold text-white uppercase animate-bounce bg-white/10 py-2 rounded-lg">
+              <AlertTriangle className="h-4 w-4" /> Overspent by ₹{((todayReport?.spent || 0) - dailyAllocationToday).toFixed(0)}
+            </div>
+          )}
+        </div>
+      </CardContent>
+      <CardFooter className="pt-0 pb-4 flex justify-center">
+        <div className="bg-white/10 px-3 py-1 rounded-full text-[10px] font-medium backdrop-blur-sm">
+          System maintains your monthly budget cap.
+        </div>
+      </CardFooter>
+    </Card>
   );
 }

@@ -5,7 +5,7 @@ import React, { useState, useMemo } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, parse, isValid } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, subMonths } from 'date-fns';
 import { collection, doc } from 'firebase/firestore';
 import { 
   BarChart, 
@@ -16,17 +16,11 @@ import {
   Tooltip, 
   Legend, 
   ResponsiveContainer,
-  LineChart,
-  Line,
-  Cell,
   PieChart,
-  Pie
+  Pie,
+  Cell
 } from 'recharts';
 import { 
-  Wallet, 
-  Banknote, 
-  ShoppingCart, 
-  PiggyBank, 
   TableProperties,
   ArrowUpRight,
   ArrowDownRight,
@@ -181,23 +175,23 @@ export default function ReportsPage() {
 
   return (
     <AppShell>
-      <div className="space-y-8 max-w-7xl mx-auto">
+      <div className="space-y-6 max-w-7xl mx-auto">
         {/* Month Selector Header */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-4 rounded-2xl shadow-sm border">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 w-full md:w-auto">
             <div className="p-2 bg-primary/10 rounded-lg text-primary">
               <CalendarDays className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="text-2xl font-black tracking-tight">{format(selectedDate, 'MMMM yyyy')}</h2>
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-tighter">Reporting Period</p>
+              <h2 className="text-xl md:text-2xl font-black tracking-tight">{format(selectedDate, 'MMMM yyyy')}</h2>
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">Reporting Period</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => changeMonth(-1)} className="h-9 px-3">
+          <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+            <Button variant="outline" size="sm" onClick={() => changeMonth(-1)} className="h-9 px-3 flex-1 md:flex-initial">
               <ChevronLeft className="h-4 w-4 mr-1" /> {format(prevDate, 'MMM')}
             </Button>
-            <Button variant="secondary" size="sm" disabled className="h-9 font-bold px-6">
+            <Button variant="secondary" size="sm" disabled className="h-9 font-bold px-4 md:px-6 flex-1 md:flex-initial whitespace-nowrap">
               Current Selection
             </Button>
             <Button 
@@ -205,7 +199,7 @@ export default function ReportsPage() {
               size="sm" 
               onClick={() => changeMonth(1)} 
               disabled={format(selectedDate, 'yyyyMM') === format(new Date(), 'yyyyMM')}
-              className="h-9 px-3"
+              className="h-9 px-3 flex-1 md:flex-initial"
             >
               {format(subMonths(selectedDate, -1), 'MMM')} <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
@@ -254,7 +248,7 @@ export default function ReportsPage() {
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Remaining Balance</p>
                   <p className={cn(
-                    "text-3xl font-black",
+                    "text-2xl md:text-3xl font-black",
                     totals.remaining >= 0 ? 'text-primary' : 'text-destructive'
                   )}>
                     ₹{totals.remaining.toLocaleString()}
@@ -278,7 +272,7 @@ export default function ReportsPage() {
             </CardFooter>
           </Card>
 
-          {/* Comparison Stats */}
+          {/* Categories Chart */}
           <Card className="shadow-md lg:col-span-1">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -286,7 +280,7 @@ export default function ReportsPage() {
                 Categories
               </CardTitle>
             </CardHeader>
-            <CardContent className="h-[200px] p-0">
+            <CardContent className="h-[250px] p-0 flex items-center justify-center">
               {chartsData.categoryData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -294,8 +288,8 @@ export default function ReportsPage() {
                       data={chartsData.categoryData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={45}
-                      outerRadius={65}
+                      innerRadius={50}
+                      outerRadius={80}
                       paddingAngle={5}
                       dataKey="value"
                     >
@@ -311,7 +305,7 @@ export default function ReportsPage() {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground text-sm italic">
+                <div className="text-muted-foreground text-sm italic">
                   No categorical data found.
                 </div>
               )}
@@ -360,24 +354,24 @@ export default function ReportsPage() {
               <div className="bg-primary/5 p-4 rounded-xl border border-primary/20">
                 <p className="text-xs font-medium text-foreground leading-relaxed">
                   {totals.dailyDiff > 0 
-                    ? `Your daily spending has increased by ₹${Math.abs(totals.dailyDiff).toLocaleString()} compared to ${format(prevDate, 'MMMM')}. Consider reviewing your new "Smart Logger" entries.` 
+                    ? `Your daily spending has increased by ₹${Math.abs(totals.dailyDiff).toLocaleString()} compared to ${format(prevDate, 'MMMM')}.` 
                     : totals.dailyDiff < 0 
                     ? `Great job! You spent ₹${Math.abs(totals.dailyDiff).toLocaleString()} less on daily expenses than you did in ${format(prevDate, 'MMMM')}.`
-                    : `Your daily spending is exactly the same as last month. Consistent!`}
+                    : `Your daily spending is exactly the same as last month.`}
                 </p>
               </div>
             </CardContent>
           </Card>
 
           {/* Detailed Daily Spending Chart */}
-          <Card className="md:col-span-2 lg:col-span-3 shadow-md">
+          <Card className="md:col-span-2 lg:col-span-3 shadow-md overflow-hidden">
             <CardHeader>
-              <CardTitle className="text-lg">Daily Spending vs Dynamic Allowance</CardTitle>
-              <CardDescription>Track how your actual spend aligns with daily targets.</CardDescription>
+              <CardTitle className="text-lg">Daily Spending vs Allowance</CardTitle>
+              <CardDescription>Visualizing your daily spending rhythm.</CardDescription>
             </CardHeader>
-            <CardContent className="h-[350px] pt-4">
+            <CardContent className="h-[300px] md:h-[400px] pt-4 -ml-4 md:ml-0">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartsData.spendingData}>
+                <BarChart data={chartsData.spendingData} margin={{ left: -10, right: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
                   <XAxis dataKey="name" fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                   <YAxis fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} />

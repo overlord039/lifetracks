@@ -38,12 +38,10 @@ export default function LearningPage() {
   const streak = useMemo(() => {
     if (!diaries || diaries.length === 0) return 0;
 
-    // Extract unique dates and sort descending
     const dates = Array.from(new Set(diaries.map(d => d.date))).sort().reverse();
     const today = format(new Date(), 'yyyy-MM-dd');
     const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
 
-    // If latest entry isn't today or yesterday, streak is broken
     if (dates[0] !== today && dates[0] !== yesterday) return 0;
 
     let currentStreak = 1;
@@ -93,11 +91,11 @@ export default function LearningPage() {
 
   return (
     <AppShell>
-      <div className="space-y-8">
+      <div className="space-y-6">
         <Card className="shadow-md">
           <CardHeader>
             <CardTitle>Setup Your Learning Goals</CardTitle>
-            <CardDescription>Define what you want to master and how many questions daily.</CardDescription>
+            <CardDescription>Define what you want to master.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -132,7 +130,7 @@ export default function LearningPage() {
         </Card>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <Card className="shadow-md border-t-4 border-t-secondary">
+          <Card className="shadow-md border-t-4 border-t-secondary order-2 md:order-1">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-secondary-foreground" />
@@ -143,10 +141,10 @@ export default function LearningPage() {
             <CardContent className="space-y-4">
               {goals?.length === 0 && <p className="text-muted-foreground text-center py-8">No goals set yet.</p>}
               {goals?.map((goal) => (
-                <div key={goal.id} className="group flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-muted/10 transition-colors">
+                <div key={goal.id} className="group flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg bg-card hover:bg-muted/10 transition-colors gap-4">
                   <div>
                     <h4 className="font-bold text-lg">{goal.skill}</h4>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-black ${
                       goal.difficulty === 'Easy' ? 'bg-green-100 text-green-700' :
                       goal.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-700' :
                       'bg-red-100 text-red-700'
@@ -154,17 +152,17 @@ export default function LearningPage() {
                       {goal.difficulty}
                     </span>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => updateProgress(goal.id, -1)} disabled={goal.completedCount === 0}>-</Button>
-                      <span className="font-mono text-xl w-12 text-center">{goal.completedCount} / {goal.target}</span>
-                      <Button variant="outline" size="sm" onClick={() => updateProgress(goal.id, 1)} disabled={goal.completedCount >= goal.target}>+</Button>
+                  <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
+                    <div className="flex items-center gap-2 bg-muted/30 p-1 rounded-md">
+                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateProgress(goal.id, -1)} disabled={goal.completedCount === 0}>-</Button>
+                      <span className="font-mono text-base w-14 text-center">{goal.completedCount} / {goal.target}</span>
+                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateProgress(goal.id, 1)} disabled={goal.completedCount >= goal.target}>+</Button>
                     </div>
                     <Button 
                       variant="ghost" 
                       size="icon" 
                       onClick={() => deleteGoal(goal.id)}
-                      className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
+                      className="text-destructive h-8 w-8"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -174,13 +172,12 @@ export default function LearningPage() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-md">
+          <Card className="shadow-md order-1 md:order-2">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <GraduationCap className="h-5 w-5 text-primary" />
                 Progress Insights
               </CardTitle>
-              <CardDescription>Summary of your learning journey.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-2 gap-4">

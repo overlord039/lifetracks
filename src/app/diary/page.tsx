@@ -13,7 +13,6 @@ import { format, parseISO } from 'date-fns';
 import { BookText, Save, Sparkles, History, Calendar, Quote } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 
 export default function DiaryPage() {
   const { user } = useUser();
@@ -81,7 +80,7 @@ export default function DiaryPage() {
 
   return (
     <AppShell>
-      <div className="max-w-5xl mx-auto space-y-8 pb-12">
+      <div className="max-w-5xl mx-auto space-y-6 pb-12">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -89,8 +88,8 @@ export default function DiaryPage() {
               <BookText className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-3xl font-black font-headline tracking-tight text-foreground">My Diary</h2>
-              <p className="text-sm font-medium text-muted-foreground">{format(new Date(), 'EEEE, MMMM do yyyy')}</p>
+              <h2 className="text-2xl md:text-3xl font-black font-headline tracking-tight text-foreground">My Diary</h2>
+              <p className="text-xs md:text-sm font-medium text-muted-foreground">{format(new Date(), 'EEEE, MMMM do yyyy')}</p>
             </div>
           </div>
           <Button onClick={saveEntry} disabled={loading} className="w-full md:w-auto shadow-md">
@@ -98,7 +97,7 @@ export default function DiaryPage() {
           </Button>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-3">
+        <div className="grid gap-6 lg:grid-cols-3">
           {/* Main Entry Section */}
           <div className="lg:col-span-2 space-y-6">
             <Card className="shadow-xl border-t-4 border-t-primary overflow-hidden">
@@ -113,7 +112,7 @@ export default function DiaryPage() {
                 {/* Mood Selector */}
                 <div className="space-y-4">
                   <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Daily Mood</Label>
-                  <div className="flex gap-2 justify-between bg-muted/30 p-4 rounded-xl border">
+                  <div className="flex flex-wrap gap-3 justify-center md:justify-between bg-muted/30 p-4 rounded-xl border">
                     {moods.map(m => (
                       <button
                         key={m}
@@ -133,7 +132,7 @@ export default function DiaryPage() {
                     <Label className="text-xs font-bold uppercase text-muted-foreground">What I did today</Label>
                     <Textarea 
                       placeholder="Key accomplishments and activities..." 
-                      className="min-h-[140px] resize-none border-primary/20 focus:border-primary transition-colors" 
+                      className="min-h-[120px] resize-none border-primary/20 focus:border-primary transition-colors" 
                       value={localEntry.whatIDidToday}
                       onChange={e => setLocalEntry({...localEntry, whatIDidToday: e.target.value})}
                     />
@@ -142,7 +141,7 @@ export default function DiaryPage() {
                     <Label className="text-xs font-bold uppercase text-muted-foreground">What I learned</Label>
                     <Textarea 
                       placeholder="New skills or insights gained..." 
-                      className="min-h-[140px] resize-none border-primary/20 focus:border-primary transition-colors" 
+                      className="min-h-[120px] resize-none border-primary/20 focus:border-primary transition-colors" 
                       value={localEntry.whatILearned}
                       onChange={e => setLocalEntry({...localEntry, whatILearned: e.target.value})}
                     />
@@ -151,7 +150,7 @@ export default function DiaryPage() {
                     <Label className="text-xs font-bold uppercase text-muted-foreground">Challenges / Blockers</Label>
                     <Textarea 
                       placeholder="What stopped your progress?" 
-                      className="min-h-[140px] resize-none border-primary/20 focus:border-primary transition-colors" 
+                      className="min-h-[120px] resize-none border-primary/20 focus:border-primary transition-colors" 
                       value={localEntry.challengesBlockers}
                       onChange={e => setLocalEntry({...localEntry, challengesBlockers: e.target.value})}
                     />
@@ -160,7 +159,7 @@ export default function DiaryPage() {
                     <Label className="text-xs font-bold uppercase text-muted-foreground">Tomorrow's Plan</Label>
                     <Textarea 
                       placeholder="Goals for the next day..." 
-                      className="min-h-[140px] resize-none border-primary/20 focus:border-primary transition-colors" 
+                      className="min-h-[120px] resize-none border-primary/20 focus:border-primary transition-colors" 
                       value={localEntry.tomorrowsPlan}
                       onChange={e => setLocalEntry({...localEntry, tomorrowsPlan: e.target.value})}
                     />
@@ -176,7 +175,7 @@ export default function DiaryPage() {
 
           {/* History Section */}
           <div className="space-y-6">
-            <Card className="shadow-lg h-full max-h-[800px] flex flex-col">
+            <Card className="shadow-lg h-full lg:max-h-[800px] flex flex-col">
               <CardHeader className="bg-muted/30 border-b pb-4 shrink-0">
                 <CardTitle className="text-xl flex items-center gap-2">
                   <History className="w-5 h-5 text-primary" />
@@ -185,10 +184,10 @@ export default function DiaryPage() {
                 <CardDescription>Revisit your past reflections.</CardDescription>
               </CardHeader>
               <CardContent className="p-0 overflow-hidden">
-                <ScrollArea className="h-[600px]">
+                <ScrollArea className="h-[400px] lg:h-[600px]">
                   <div className="p-4 space-y-4">
                     {sortedEntries.length > 0 ? (
-                      sortedEntries.map((item, index) => (
+                      sortedEntries.map((item) => (
                         <div 
                           key={item.id} 
                           className={`group p-4 rounded-xl border bg-card hover:border-primary/50 transition-all duration-200 shadow-sm hover:shadow-md ${item.date === todayStr ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : ''}`}
@@ -209,15 +208,6 @@ export default function DiaryPage() {
                                 <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest mb-1">Highlights</p>
                                 <p className="text-xs text-foreground/80 line-clamp-2 italic leading-relaxed">
                                   "{item.whatIDidToday}"
-                                </p>
-                              </div>
-                            )}
-                            
-                            {item.whatILearned && (
-                              <div className="pt-2 border-t border-dashed">
-                                <p className="text-[10px] font-bold uppercase text-primary/80 tracking-widest mb-1">Key Learning</p>
-                                <p className="text-xs text-foreground/80 line-clamp-1 italic">
-                                  {item.whatILearned}
                                 </p>
                               </div>
                             )}
