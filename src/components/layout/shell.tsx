@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -7,7 +8,8 @@ import {
   Wallet, 
   BookText, 
   BarChart3, 
-  LogOut
+  LogOut,
+  HandCoins
 } from 'lucide-react';
 import { 
   Sidebar, 
@@ -32,6 +34,7 @@ const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
   { title: 'Learning', url: '/learning', icon: GraduationCap },
   { title: 'Budget', url: '/budget', icon: Wallet },
+  { title: 'Debts', url: '/debts', icon: HandCoins },
   { title: 'Diary', url: '/diary', icon: BookText },
   { title: 'Reports', url: '/reports', icon: BarChart3 },
 ];

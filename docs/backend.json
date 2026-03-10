@@ -280,6 +280,23 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "userId", "date", "createdAt"]
+    },
+    "Debt": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Debt",
+      "type": "object",
+      "description": "Represents money owed to the user by others.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "debtorName": { "type": "string", "description": "Who owes the money." },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "isPaid": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "debtorName", "amount", "isPaid", "createdAt"]
     }
   },
   "auth": {
@@ -351,6 +368,15 @@
           "schema": { "$ref": "#/backend/entities/DailyDiary" },
           "description": "Daily diary entries.",
           "params": [{ "name": "userId", "description": "User UID" }, { "name": "date", "description": "YYYY-MM-DD" }]
+        }
+      },
+      {
+        "path": "/users/{userId}/debts/{debtId}",
+        "definition": {
+          "entityName": "Debt",
+          "schema": { "$ref": "#/backend/entities/Debt" },
+          "description": "Track money owed by others.",
+          "params": [{ "name": "userId", "description": "User UID" }, { "name": "debtId", "description": "Debt ID" }]
         }
       }
     ]
