@@ -7,9 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
-import { CheckCircle2, GraduationCap, Plus, Flame } from 'lucide-react';
+import { CheckCircle2, GraduationCap, Plus, Flame, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, subDays, parseISO } from 'date-fns';
@@ -85,6 +85,12 @@ export default function LearningPage() {
     updateDocumentNonBlocking(doc(goalsRef, id), { completedCount: newCount, updatedAt: new Date().toISOString() });
   };
 
+  const deleteGoal = (id: string) => {
+    if (!goalsRef) return;
+    deleteDocumentNonBlocking(doc(goalsRef, id));
+    toast({ title: "Goal removed" });
+  };
+
   return (
     <AppShell>
       <div className="space-y-8">
@@ -137,7 +143,7 @@ export default function LearningPage() {
             <CardContent className="space-y-4">
               {goals?.length === 0 && <p className="text-muted-foreground text-center py-8">No goals set yet.</p>}
               {goals?.map((goal) => (
-                <div key={goal.id} className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-muted/10 transition-colors">
+                <div key={goal.id} className="group flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-muted/10 transition-colors">
                   <div>
                     <h4 className="font-bold text-lg">{goal.skill}</h4>
                     <span className={`text-xs px-2 py-0.5 rounded-full ${
@@ -154,6 +160,14 @@ export default function LearningPage() {
                       <span className="font-mono text-xl w-12 text-center">{goal.completedCount} / {goal.target}</span>
                       <Button variant="outline" size="sm" onClick={() => updateProgress(goal.id, 1)} disabled={goal.completedCount >= goal.target}>+</Button>
                     </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => deleteGoal(goal.id)}
+                      className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               ))}
