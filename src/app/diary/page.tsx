@@ -10,15 +10,23 @@ import { Label } from '@/components/ui/label';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
 import { doc, collection } from 'firebase/firestore';
 import { format, parseISO } from 'date-fns';
-import { BookText, Save, Sparkles, History, Calendar, Quote } from 'lucide-react';
+import { BookText, Save, Sparkles, History, Calendar, Quote, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 export default function DiaryPage() {
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [selectedHistoryEntry, setSelectedHistoryEntry] = useState<any>(null);
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
@@ -190,7 +198,8 @@ export default function DiaryPage() {
                       sortedEntries.map((item) => (
                         <div 
                           key={item.id} 
-                          className={`group p-4 rounded-xl border bg-card hover:border-primary/50 transition-all duration-200 shadow-sm hover:shadow-md ${item.date === todayStr ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : ''}`}
+                          onClick={() => setSelectedHistoryEntry(item)}
+                          className={`group cursor-pointer p-4 rounded-xl border bg-card hover:border-primary/50 transition-all duration-200 shadow-sm hover:shadow-md ${item.date === todayStr ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : ''}`}
                         >
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
@@ -240,6 +249,43 @@ export default function DiaryPage() {
           </div>
         </div>
       </div>
+
+      {/* History Detail Dialog */}
+      <Dialog open={!!selectedHistoryEntry} onOpenChange={(open) => !open && setSelectedHistoryEntry(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" />
+                {selectedHistoryEntry && format(parseISO(selectedHistoryEntry.date), 'EEEE, MMMM do yyyy')}
+              </div>
+              <span className="text-4xl">{selectedHistoryEntry?.mood}</span>
+            </DialogTitle>
+            <DialogDescription>
+              Past reflection from {selectedHistoryEntry?.date}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-6 py-4">
+            <div className="space-y-2 p-4 rounded-lg bg-muted/20 border">
+              <h4 className="text-xs font-bold uppercase text-primary tracking-widest">What I did</h4>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedHistoryEntry?.whatIDidToday || 'No content recorded.'}</p>
+            </div>
+            <div className="space-y-2 p-4 rounded-lg bg-muted/20 border">
+              <h4 className="text-xs font-bold uppercase text-primary tracking-widest">What I learned</h4>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedHistoryEntry?.whatILearned || 'No content recorded.'}</p>
+            </div>
+            <div className="space-y-2 p-4 rounded-lg bg-muted/20 border">
+              <h4 className="text-xs font-bold uppercase text-primary tracking-widest">Challenges & Blockers</h4>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedHistoryEntry?.challengesBlockers || 'No content recorded.'}</p>
+            </div>
+            <div className="space-y-2 p-4 rounded-lg bg-muted/20 border">
+              <h4 className="text-xs font-bold uppercase text-primary tracking-widest">Tomorrow's Plan</h4>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedHistoryEntry?.tomorrowsPlan || 'No content recorded.'}</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }
