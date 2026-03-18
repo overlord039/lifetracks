@@ -10,7 +10,18 @@ import { Label } from '@/components/ui/label';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
 import { doc, collection } from 'firebase/firestore';
 import { format, parseISO } from 'date-fns';
-import { BookText, Save, Sparkles, History, Calendar, Quote, X } from 'lucide-react';
+import { 
+  BookText, 
+  Save, 
+  Sparkles, 
+  History, 
+  Calendar, 
+  Quote, 
+  CheckCircle2, 
+  Lightbulb, 
+  AlertTriangle, 
+  Target 
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -252,37 +263,78 @@ export default function DiaryPage() {
 
       {/* History Detail Dialog */}
       <Dialog open={!!selectedHistoryEntry} onOpenChange={(open) => !open && setSelectedHistoryEntry(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-primary" />
-                {selectedHistoryEntry && format(parseISO(selectedHistoryEntry.date), 'EEEE, MMMM do yyyy')}
-              </div>
-              <span className="text-4xl">{selectedHistoryEntry?.mood}</span>
-            </DialogTitle>
-            <DialogDescription>
-              Past reflection from {selectedHistoryEntry?.date}
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 border-none shadow-2xl">
+          <div className="bg-primary h-24 w-full relative">
+            <div className="absolute -bottom-10 left-8 p-1 bg-background rounded-2xl shadow-lg border-4 border-background">
+               <span className="text-6xl">{selectedHistoryEntry?.mood}</span>
+            </div>
+          </div>
           
-          <div className="grid gap-6 py-4">
-            <div className="space-y-2 p-4 rounded-lg bg-muted/20 border">
-              <h4 className="text-xs font-bold uppercase text-primary tracking-widest">What I did</h4>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedHistoryEntry?.whatIDidToday || 'No content recorded.'}</p>
+          <div className="p-8 pt-12 space-y-8">
+            <DialogHeader className="text-left">
+              <DialogTitle className="text-3xl font-black tracking-tight flex items-center gap-3">
+                {selectedHistoryEntry && format(parseISO(selectedHistoryEntry.date), 'EEEE, MMMM do yyyy')}
+              </DialogTitle>
+              <DialogDescription className="text-base font-medium">
+                Captured reflections and progress from this day.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card className="border-none shadow-none bg-secondary/10 overflow-hidden">
+                <CardHeader className="pb-2 space-y-1">
+                  <div className="flex items-center gap-2 text-secondary-foreground">
+                    <CheckCircle2 className="h-5 w-5" />
+                    <CardTitle className="text-sm font-bold uppercase tracking-wider">What I Did</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="text-sm leading-relaxed whitespace-pre-wrap min-h-[80px]">
+                  {selectedHistoryEntry?.whatIDidToday || 'No accomplishments recorded.'}
+                </CardContent>
+              </Card>
+
+              <Card className="border-none shadow-none bg-blue-50/50 overflow-hidden">
+                <CardHeader className="pb-2 space-y-1">
+                  <div className="flex items-center gap-2 text-blue-600">
+                    <Lightbulb className="h-5 w-5" />
+                    <CardTitle className="text-sm font-bold uppercase tracking-wider">What I Learned</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="text-sm leading-relaxed whitespace-pre-wrap min-h-[80px]">
+                  {selectedHistoryEntry?.whatILearned || 'No insights recorded.'}
+                </CardContent>
+              </Card>
+
+              <Card className="border-none shadow-none bg-destructive/5 overflow-hidden">
+                <CardHeader className="pb-2 space-y-1">
+                  <div className="flex items-center gap-2 text-destructive">
+                    <AlertTriangle className="h-5 w-5" />
+                    <CardTitle className="text-sm font-bold uppercase tracking-wider">Challenges</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="text-sm leading-relaxed whitespace-pre-wrap min-h-[80px]">
+                  {selectedHistoryEntry?.challengesBlockers || 'No blockers encountered.'}
+                </CardContent>
+              </Card>
+
+              <Card className="border-none shadow-none bg-primary/5 overflow-hidden">
+                <CardHeader className="pb-2 space-y-1">
+                  <div className="flex items-center gap-2 text-primary">
+                    <Target className="h-5 w-5" />
+                    <CardTitle className="text-sm font-bold uppercase tracking-wider">The Plan</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="text-sm leading-relaxed whitespace-pre-wrap min-h-[80px]">
+                  {selectedHistoryEntry?.tomorrowsPlan || 'No goals set for the next day.'}
+                </CardContent>
+              </Card>
             </div>
-            <div className="space-y-2 p-4 rounded-lg bg-muted/20 border">
-              <h4 className="text-xs font-bold uppercase text-primary tracking-widest">What I learned</h4>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedHistoryEntry?.whatILearned || 'No content recorded.'}</p>
-            </div>
-            <div className="space-y-2 p-4 rounded-lg bg-muted/20 border">
-              <h4 className="text-xs font-bold uppercase text-primary tracking-widest">Challenges & Blockers</h4>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedHistoryEntry?.challengesBlockers || 'No content recorded.'}</p>
-            </div>
-            <div className="space-y-2 p-4 rounded-lg bg-muted/20 border">
-              <h4 className="text-xs font-bold uppercase text-primary tracking-widest">Tomorrow's Plan</h4>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedHistoryEntry?.tomorrowsPlan || 'No content recorded.'}</p>
-            </div>
+          </div>
+          
+          <div className="p-6 bg-muted/20 border-t flex justify-end">
+            <Button onClick={() => setSelectedHistoryEntry(null)} variant="outline" className="font-bold">
+              Close Reflection
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
