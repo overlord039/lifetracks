@@ -15,7 +15,11 @@ import {
   endOfWeek,
   eachWeekOfInterval,
   isSameWeek,
-  subWeeks
+  subWeeks,
+  startOfYear,
+  endOfYear,
+  eachMonthOfInterval,
+  isSameMonth
 } from 'date-fns';
 import { collection, doc } from 'firebase/firestore';
 import { 
@@ -46,14 +50,16 @@ import {
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
 export default function ReportsPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   
-  // State for selected month
+  // State for selected month and view type
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [viewType, setViewType] = useState<'weekly' | 'monthly' | 'annual'>('monthly');
   
   const monthId = format(selectedDate, 'yyyyMM');
   const prevDate = subMonths(selectedDate, 1);
@@ -121,7 +127,7 @@ export default function ReportsPage() {
     };
   }, [monthlyBudgetDoc, fixedExpenses, monthExpenses, prevMonthExpenses, prevMonthlyBudgetDoc]);
 
-  // --- Weekly Analysis ---
+  // --- Weekly Analysis (Inside Month) ---
   const weeklyReport = useMemo(() => {
     if (!monthExpenses) return { currentWeekSpent: 0, lastWeekSpent: 0, weeklyData: [] };
 
@@ -169,33 +175,13 @@ export default function ReportsPage() {
     return { currentWeekSpent, lastWeekSpent, weeklyData };
   }, [monthExpenses, selectedDate]);
 
-  // --- Prepare Chart Data ---
+  // --- Prepare Chart Data based on View Type ---
   const chartsData = useMemo(() => {
     if (!monthExpenses) {
       return { spendingData: [], categoryData: [] };
     }
 
-    const dailyExpensesMap: Record<string, number> = {};
-    monthExpenses.forEach(exp => {
-      dailyExpensesMap[exp.date] = (dailyExpensesMap[exp.date] || 0) + exp.amount;
-    });
-
-    const monthStart = startOfMonth(selectedDate);
-    const monthEnd = endOfMonth(selectedDate);
-    const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
-
-    const today = new Date();
-    // Only show days that are in the past or have spending to avoid "predefined" feel
-    const sData = days
-      .filter(d => d <= today || dailyExpensesMap[format(d, 'yyyy-MM-dd')])
-      .map(d => {
-        const dStr = format(d, 'yyyy-MM-dd');
-        return {
-          name: format(d, 'dd MMM'),
-          spent: dailyExpensesMap[dStr] || 0,
-        };
-      });
-
+    // Category data remains mostly the same (filtered by month)
     const categoryTotals: Record<string, number> = {};
     monthExpenses.forEach(exp => {
       const catName = categories?.find(c => c.id === exp.expenseCategoryId)?.name || 'Misc';
@@ -208,8 +194,51 @@ export default function ReportsPage() {
       color: [`#64B5F6`, `#A5D6A7`, `#FFB74D`, `#BA68C8`, `#F06292`][idx % 5]
     }));
 
+    // Spending data depends on viewType
+    let sData: any[] = [];
+    const dailyExpensesMap: Record<string, number> = {};
+    monthExpenses.forEach(exp => {
+      dailyExpensesMap[exp.date] = (dailyExpensesMap[exp.date] || 0) + exp.amount;
+    });
+
+    if (viewType === 'weekly') {
+      sData = weeklyReport.weeklyData.map(w => ({
+        name: w.name,
+        spent: w.spent,
+        fullLabel: w.range
+      }));
+    } else if (viewType === 'monthly') {
+      const monthStart = startOfMonth(selectedDate);
+      const monthEnd = endOfMonth(selectedDate);
+      const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+      const today = new Date();
+
+      sData = days
+        .filter(d => d <= today || dailyExpensesMap[format(d, 'yyyy-MM-dd')])
+        .map(d => {
+          const dStr = format(d, 'yyyy-MM-dd');
+          return {
+            name: format(d, 'dd MMM'),
+            spent: dailyExpensesMap[dStr] || 0,
+          };
+        });
+    } else if (viewType === 'annual') {
+      const yearStart = startOfYear(selectedDate);
+      const yearEnd = endOfYear(selectedDate);
+      const months = eachMonthOfInterval({ start: yearStart, end: yearEnd });
+
+      sData = months.map(m => {
+        const isCurrentMonth = isSameMonth(m, selectedDate);
+        return {
+          name: format(m, 'MMM'),
+          spent: isCurrentMonth ? totals.daily : 0, // We only have data for the currently selected month in this context
+          fullLabel: format(m, 'MMMM yyyy')
+        };
+      });
+    }
+
     return { spendingData: sData, categoryData: cData };
-  }, [monthExpenses, categories, selectedDate]);
+  }, [monthExpenses, categories, selectedDate, viewType, weeklyReport, totals.daily]);
 
   const changeMonth = (delta: number) => {
     setSelectedDate(prev => subMonths(prev, -delta));
@@ -354,7 +383,7 @@ export default function ReportsPage() {
           <Card className="shadow-md lg:col-span-1">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
-                <PieChart className="h-5 w-5 text-secondary-foreground" />
+                <Activity className="h-5 w-5 text-secondary-foreground" />
                 Categories
               </CardTitle>
             </CardHeader>
@@ -423,9 +452,18 @@ export default function ReportsPage() {
           </Card>
 
           <Card className="md:col-span-2 lg:col-span-4 shadow-md overflow-hidden">
-            <CardHeader>
-              <CardTitle className="text-lg">Daily Spending Tracker</CardTitle>
-              <CardDescription>Direct visualization of your logged daily expenses.</CardDescription>
+            <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <CardTitle className="text-lg">Spending Tracker</CardTitle>
+                <CardDescription>Visualizing your spending trends over time.</CardDescription>
+              </div>
+              <Tabs value={viewType} onValueChange={(v: any) => setViewType(v)} className="w-full md:w-auto">
+                <TabsList className="grid w-full grid-cols-3 md:w-[300px]">
+                  <TabsTrigger value="weekly">Weekly</TabsTrigger>
+                  <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                  <TabsTrigger value="annual">Annual</TabsTrigger>
+                </TabsList>
+              </Tabs>
             </CardHeader>
             <CardContent className="h-[300px] md:h-[400px] pt-4 -ml-4 md:ml-0">
               <ResponsiveContainer width="100%" height="100%">
@@ -435,7 +473,10 @@ export default function ReportsPage() {
                   <YAxis fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                   <Tooltip 
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                    formatter={(value: number) => `₹${value.toLocaleString()}`} 
+                    formatter={(value: number, name: string, props: any) => [
+                      `₹${value.toLocaleString()}`, 
+                      props.payload.fullLabel || props.payload.name
+                    ]} 
                   />
                   <Bar dataKey="spent" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Actual Spend" />
                 </BarChart>
