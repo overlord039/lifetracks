@@ -33,6 +33,7 @@ export default function BudgetPage() {
   // Extra budget state
   const [isAddingExtra, setIsAddingExtra] = useState(false);
   const [extraAmount, setExtraAmount] = useState('');
+  const [tempInitialBudget, setTempInitialBudget] = useState('');
 
   const [newCategory, setNewCategory] = useState({ name: '', type: 'daily' });
   const [newFixed, setNewFixed] = useState({ name: '', amount: '', categoryId: '' });
@@ -128,22 +129,30 @@ export default function BudgetPage() {
     if (!monthlyBudgetRef || !user) return;
     
     const currentData = monthlyBudgetDoc || {};
-    const finalUpdates = { ...updates };
     
-    // If setting total for the first time, initialize base budget
-    if (updates.totalBudgetAmount !== undefined && !currentData.baseBudgetAmount) {
-      finalUpdates.baseBudgetAmount = updates.totalBudgetAmount;
-      finalUpdates.extraBudgetAmount = 0;
-    }
-
     setDocumentNonBlocking(monthlyBudgetRef, {
-      ...finalUpdates,
+      ...updates,
       userId: user.uid,
       month: now.getMonth() + 1,
       year: now.getFullYear(),
       updatedAt: new Date().toISOString(),
       createdAt: currentData.createdAt || new Date().toISOString(),
     }, { merge: true });
+  };
+
+  const handleSetInitialBudget = () => {
+    const val = parseFloat(tempInitialBudget) || 0;
+    if (val <= 0) {
+      toast({ variant: 'destructive', title: "Invalid Amount", description: "Please enter a valid monthly budget." });
+      return;
+    }
+    saveMonthlyBudget({ 
+      totalBudgetAmount: val,
+      baseBudgetAmount: val,
+      extraBudgetAmount: 0 
+    });
+    setTempInitialBudget('');
+    toast({ title: "Budget Locked", description: `Your monthly budget of ₹${val} has been set.` });
   };
 
   const handleAddExtra = () => {
@@ -322,14 +331,14 @@ export default function BudgetPage() {
             <CardContent className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="total-budget">Monthly Budget Breakdown (₹)</Label>
+                  <Label htmlFor="total-budget">Total Monthly Budget (₹)</Label>
                   <div className="flex flex-col gap-2">
                     {isBudgetSet ? (
                       <div className="space-y-3">
                         <div className="grid grid-cols-2 gap-2 text-xs font-medium">
                           <div className="p-2 border rounded bg-muted/30">
                             <span className="text-muted-foreground block text-[10px] uppercase font-bold">Initial Base</span>
-                            <span className="font-bold text-sm">₹{(monthlyBudgetDoc?.baseBudgetAmount || monthlyBudgetDoc?.totalBudgetAmount || 0).toLocaleString()}</span>
+                            <span className="font-bold text-sm">₹{(monthlyBudgetDoc?.baseBudgetAmount || 0).toLocaleString()}</span>
                           </div>
                           <div className="p-2 border rounded bg-muted/30">
                             <span className="text-muted-foreground block text-[10px] uppercase font-bold">Extra Added</span>
@@ -353,13 +362,17 @@ export default function BudgetPage() {
                         </div>
                       </div>
                     ) : (
-                      <Input 
-                        id="total-budget" 
-                        type="number" 
-                        placeholder="e.g. 15000"
-                        value={monthlyBudgetDoc?.totalBudgetAmount || ''} 
-                        onChange={(e) => saveMonthlyBudget({ totalBudgetAmount: parseFloat(e.target.value) || 0 })}
-                      />
+                      <div className="flex gap-2">
+                        <Input 
+                          id="total-budget" 
+                          type="number" 
+                          placeholder="e.g. 15000"
+                          value={tempInitialBudget} 
+                          onChange={(e) => setTempInitialBudget(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleSetInitialBudget()}
+                        />
+                        <Button onClick={handleSetInitialBudget}>Set</Button>
+                      </div>
                     )}
 
                     {isAddingExtra && (
