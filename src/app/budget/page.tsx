@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
-import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, AlertTriangle, Pencil, X } from 'lucide-react';
+import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, AlertTriangle, Pencil, X, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { categorizeExpense } from '@/ai/flows/categorize-expense-flow';
 import { format, getDaysInMonth } from 'date-fns';
@@ -30,6 +30,10 @@ export default function BudgetPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   
+  // Extra budget state
+  const [isAddingExtra, setIsAddingExtra] = useState(false);
+  const [extraAmount, setExtraAmount] = useState('');
+
   const [newCategory, setNewCategory] = useState({ name: '', type: 'daily' });
   const [newFixed, setNewFixed] = useState({ name: '', amount: '', categoryId: '' });
   const [newExpense, setNewExpense] = useState({ description: '', amount: '', categoryId: '' });
@@ -130,6 +134,17 @@ export default function BudgetPage() {
       updatedAt: new Date().toISOString(),
       createdAt: monthlyBudgetDoc?.createdAt || new Date().toISOString(),
     }, { merge: true });
+  };
+
+  const handleAddExtra = () => {
+    const added = parseFloat(extraAmount) || 0;
+    if (added <= 0) return;
+    
+    const current = monthlyBudgetDoc?.totalBudgetAmount || 0;
+    saveMonthlyBudget({ totalBudgetAmount: current + added });
+    setExtraAmount('');
+    setIsAddingExtra(false);
+    toast({ title: "Extra funds added", description: `Added ₹${added} to your monthly budget.` });
   };
 
   const addCategory = () => {
@@ -253,6 +268,8 @@ export default function BudgetPage() {
     }
   };
 
+  const isBudgetSet = (monthlyBudgetDoc?.totalBudgetAmount || 0) > 0;
+
   return (
     <AppShell>
       <div className="grid gap-6 lg:grid-cols-3">
@@ -290,13 +307,51 @@ export default function BudgetPage() {
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="total-budget">Total Monthly Budget (₹)</Label>
-                  <Input 
-                    id="total-budget" 
-                    type="number" 
-                    placeholder="e.g. 15000"
-                    value={monthlyBudgetDoc?.totalBudgetAmount || ''} 
-                    onChange={(e) => saveMonthlyBudget({ totalBudgetAmount: parseFloat(e.target.value) || 0 })}
-                  />
+                  <div className="flex flex-col gap-2">
+                    {isBudgetSet ? (
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-10 px-3 py-2 rounded-md border bg-muted/50 font-black text-lg flex items-center">
+                          ₹{monthlyBudgetDoc?.totalBudgetAmount?.toLocaleString()}
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="icon" 
+                          onClick={() => setIsAddingExtra(!isAddingExtra)}
+                          className={cn("shrink-0 transition-all", isAddingExtra && "bg-primary text-white hover:bg-primary/90")}
+                        >
+                          {isAddingExtra ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    ) : (
+                      <Input 
+                        id="total-budget" 
+                        type="number" 
+                        placeholder="e.g. 15000"
+                        value={monthlyBudgetDoc?.totalBudgetAmount || ''} 
+                        onChange={(e) => saveMonthlyBudget({ totalBudgetAmount: parseFloat(e.target.value) || 0 })}
+                      />
+                    )}
+
+                    {isAddingExtra && (
+                      <div className="p-3 border rounded-lg bg-primary/5 animate-in slide-in-from-top-2 duration-300">
+                        <Label className="text-[10px] font-bold uppercase mb-2 block text-primary">Add Extra Funds</Label>
+                        <div className="flex gap-2">
+                          <Input 
+                            type="number" 
+                            placeholder="Amount to add" 
+                            value={extraAmount}
+                            onChange={(e) => setExtraAmount(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleAddExtra()}
+                            className="h-8 text-sm"
+                            autoFocus
+                          />
+                          <Button size="sm" className="h-8 px-2" onClick={handleAddExtra}>
+                            <Check className="h-3 w-3 mr-1" /> Add
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-4 p-4 border rounded-xl bg-muted/20">
