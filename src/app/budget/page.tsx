@@ -126,13 +126,23 @@ export default function BudgetPage() {
 
   const saveMonthlyBudget = (updates: any) => {
     if (!monthlyBudgetRef || !user) return;
+    
+    const currentData = monthlyBudgetDoc || {};
+    const finalUpdates = { ...updates };
+    
+    // If setting total for the first time, initialize base budget
+    if (updates.totalBudgetAmount !== undefined && !currentData.baseBudgetAmount) {
+      finalUpdates.baseBudgetAmount = updates.totalBudgetAmount;
+      finalUpdates.extraBudgetAmount = 0;
+    }
+
     setDocumentNonBlocking(monthlyBudgetRef, {
-      ...updates,
+      ...finalUpdates,
       userId: user.uid,
       month: now.getMonth() + 1,
       year: now.getFullYear(),
       updatedAt: new Date().toISOString(),
-      createdAt: monthlyBudgetDoc?.createdAt || new Date().toISOString(),
+      createdAt: currentData.createdAt || new Date().toISOString(),
     }, { merge: true });
   };
 
@@ -140,8 +150,14 @@ export default function BudgetPage() {
     const added = parseFloat(extraAmount) || 0;
     if (added <= 0) return;
     
-    const current = monthlyBudgetDoc?.totalBudgetAmount || 0;
-    saveMonthlyBudget({ totalBudgetAmount: current + added });
+    const currentTotal = monthlyBudgetDoc?.totalBudgetAmount || 0;
+    const currentExtra = monthlyBudgetDoc?.extraBudgetAmount || 0;
+    
+    saveMonthlyBudget({ 
+      totalBudgetAmount: currentTotal + added,
+      extraBudgetAmount: currentExtra + added
+    });
+    
     setExtraAmount('');
     setIsAddingExtra(false);
     toast({ title: "Extra funds added", description: `Added ₹${added} to your monthly budget.` });
@@ -306,21 +322,35 @@ export default function BudgetPage() {
             <CardContent className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="total-budget">Total Monthly Budget (₹)</Label>
+                  <Label htmlFor="total-budget">Monthly Budget Breakdown (₹)</Label>
                   <div className="flex flex-col gap-2">
                     {isBudgetSet ? (
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-10 px-3 py-2 rounded-md border bg-muted/50 font-black text-lg flex items-center">
-                          ₹{monthlyBudgetDoc?.totalBudgetAmount?.toLocaleString()}
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-2 text-xs font-medium">
+                          <div className="p-2 border rounded bg-muted/30">
+                            <span className="text-muted-foreground block text-[10px] uppercase font-bold">Initial Base</span>
+                            <span className="font-bold text-sm">₹{(monthlyBudgetDoc?.baseBudgetAmount || monthlyBudgetDoc?.totalBudgetAmount || 0).toLocaleString()}</span>
+                          </div>
+                          <div className="p-2 border rounded bg-muted/30">
+                            <span className="text-muted-foreground block text-[10px] uppercase font-bold">Extra Added</span>
+                            <span className="font-bold text-sm text-primary">₹{(monthlyBudgetDoc?.extraBudgetAmount || 0).toLocaleString()}</span>
+                          </div>
                         </div>
-                        <Button 
-                          variant="outline" 
-                          size="icon" 
-                          onClick={() => setIsAddingExtra(!isAddingExtra)}
-                          className={cn("shrink-0 transition-all", isAddingExtra && "bg-primary text-white hover:bg-primary/90")}
-                        >
-                          {isAddingExtra ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                        </Button>
+                        
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-12 px-4 py-2 rounded-md border bg-primary/5 font-black text-xl flex items-center justify-between">
+                            <span className="text-xs uppercase text-primary/70 font-bold">Total Pool</span>
+                            <span>₹{monthlyBudgetDoc?.totalBudgetAmount?.toLocaleString()}</span>
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            onClick={() => setIsAddingExtra(!isAddingExtra)}
+                            className={cn("shrink-0 h-12 w-12 transition-all", isAddingExtra && "bg-primary text-white hover:bg-primary/90")}
+                          >
+                            {isAddingExtra ? <X className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+                          </Button>
+                        </div>
                       </div>
                     ) : (
                       <Input 

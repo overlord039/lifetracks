@@ -59,6 +59,14 @@
           "type": "number",
           "description": "The total budget amount set by the user for the month."
         },
+        "baseBudgetAmount": {
+          "type": "number",
+          "description": "The initial base budget for the month."
+        },
+        "extraBudgetAmount": {
+          "type": "number",
+          "description": "Total extra funds added during the month."
+        },
         "isWeekendExtraBudgetEnabled": {
           "type": "boolean",
           "description": "Toggle to enable or disable extra budget for weekend days."
