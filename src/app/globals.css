@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -24,6 +25,46 @@
     --input: 204 20% 88%;
     --ring: 207 90% 68%;
     --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 204 10% 20%;
+    --sidebar-primary: 207 90% 68%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 204 20% 96%;
+    --sidebar-accent-foreground: 207 90% 68%;
+    --sidebar-border: 204 20% 92%;
+    --sidebar-ring: 207 90% 68%;
+  }
+
+  .dark {
+    --background: 204 10% 4%;
+    --foreground: 204 10% 98%;
+    --card: 204 10% 6%;
+    --card-foreground: 204 10% 98%;
+    --popover: 204 10% 6%;
+    --popover-foreground: 204 10% 98%;
+    --primary: 207 90% 68%;
+    --primary-foreground: 204 10% 10%;
+    --secondary: 124 30% 15%;
+    --secondary-foreground: 124 39% 90%;
+    --muted: 204 10% 12%;
+    --muted-foreground: 204 10% 65%;
+    --accent: 204 10% 12%;
+    --accent-foreground: 204 10% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 204 10% 98%;
+    --border: 204 10% 14%;
+    --input: 204 10% 14%;
+    --ring: 207 90% 68%;
+
+    --sidebar-background: 204 10% 6%;
+    --sidebar-foreground: 204 10% 90%;
+    --sidebar-primary: 207 90% 68%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 204 10% 12%;
+    --sidebar-accent-foreground: 207 90% 68%;
+    --sidebar-border: 204 10% 14%;
+    --sidebar-ring: 207 90% 68%;
   }
 }
 

@@ -28,7 +28,8 @@ import { signOut } from 'firebase/auth';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/avatar';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
@@ -79,20 +80,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter className="p-4">
-            <div className="flex items-center gap-3 mb-4 p-2 rounded-lg bg-accent/10">
+            <div className="flex items-center gap-3 mb-4 p-2 rounded-lg bg-sidebar-accent/50">
               <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-primary text-primary-foreground">
+                <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                   {user?.email?.charAt(0).toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col min-w-0">
                 <span className="text-sm font-medium truncate">{user?.email?.split('@')[0] || 'User'}</span>
-                <span className="text-xs text-muted-foreground truncate">{user?.email}</span>
+                <span className="text-[10px] text-muted-foreground truncate">{user?.email}</span>
               </div>
             </div>
             <Button 
               variant="ghost" 
-              className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+              className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 h-9"
               onClick={handleLogout}
             >
               <LogOut className="mr-2 h-4 w-4" />
@@ -108,6 +109,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {navItems.find(item => item.url === pathname)?.title || 'Dashboard'}
               </h1>
             </div>
+            <ThemeToggle />
           </header>
           <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8 bg-background">
             {children}
