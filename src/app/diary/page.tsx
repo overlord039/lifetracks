@@ -263,7 +263,7 @@ export default function DiaryPage() {
 
       {/* History Detail Dialog */}
       <Dialog open={!!selectedHistoryEntry} onOpenChange={(open) => !open && setSelectedHistoryEntry(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 border-none shadow-2xl">
+        <DialogContent className="max-w-2xl p-0 border-none shadow-2xl">
           <div className="bg-primary h-24 w-full relative">
             <div className="absolute -bottom-10 left-8 p-1 bg-background rounded-2xl shadow-lg border-4 border-background">
                <span className="text-6xl">{selectedHistoryEntry?.mood}</span>
