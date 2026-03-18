@@ -78,7 +78,7 @@ export default function ReportsPage() {
   }, [firestore, user, monthId]);
   const { data: monthExpenses } = useCollection(monthExpensesRef);
 
-  // --- Previous Month Data (for comparison) ---
+  // --- Previous Month Data ---
   const prevMonthlyBudgetRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'users', user.uid, 'monthlyBudgets', prevMonthId);
@@ -97,7 +97,7 @@ export default function ReportsPage() {
   }, [firestore, user]);
   const { data: categories } = useCollection(categoriesRef);
 
-  // --- Calculations ---
+  // --- Totals ---
   const totals = useMemo(() => {
     const budget = monthlyBudgetDoc?.totalBudgetAmount || 0;
     const fixed = fixedExpenses?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
@@ -171,7 +171,7 @@ export default function ReportsPage() {
 
   // --- Prepare Chart Data ---
   const chartsData = useMemo(() => {
-    if (!monthlyBudgetDoc || !monthExpenses) {
+    if (!monthExpenses) {
       return { spendingData: [], categoryData: [] };
     }
 
@@ -180,39 +180,21 @@ export default function ReportsPage() {
       dailyExpensesMap[exp.date] = (dailyExpensesMap[exp.date] || 0) + exp.amount;
     });
 
-    const config: MonthlyConfig = {
-      totalBudget: monthlyBudgetDoc.totalBudgetAmount || 0,
-      month: selectedDate.getMonth(),
-      year: selectedDate.getFullYear(),
-      fixedExpenses: (fixedExpenses || []).map(f => ({
-        id: f.id,
-        name: f.name,
-        amount: f.amount,
-        included: f.includeInBudget
-      })),
-      saturdayExtra: monthlyBudgetDoc.saturdayExtraAmount || 0,
-      sundayExtra: monthlyBudgetDoc.sundayExtraAmount || 0,
-      holidayExtra: 0,
-      isWeekendEnabled: monthlyBudgetDoc.isWeekendExtraBudgetEnabled || false,
-      isHolidayEnabled: false
-    };
-
-    const rollingReports = calculateRollingBudget(config, dailyExpensesMap, []);
-    
     const monthStart = startOfMonth(selectedDate);
     const monthEnd = endOfMonth(selectedDate);
     const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-    const sData = days.map(d => {
-      const dStr = format(d, 'yyyy-MM-dd');
-      const r = rollingReports[dStr];
-      return {
-        name: format(d, 'dd MMM'),
-        spent: r?.spent || 0,
-        budget: Math.max(0, r?.allowedBudget || 0),
-        rawBudget: r?.allowedBudget || 0
-      };
-    });
+    const today = new Date();
+    // Only show days that are in the past or have spending to avoid "predefined" feel
+    const sData = days
+      .filter(d => d <= today || dailyExpensesMap[format(d, 'yyyy-MM-dd')])
+      .map(d => {
+        const dStr = format(d, 'yyyy-MM-dd');
+        return {
+          name: format(d, 'dd MMM'),
+          spent: dailyExpensesMap[dStr] || 0,
+        };
+      });
 
     const categoryTotals: Record<string, number> = {};
     monthExpenses.forEach(exp => {
@@ -227,7 +209,7 @@ export default function ReportsPage() {
     }));
 
     return { spendingData: sData, categoryData: cData };
-  }, [monthlyBudgetDoc, monthExpenses, fixedExpenses, categories, selectedDate]);
+  }, [monthExpenses, categories, selectedDate]);
 
   const changeMonth = (delta: number) => {
     setSelectedDate(prev => subMonths(prev, -delta));
@@ -238,7 +220,6 @@ export default function ReportsPage() {
   return (
     <AppShell>
       <div className="space-y-6 max-w-7xl mx-auto">
-        {/* Month Selector Header */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-4 rounded-2xl shadow-sm border">
           <div className="flex items-center gap-3 w-full md:w-auto">
             <div className="p-2 bg-primary/10 rounded-lg text-primary">
@@ -269,7 +250,6 @@ export default function ReportsPage() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {/* Main Tally Report */}
           <Card className="shadow-md border-t-4 border-t-primary lg:col-span-1">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -326,7 +306,6 @@ export default function ReportsPage() {
             </CardContent>
           </Card>
 
-          {/* Weekly Pulse */}
           <Card className="shadow-md lg:col-span-1">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -372,7 +351,6 @@ export default function ReportsPage() {
             </CardFooter>
           </Card>
 
-          {/* Categories Chart */}
           <Card className="shadow-md lg:col-span-1">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -410,7 +388,6 @@ export default function ReportsPage() {
             </CardContent>
           </Card>
 
-          {/* Comparison Summary */}
           <Card className="shadow-md lg:col-span-1 bg-muted/10 border-dashed border-2">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -445,11 +422,10 @@ export default function ReportsPage() {
             </CardContent>
           </Card>
 
-          {/* Detailed Daily Spending Chart */}
           <Card className="md:col-span-2 lg:col-span-4 shadow-md overflow-hidden">
             <CardHeader>
-              <CardTitle className="text-lg">Daily Spending vs Allowance</CardTitle>
-              <CardDescription>Visualizing your daily spending rhythm.</CardDescription>
+              <CardTitle className="text-lg">Daily Spending Tracker</CardTitle>
+              <CardDescription>Direct visualization of your logged daily expenses.</CardDescription>
             </CardHeader>
             <CardContent className="h-[300px] md:h-[400px] pt-4 -ml-4 md:ml-0">
               <ResponsiveContainer width="100%" height="100%">
@@ -461,9 +437,7 @@ export default function ReportsPage() {
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                     formatter={(value: number) => `₹${value.toLocaleString()}`} 
                   />
-                  <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '10px' }} />
                   <Bar dataKey="spent" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Actual Spend" />
-                  <Bar dataKey="budget" fill="hsl(var(--primary)/20%)" stroke="hsl(var(--primary))" strokeDasharray="5 5" name="Allowed Budget" />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
