@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
-import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, AlertTriangle, Pencil, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { categorizeExpense } from '@/ai/flows/categorize-expense-flow';
 import { format, getDaysInMonth } from 'date-fns';
@@ -28,6 +28,7 @@ export default function BudgetPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   
   const [newCategory, setNewCategory] = useState({ name: '', type: 'daily' });
   const [newFixed, setNewFixed] = useState({ name: '', amount: '', categoryId: '' });
@@ -186,18 +187,46 @@ export default function BudgetPage() {
     }
     
     setLoading(true);
-    addDocumentNonBlocking(expensesRef, {
+    const expenseData = {
       userId: user.uid,
       monthlyBudgetId: monthId,
       description: newExpense.description || '',
       amount: parseFloat(newExpense.amount),
       expenseCategoryId: newExpense.categoryId,
-      date: todayStr,
-      createdAt: new Date().toISOString()
-    });
+      date: editingExpenseId ? (expenses?.find(e => e.id === editingExpenseId)?.date || todayStr) : todayStr,
+      updatedAt: new Date().toISOString()
+    };
+
+    if (editingExpenseId) {
+      updateDocumentNonBlocking(doc(expensesRef, editingExpenseId), expenseData);
+      setEditingExpenseId(null);
+      toast({ title: "Expense updated" });
+    } else {
+      addDocumentNonBlocking(expensesRef, {
+        ...expenseData,
+        createdAt: new Date().toISOString()
+      });
+      toast({ title: "Expense logged" });
+    }
 
     setNewExpense({ description: '', amount: '', categoryId: '' });
     setLoading(false);
+  };
+
+  const handleStartEdit = (exp: any) => {
+    setEditingExpenseId(exp.id);
+    setNewExpense({
+      description: exp.description || '',
+      amount: exp.amount.toString(),
+      categoryId: exp.expenseCategoryId
+    });
+    // Scroll to logger on mobile
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEdit = () => {
+    setEditingExpenseId(null);
+    setNewExpense({ description: '', amount: '', categoryId: '' });
   };
 
   const deleteExpense = (id: string) => {
@@ -359,17 +388,17 @@ export default function BudgetPage() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-md border-l-4 border-l-primary">
+          <Card className={cn("shadow-md border-l-4 transition-all duration-300", editingExpenseId ? "border-l-orange-400 bg-orange-50/30" : "border-l-primary")}>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
-                <BrainCircuit className="h-5 w-5 text-primary" />
-                Smart Logger
+                {editingExpenseId ? <Pencil className="h-5 w-5 text-orange-500" /> : <BrainCircuit className="h-5 w-5 text-primary" />}
+                {editingExpenseId ? "Edit Logged Item" : "Smart Logger"}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex gap-2">
                 <Input placeholder="Description (Optional)" value={newExpense.description} onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })} />
-                <Button variant="outline" size="icon" onClick={handleAiSuggest} disabled={aiLoading}>
+                <Button variant="outline" size="icon" onClick={handleAiSuggest} disabled={aiLoading || !!editingExpenseId}>
                   {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BrainCircuit className="h-4 w-4" />}
                 </Button>
               </div>
@@ -380,7 +409,16 @@ export default function BudgetPage() {
                 </Select>
                 <Input type="number" placeholder="Amount ₹" value={newExpense.amount} onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })} />
               </div>
-              <Button onClick={handleLogExpense} className="w-full" disabled={loading}>{loading ? "Saving..." : "Log Daily Expense"}</Button>
+              <div className="flex gap-2">
+                <Button onClick={handleLogExpense} className={cn("flex-1", editingExpenseId && "bg-orange-500 hover:bg-orange-600")} disabled={loading}>
+                  {loading ? "Saving..." : editingExpenseId ? "Update Expense" : "Log Daily Expense"}
+                </Button>
+                {editingExpenseId && (
+                  <Button variant="outline" onClick={cancelEdit} className="gap-2">
+                    <X className="h-4 w-4" /> Cancel
+                  </Button>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -389,23 +427,26 @@ export default function BudgetPage() {
               <CardTitle className="text-lg flex items-center gap-2"><History className="h-5 w-5 text-primary" /> Logged Expenses</CardTitle>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[250px] w-full border rounded-lg">
+              <ScrollArea className="h-[350px] w-full border rounded-lg">
                 <Table>
                   <TableHeader className="bg-muted/50 sticky top-0 z-10">
                     <TableRow>
                       <TableHead className="text-xs">Date</TableHead>
                       <TableHead className="text-xs">Item</TableHead>
-                      <TableHead className="text-xs text-right">Amount</TableHead>
-                      <TableHead className="w-10"></TableHead>
+                      <TableHead className="text-xs">Amount</TableHead>
+                      <TableHead className="w-20 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {expenses?.length ? [...expenses].sort((a,b) => b.date.localeCompare(a.date)).map((exp) => (
-                      <TableRow key={exp.id} className="h-10 text-xs">
-                        <TableCell className="text-muted-foreground">{format(new Date(exp.date), 'dd MMM')}</TableCell>
-                        <TableCell className="font-medium truncate max-w-[100px]">{exp.description || 'Expense'}</TableCell>
-                        <TableCell className="text-right font-bold">₹{exp.amount}</TableCell>
-                        <TableCell><Button variant="ghost" size="icon" onClick={() => deleteExpense(exp.id)} className="h-6 w-6"><Trash2 className="h-3 w-3 text-destructive" /></Button></TableCell>
+                      <TableRow key={exp.id} className={cn("h-10 text-xs", editingExpenseId === exp.id && "bg-orange-50")}>
+                        <TableCell className="text-muted-foreground whitespace-nowrap">{format(new Date(exp.date), 'dd MMM')}</TableCell>
+                        <TableCell className="font-medium truncate max-w-[120px]">{exp.description || 'Expense'}</TableCell>
+                        <TableCell className="font-bold">₹{exp.amount}</TableCell>
+                        <TableCell className="text-right flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => handleStartEdit(exp)} className="h-7 w-7 text-muted-foreground hover:text-orange-500"><Pencil className="h-3.5 w-3.5" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => deleteExpense(exp.id)} className="h-7 w-7 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
+                        </TableCell>
                       </TableRow>
                     )) : (
                       <TableRow><TableCell colSpan={4} className="text-center py-10 text-muted-foreground italic">No spending logged yet.</TableCell></TableRow>
