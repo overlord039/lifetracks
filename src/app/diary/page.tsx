@@ -41,13 +41,11 @@ export default function DiaryPage() {
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
-  // Today's entry ref
   const diaryRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return doc(db, 'users', user.uid, 'dailyDiaries', todayStr);
   }, [db, user, todayStr]);
 
-  // All entries collection ref
   const allDiariesRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return collection(db, 'users', user.uid, 'dailyDiaries');
@@ -64,7 +62,6 @@ export default function DiaryPage() {
     mood: '😊'
   });
 
-  // Update local state when Firestore data loads for today
   React.useEffect(() => {
     if (entry) {
       setLocalEntry({
@@ -93,51 +90,46 @@ export default function DiaryPage() {
   };
 
   const moods = ['😊', '🤩', '🤔', '😴', '😤', '😔', '🤯'];
-
-  // Sort entries by date descending
   const sortedEntries = allEntries ? [...allEntries].sort((a, b) => b.date.localeCompare(a.date)) : [];
 
   return (
     <AppShell>
-      <div className="max-w-5xl mx-auto space-y-6 pb-12">
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="max-w-6xl mx-auto space-y-4 pb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-primary/20 rounded-xl text-primary shadow-sm">
-              <BookText className="w-6 h-6" />
+            <div className="p-2.5 bg-primary/20 rounded-xl text-primary shadow-sm">
+              <BookText className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-2xl md:text-3xl font-black font-headline tracking-tight text-foreground">My Diary</h2>
-              <p className="text-xs md:text-sm font-medium text-muted-foreground">{format(new Date(), 'EEEE, MMMM do yyyy')}</p>
+              <h2 className="text-xl md:text-2xl font-black font-headline tracking-tight text-foreground">My Diary</h2>
+              <p className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-widest">{format(new Date(), 'EEEE, MMMM do yyyy')}</p>
             </div>
           </div>
-          <Button onClick={saveEntry} disabled={loading} className="w-full md:w-auto shadow-md">
-            <Save className="mr-2 h-4 w-4" /> Save Today's Reflection
+          <Button onClick={saveEntry} disabled={loading} className="w-full md:w-auto shadow-md h-9">
+            <Save className="mr-2 h-4 w-4" /> Save Reflection
           </Button>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Main Entry Section */}
-          <div className="lg:col-span-2 space-y-6">
-            <Card className="shadow-xl border-t-4 border-t-primary overflow-hidden">
-              <CardHeader className="bg-muted/30 border-b pb-4">
-                <CardTitle className="text-xl flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-primary" />
+        <div className="grid gap-4 lg:grid-cols-12">
+          <div className="lg:col-span-8 space-y-4">
+            <Card className="shadow-lg border-t-4 border-t-primary overflow-hidden">
+              <CardHeader className="bg-muted/30 border-b py-3 px-6">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary" />
                   Today's Reflection
                 </CardTitle>
-                <CardDescription>Capture your thoughts and progress for today.</CardDescription>
+                <CardDescription className="text-xs">Capture your thoughts and progress for today.</CardDescription>
               </CardHeader>
-              <CardContent className="pt-6 space-y-8">
-                {/* Mood Selector */}
-                <div className="space-y-4">
-                  <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Daily Mood</Label>
-                  <div className="flex flex-wrap gap-3 justify-center md:justify-between bg-muted/30 p-4 rounded-xl border">
+              <CardContent className="pt-4 px-6 space-y-6">
+                <div className="space-y-3">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Daily Mood</Label>
+                  <div className="flex flex-wrap gap-2 justify-center md:justify-between bg-muted/20 p-3 rounded-xl border">
                     {moods.map(m => (
                       <button
                         key={m}
                         type="button"
                         onClick={() => setLocalEntry({...localEntry, mood: m})}
-                        className={`text-3xl transition-all duration-200 hover:scale-125 focus:outline-none ${localEntry.mood === m ? 'scale-125 drop-shadow-md brightness-110' : 'grayscale opacity-40 hover:opacity-80'}`}
+                        className={`text-2xl transition-all duration-200 hover:scale-125 focus:outline-none ${localEntry.mood === m ? 'scale-125 drop-shadow-md brightness-110' : 'grayscale opacity-40 hover:opacity-80'}`}
                       >
                         {m}
                       </button>
@@ -145,115 +137,108 @@ export default function DiaryPage() {
                   </div>
                 </div>
 
-                {/* Form Fields */}
-                <div className="grid gap-6 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase text-muted-foreground">What I did today</Label>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">What I did today</Label>
                     <Textarea 
-                      placeholder="Key accomplishments and activities..." 
-                      className="min-h-[120px] resize-none border-primary/20 focus:border-primary transition-colors" 
+                      placeholder="Key accomplishments..." 
+                      className="min-h-[90px] text-sm resize-none border-primary/20 focus:border-primary transition-colors" 
                       value={localEntry.whatIDidToday}
                       onChange={e => setLocalEntry({...localEntry, whatIDidToday: e.target.value})}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase text-muted-foreground">What I learned</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">What I learned</Label>
                     <Textarea 
-                      placeholder="New skills or insights gained..." 
-                      className="min-h-[120px] resize-none border-primary/20 focus:border-primary transition-colors" 
+                      placeholder="New skills or insights..." 
+                      className="min-h-[90px] text-sm resize-none border-primary/20 focus:border-primary transition-colors" 
                       value={localEntry.whatILearned}
                       onChange={e => setLocalEntry({...localEntry, whatILearned: e.target.value})}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase text-muted-foreground">Challenges / Blockers</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Challenges</Label>
                     <Textarea 
                       placeholder="What stopped your progress?" 
-                      className="min-h-[120px] resize-none border-primary/20 focus:border-primary transition-colors" 
+                      className="min-h-[90px] text-sm resize-none border-primary/20 focus:border-primary transition-colors" 
                       value={localEntry.challengesBlockers}
                       onChange={e => setLocalEntry({...localEntry, challengesBlockers: e.target.value})}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase text-muted-foreground">Tomorrow's Plan</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Tomorrow's Plan</Label>
                     <Textarea 
                       placeholder="Goals for the next day..." 
-                      className="min-h-[120px] resize-none border-primary/20 focus:border-primary transition-colors" 
+                      className="min-h-[90px] text-sm resize-none border-primary/20 focus:border-primary transition-colors" 
                       value={localEntry.tomorrowsPlan}
                       onChange={e => setLocalEntry({...localEntry, tomorrowsPlan: e.target.value})}
                     />
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="bg-primary/5 text-primary text-xs flex items-center gap-2 py-4 px-6 border-t">
+              <CardFooter className="bg-primary/5 text-primary text-[10px] font-medium flex items-center gap-2 py-3 px-6 border-t">
                 <Quote className="w-3 h-3" />
                 <span>"Consistency is what transforms average into excellence."</span>
               </CardFooter>
             </Card>
           </div>
 
-          {/* History Section */}
-          <div className="space-y-6">
-            <Card className="shadow-lg h-full lg:max-h-[800px] flex flex-col">
-              <CardHeader className="bg-muted/30 border-b pb-4 shrink-0">
-                <CardTitle className="text-xl flex items-center gap-2">
-                  <History className="w-5 h-5 text-primary" />
-                  Entry History
+          <div className="lg:col-span-4 h-full">
+            <Card className="shadow-lg h-full flex flex-col lg:max-h-[600px]">
+              <CardHeader className="bg-muted/30 border-b py-3 px-6 shrink-0">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <History className="w-4 h-4 text-primary" />
+                  History
                 </CardTitle>
-                <CardDescription>Revisit your past reflections.</CardDescription>
+                <CardDescription className="text-xs">Revisit your past reflections.</CardDescription>
               </CardHeader>
-              <CardContent className="p-0 overflow-hidden">
-                <ScrollArea className="h-[400px] lg:h-[600px]">
-                  <div className="p-4 space-y-4">
+              <CardContent className="p-0 flex-1 overflow-hidden">
+                <ScrollArea className="h-full max-h-[400px] lg:max-h-[500px]">
+                  <div className="p-4 space-y-3">
                     {sortedEntries.length > 0 ? (
                       sortedEntries.map((item) => (
                         <div 
                           key={item.id} 
                           onClick={() => setSelectedHistoryEntry(item)}
-                          className={`group cursor-pointer p-4 rounded-xl border bg-card hover:border-primary/50 transition-all duration-200 shadow-sm hover:shadow-md ${item.date === todayStr ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : ''}`}
+                          className={`group cursor-pointer p-3 rounded-xl border bg-card hover:border-primary/50 transition-all duration-200 shadow-sm hover:shadow-md ${item.date === todayStr ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : ''}`}
                         >
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="w-4 h-4 text-muted-foreground" />
-                              <span className="text-sm font-black text-foreground">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-1.5">
+                              <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                              <span className="text-xs font-black text-foreground">
                                 {format(parseISO(item.date), 'MMM dd, yyyy')}
                               </span>
                             </div>
-                            <span className="text-2xl drop-shadow-sm">{item.mood || '😊'}</span>
+                            <span className="text-xl">{item.mood || '😊'}</span>
                           </div>
                           
-                          <div className="space-y-3">
-                            {item.whatIDidToday && (
-                              <div>
-                                <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest mb-1">Highlights</p>
-                                <p className="text-xs text-foreground/80 line-clamp-2 italic leading-relaxed">
-                                  "{item.whatIDidToday}"
-                                </p>
-                              </div>
-                            )}
-                          </div>
-
+                          {item.whatIDidToday && (
+                            <p className="text-[11px] text-foreground/70 line-clamp-1 italic leading-relaxed">
+                              "{item.whatIDidToday}"
+                            </p>
+                          )}
+                          
                           {item.date === todayStr && (
-                            <div className="mt-3 text-[10px] font-bold text-primary uppercase text-center bg-primary/10 py-1 rounded-full animate-pulse">
-                              Active Entry
+                            <div className="mt-2 text-[9px] font-bold text-primary uppercase text-center bg-primary/10 py-0.5 rounded-full animate-pulse">
+                              Active Today
                             </div>
                           )}
                         </div>
                       ))
                     ) : (
-                      <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
-                        <div className="p-4 bg-muted rounded-full">
-                          <BookText className="w-8 h-8 text-muted-foreground/50" />
+                      <div className="flex flex-col items-center justify-center py-10 text-center space-y-3">
+                        <div className="p-3 bg-muted rounded-full">
+                          <BookText className="w-6 h-6 text-muted-foreground/30" />
                         </div>
-                        <p className="text-sm text-muted-foreground italic font-medium">Your diary is waiting for its first entry.</p>
+                        <p className="text-xs text-muted-foreground italic">No entries yet.</p>
                       </div>
                     )}
                   </div>
                 </ScrollArea>
               </CardContent>
-              <CardFooter className="shrink-0 p-4 border-t bg-muted/10">
-                <p className="text-[10px] text-muted-foreground font-medium w-full text-center uppercase tracking-tighter">
-                  Showing {sortedEntries.length} total reflections
+              <CardFooter className="shrink-0 py-2.5 border-t bg-muted/10">
+                <p className="text-[9px] text-muted-foreground font-bold w-full text-center uppercase tracking-widest">
+                  {sortedEntries.length} Reflections
                 </p>
               </CardFooter>
             </Card>
@@ -261,79 +246,58 @@ export default function DiaryPage() {
         </div>
       </div>
 
-      {/* History Detail Dialog */}
       <Dialog open={!!selectedHistoryEntry} onOpenChange={(open) => !open && setSelectedHistoryEntry(null)}>
-        <DialogContent className="max-w-lg p-0 border-none shadow-2xl">
-          <div className="bg-primary h-20 w-full relative">
-            <div className="absolute -bottom-8 left-8 p-1 bg-background rounded-2xl shadow-lg border-4 border-background">
-               <span className="text-5xl">{selectedHistoryEntry?.mood}</span>
+        <DialogContent className="max-w-md p-0 border-none shadow-2xl">
+          <div className="bg-primary h-16 w-full relative">
+            <div className="absolute -bottom-6 left-6 p-1 bg-background rounded-2xl shadow-lg border-4 border-background">
+               <span className="text-4xl">{selectedHistoryEntry?.mood}</span>
             </div>
           </div>
           
-          <div className="p-6 pt-10 space-y-6">
+          <div className="p-6 pt-8 space-y-5">
             <DialogHeader className="text-left">
-              <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-3">
+              <DialogTitle className="text-xl font-black tracking-tight">
                 {selectedHistoryEntry && format(parseISO(selectedHistoryEntry.date), 'EEEE, MMM do yyyy')}
               </DialogTitle>
-              <DialogDescription className="text-sm font-medium">
-                Captured reflections and progress from this day.
+              <DialogDescription className="text-xs font-medium">
+                Reflections and progress from this day.
               </DialogDescription>
             </DialogHeader>
             
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card className="border-none shadow-none bg-secondary/10 overflow-hidden">
-                <CardHeader className="pb-1.5 space-y-1">
-                  <div className="flex items-center gap-2 text-secondary-foreground">
-                    <CheckCircle2 className="h-4 w-4" />
-                    <CardTitle className="text-xs font-bold uppercase tracking-wider">What I Did</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent className="text-xs leading-relaxed whitespace-pre-wrap min-h-[60px]">
-                  {selectedHistoryEntry?.whatIDidToday || 'No accomplishments recorded.'}
-                </CardContent>
-              </Card>
+            <div className="grid gap-3 grid-cols-2">
+              <div className="p-3 bg-secondary/10 rounded-xl space-y-1">
+                <div className="flex items-center gap-1.5 text-secondary-foreground text-[10px] font-bold uppercase tracking-wider">
+                  <CheckCircle2 className="h-3 w-3" /> Done
+                </div>
+                <p className="text-[11px] leading-snug whitespace-pre-wrap">{selectedHistoryEntry?.whatIDidToday || 'None'}</p>
+              </div>
 
-              <Card className="border-none shadow-none bg-blue-50/50 overflow-hidden">
-                <CardHeader className="pb-1.5 space-y-1">
-                  <div className="flex items-center gap-2 text-blue-600">
-                    <Lightbulb className="h-4 w-4" />
-                    <CardTitle className="text-xs font-bold uppercase tracking-wider">What I Learned</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent className="text-xs leading-relaxed whitespace-pre-wrap min-h-[60px]">
-                  {selectedHistoryEntry?.whatILearned || 'No insights recorded.'}
-                </CardContent>
-              </Card>
+              <div className="p-3 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl space-y-1">
+                <div className="flex items-center gap-1.5 text-blue-600 text-[10px] font-bold uppercase tracking-wider">
+                  <Lightbulb className="h-3 w-3" /> Learned
+                </div>
+                <p className="text-[11px] leading-snug whitespace-pre-wrap">{selectedHistoryEntry?.whatILearned || 'None'}</p>
+              </div>
 
-              <Card className="border-none shadow-none bg-destructive/5 overflow-hidden">
-                <CardHeader className="pb-1.5 space-y-1">
-                  <div className="flex items-center gap-2 text-destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <CardTitle className="text-xs font-bold uppercase tracking-wider">Challenges</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent className="text-xs leading-relaxed whitespace-pre-wrap min-h-[60px]">
-                  {selectedHistoryEntry?.challengesBlockers || 'No blockers encountered.'}
-                </CardContent>
-              </Card>
+              <div className="p-3 bg-destructive/5 rounded-xl space-y-1">
+                <div className="flex items-center gap-1.5 text-destructive text-[10px] font-bold uppercase tracking-wider">
+                  <AlertTriangle className="h-3 w-3" /> Blocks
+                </div>
+                <p className="text-[11px] leading-snug whitespace-pre-wrap">{selectedHistoryEntry?.challengesBlockers || 'None'}</p>
+              </div>
 
-              <Card className="border-none shadow-none bg-primary/5 overflow-hidden">
-                <CardHeader className="pb-1.5 space-y-1">
-                  <div className="flex items-center gap-2 text-primary">
-                    <Target className="h-4 w-4" />
-                    <CardTitle className="text-xs font-bold uppercase tracking-wider">The Plan</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent className="text-xs leading-relaxed whitespace-pre-wrap min-h-[60px]">
-                  {selectedHistoryEntry?.tomorrowsPlan || 'No goals set for the next day.'}
-                </CardContent>
-              </Card>
+              <div className="p-3 bg-primary/5 rounded-xl space-y-1">
+                <div className="flex items-center gap-1.5 text-primary text-[10px] font-bold uppercase tracking-wider">
+                  <Target className="h-3 w-3" /> Plan
+                </div>
+                <p className="text-[11px] leading-snug whitespace-pre-wrap">{selectedHistoryEntry?.tomorrowsPlan || 'None'}</p>
+              </div>
             </div>
           </div>
           
-          <div className="p-4 bg-muted/20 border-t flex justify-end">
-            <Button onClick={() => setSelectedHistoryEntry(null)} variant="outline" size="sm" className="font-bold">
-              Close Reflection
+          <div className="p-3 bg-muted/20 border-t flex justify-end">
+            <Button onClick={() => setSelectedHistoryEntry(null)} variant="outline" size="sm" className="font-bold h-8 text-xs">
+              Close
             </Button>
           </div>
         </DialogContent>
