@@ -5,7 +5,18 @@ import React, { useState, useMemo } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, subMonths } from 'date-fns';
+import { 
+  format, 
+  startOfMonth, 
+  endOfMonth, 
+  eachDayOfInterval, 
+  subMonths,
+  startOfWeek,
+  endOfWeek,
+  eachWeekOfInterval,
+  isSameWeek,
+  subWeeks
+} from 'date-fns';
 import { collection, doc } from 'firebase/firestore';
 import { 
   BarChart, 
@@ -29,7 +40,8 @@ import {
   ChevronRight,
   TrendingDown,
   TrendingUp,
-  Minus
+  Minus,
+  Activity
 } from 'lucide-react';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
 import { Button } from '@/components/ui/button';
@@ -109,6 +121,54 @@ export default function ReportsPage() {
     };
   }, [monthlyBudgetDoc, fixedExpenses, monthExpenses, prevMonthExpenses, prevMonthlyBudgetDoc]);
 
+  // --- Weekly Analysis ---
+  const weeklyReport = useMemo(() => {
+    if (!monthExpenses) return { currentWeekSpent: 0, lastWeekSpent: 0, weeklyData: [] };
+
+    const monthStart = startOfMonth(selectedDate);
+    const monthEnd = endOfMonth(selectedDate);
+    const weeks = eachWeekOfInterval({ start: monthStart, end: monthEnd });
+
+    const weeklyData = weeks.map((weekStart, idx) => {
+      const weekEnd = endOfWeek(weekStart);
+      const spent = monthExpenses
+        .filter(exp => {
+          const d = new Date(exp.date);
+          return d >= weekStart && d <= weekEnd;
+        })
+        .reduce((sum, exp) => sum + exp.amount, 0);
+
+      return {
+        name: `Week ${idx + 1}`,
+        spent,
+        range: `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`
+      };
+    });
+
+    const today = new Date();
+    const isSelectedMonthCurrent = format(selectedDate, 'yyyyMM') === format(today, 'yyyyMM');
+    
+    let currentWeekSpent = 0;
+    let lastWeekSpent = 0;
+
+    if (isSelectedMonthCurrent) {
+       currentWeekSpent = monthExpenses
+        .filter(exp => isSameWeek(new Date(exp.date), today))
+        .reduce((sum, exp) => sum + exp.amount, 0);
+       
+       lastWeekSpent = monthExpenses
+        .filter(exp => isSameWeek(new Date(exp.date), subWeeks(today, 1)))
+        .reduce((sum, exp) => sum + exp.amount, 0);
+    } else {
+      const lastWeek = weeklyData[weeklyData.length - 1];
+      const prevWeek = weeklyData[weeklyData.length - 2];
+      currentWeekSpent = lastWeek?.spent || 0;
+      lastWeekSpent = prevWeek?.spent || 0;
+    }
+
+    return { currentWeekSpent, lastWeekSpent, weeklyData };
+  }, [monthExpenses, selectedDate]);
+
   // --- Prepare Chart Data ---
   const chartsData = useMemo(() => {
     if (!monthlyBudgetDoc || !monthExpenses) {
@@ -173,6 +233,8 @@ export default function ReportsPage() {
     setSelectedDate(prev => subMonths(prev, -delta));
   };
 
+  const weekDiff = weeklyReport.currentWeekSpent - weeklyReport.lastWeekSpent;
+
   return (
     <AppShell>
       <div className="space-y-6 max-w-7xl mx-auto">
@@ -206,7 +268,7 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {/* Main Tally Report */}
           <Card className="shadow-md border-t-4 border-t-primary lg:col-span-1">
             <CardHeader className="pb-2">
@@ -248,7 +310,7 @@ export default function ReportsPage() {
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Remaining Balance</p>
                   <p className={cn(
-                    "text-2xl md:text-3xl font-black",
+                    "text-xl md:text-3xl font-black",
                     totals.remaining >= 0 ? 'text-primary' : 'text-destructive'
                   )}>
                     ₹{totals.remaining.toLocaleString()}
@@ -262,13 +324,51 @@ export default function ReportsPage() {
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="bg-muted/30 py-3 flex justify-center border-t">
-              <span className={cn(
-                "text-[10px] font-bold uppercase px-3 py-1 rounded-full",
-                totals.remaining >= 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-              )}>
-                {totals.remaining >= 0 ? 'Surplus' : 'Deficit'} Detected
-              </span>
+          </Card>
+
+          {/* Weekly Pulse */}
+          <Card className="shadow-md lg:col-span-1">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Activity className="h-5 w-5 text-orange-500" />
+                Weekly Pulse
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="h-[100px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={weeklyReport.weeklyData}>
+                    <Bar dataKey="spent" fill="#FFB74D" radius={[2, 2, 0, 0]} />
+                    <Tooltip 
+                      formatter={(v: number) => `₹${v.toLocaleString()}`}
+                      labelClassName="text-[10px] font-bold"
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="pt-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase text-muted-foreground">Current Week</span>
+                  <span className="text-sm font-black">₹{weeklyReport.currentWeekSpent.toLocaleString()}</span>
+                </div>
+                {weeklyReport.lastWeekSpent > 0 && (
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-[10px] font-bold uppercase text-muted-foreground">Vs. Last Week</span>
+                    <span className={cn(
+                      "text-[10px] font-bold flex items-center",
+                      weekDiff > 0 ? "text-destructive" : "text-green-600"
+                    )}>
+                      {weekDiff > 0 ? <ArrowUpRight className="h-3 w-3 mr-0.5" /> : <ArrowDownRight className="h-3 w-3 mr-0.5" />}
+                      ₹{Math.abs(weekDiff).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+            <CardFooter className="bg-orange-50/50 py-2 border-t">
+              <p className="text-[10px] font-medium text-orange-700 mx-auto">
+                {weekDiff > 0 ? "Weekly spend trending up" : weekDiff < 0 ? "Spending less this week" : "Stable weekly pace"}
+              </p>
             </CardFooter>
           </Card>
 
@@ -280,7 +380,7 @@ export default function ReportsPage() {
                 Categories
               </CardTitle>
             </CardHeader>
-            <CardContent className="h-[250px] p-0 flex items-center justify-center">
+            <CardContent className="h-[200px] p-0 flex items-center justify-center">
               {chartsData.categoryData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -288,8 +388,8 @@ export default function ReportsPage() {
                       data={chartsData.categoryData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={50}
-                      outerRadius={80}
+                      innerRadius={40}
+                      outerRadius={65}
                       paddingAngle={5}
                       dataKey="value"
                     >
@@ -299,14 +399,12 @@ export default function ReportsPage() {
                     </Pie>
                     <Tooltip 
                       formatter={(value: number) => `₹${value.toLocaleString()}`}
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                     />
-                    <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="text-muted-foreground text-sm italic">
-                  No categorical data found.
+                <div className="text-muted-foreground text-xs italic">
+                  No categorical data.
                 </div>
               )}
             </CardContent>
@@ -317,54 +415,38 @@ export default function ReportsPage() {
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Minus className="h-5 w-5 text-muted-foreground" />
-                Vs. Previous Month
+                Vs. Prev Month
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6 pt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 bg-white rounded-xl border shadow-sm">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Budget Set</p>
-                  <div className="flex items-center gap-1">
-                    <span className="text-lg font-black">₹{totals.budget.toLocaleString()}</span>
-                    {totals.budgetDiff !== 0 && (
-                      <span className={cn(
-                        "text-[10px] font-bold",
-                        totals.budgetDiff > 0 ? "text-primary" : "text-muted-foreground"
-                      )}>
-                        {totals.budgetDiff > 0 ? '↑' : '↓'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="p-3 bg-white rounded-xl border shadow-sm">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Daily Spend</p>
-                  <div className="flex items-center gap-1">
-                    <span className="text-lg font-black">₹{totals.daily.toLocaleString()}</span>
-                    {totals.dailyDiff !== 0 && (
-                      <span className={cn(
-                        "text-[10px] font-bold",
-                        totals.dailyDiff > 0 ? "text-destructive" : "text-green-600"
-                      )}>
-                        {totals.dailyDiff > 0 ? '↑' : '↓'}
-                      </span>
-                    )}
-                  </div>
+            <CardContent className="space-y-4 pt-4">
+              <div className="p-3 bg-white rounded-xl border shadow-sm">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Monthly Spend</p>
+                <div className="flex items-center gap-1">
+                  <span className="text-lg font-black">₹{totals.daily.toLocaleString()}</span>
+                  {totals.dailyDiff !== 0 && (
+                    <span className={cn(
+                      "text-[10px] font-bold",
+                      totals.dailyDiff > 0 ? "text-destructive" : "text-green-600"
+                    )}>
+                      {totals.dailyDiff > 0 ? '↑' : '↓'}
+                    </span>
+                  )}
                 </div>
               </div>
-              <div className="bg-primary/5 p-4 rounded-xl border border-primary/20">
-                <p className="text-xs font-medium text-foreground leading-relaxed">
+              <div className="bg-primary/5 p-3 rounded-xl border border-primary/20">
+                <p className="text-[10px] font-medium text-foreground leading-relaxed">
                   {totals.dailyDiff > 0 
-                    ? `Your daily spending has increased by ₹${Math.abs(totals.dailyDiff).toLocaleString()} compared to ${format(prevDate, 'MMMM')}.` 
+                    ? `Increased by ₹${Math.abs(totals.dailyDiff).toLocaleString()} vs ${format(prevDate, 'MMM')}.` 
                     : totals.dailyDiff < 0 
-                    ? `Great job! You spent ₹${Math.abs(totals.dailyDiff).toLocaleString()} less on daily expenses than you did in ${format(prevDate, 'MMMM')}.`
-                    : `Your daily spending is exactly the same as last month.`}
+                    ? `Saved ₹${Math.abs(totals.dailyDiff).toLocaleString()} vs ${format(prevDate, 'MMM')}.`
+                    : `Same as last month.`}
                 </p>
               </div>
             </CardContent>
           </Card>
 
           {/* Detailed Daily Spending Chart */}
-          <Card className="md:col-span-2 lg:col-span-3 shadow-md overflow-hidden">
+          <Card className="md:col-span-2 lg:col-span-4 shadow-md overflow-hidden">
             <CardHeader>
               <CardTitle className="text-lg">Daily Spending vs Allowance</CardTitle>
               <CardDescription>Visualizing your daily spending rhythm.</CardDescription>
