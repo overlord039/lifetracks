@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -13,7 +12,8 @@ import {
   Calculator,
   ShieldCheck,
   Unlock,
-  Lock
+  Lock,
+  Info
 } from 'lucide-react';
 import { 
   Sidebar, 
@@ -54,6 +54,7 @@ const navItems = [
   { title: 'Debts', url: '/debts', icon: HandCoins },
   { title: 'Diary', url: '/diary', icon: BookText },
   { title: 'Reports', url: '/reports', icon: BarChart3 },
+  { title: 'About', url: '/about', icon: Info },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -71,7 +72,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const savedKey = localStorage.getItem('lifetrack_privacy_key');
     if (savedKey) {
       setPrivacyKey(savedKey);
-    } else if (pathname !== '/login') {
+    } else if (pathname !== '/login' && pathname !== '/about' && pathname !== '/') {
       setIsKeyModalOpen(true);
     }
   }, [pathname]);
@@ -168,7 +169,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </SidebarInset>
       </div>
 
-      <Dialog open={isKeyModalOpen} onOpenChange={(o) => pathname !== '/login' && setIsKeyModalOpen(o)}>
+      <Dialog open={isKeyModalOpen} onOpenChange={(o) => (pathname !== '/login' && pathname !== '/about') && setIsKeyModalOpen(o)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
