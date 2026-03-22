@@ -95,7 +95,7 @@ export default function DiaryPage() {
           whatILearned: await decryptData(entry.whatILearned || '', privacyKey),
           challengesBlockers: await decryptData(entry.challengesBlockers || '', privacyKey),
           tomorrowsPlan: await decryptData(entry.tomorrowsPlan || '', privacyKey),
-          mood: entry.mood || '😊'
+          mood: await decryptData(entry.mood || '', privacyKey) || '😊'
         });
       }
     };
@@ -117,6 +117,7 @@ export default function DiaryPage() {
           whatILearned: await decryptData(item.whatILearned || '', privacyKey),
           challengesBlockers: await decryptData(item.challengesBlockers || '', privacyKey),
           tomorrowsPlan: await decryptData(item.tomorrowsPlan || '', privacyKey),
+          mood: await decryptData(item.mood || '', privacyKey)
         }))
       );
       setDecryptedEntries(decrypted);
@@ -145,7 +146,7 @@ export default function DiaryPage() {
       whatILearned: await encryptData(localEntry.whatILearned, privacyKey),
       challengesBlockers: await encryptData(localEntry.challengesBlockers, privacyKey),
       tomorrowsPlan: await encryptData(localEntry.tomorrowsPlan, privacyKey),
-      mood: localEntry.mood, // Mood can remain unencrypted for history grouping if desired
+      mood: await encryptData(localEntry.mood, privacyKey),
       isEncrypted: true,
       userId: user.uid,
       date: todayStr,
