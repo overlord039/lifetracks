@@ -15,7 +15,8 @@ import {
   BookOpen,
   DollarSign,
   TrendingDown,
-  Loader2
+  Loader2,
+  ShieldCheck
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
@@ -32,24 +33,23 @@ export default function Dashboard() {
   }, []);
 
   const now = useMemo(() => new Date(), []);
-  const todayStr = format(now, 'yyyy-MM-dd');
-  const monthId = format(now, 'yyyyMM');
+  const todayStr = mounted ? format(now, 'yyyy-MM-dd') : '';
+  const monthId = mounted ? format(now, 'yyyyMM') : '';
 
-  // Firestore Data
   const monthlyBudgetRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user || !monthId) return null;
     return doc(firestore, 'users', user.uid, 'monthlyBudgets', monthId);
   }, [firestore, user, monthId]);
   const { data: monthlyBudgetDoc } = useDoc(monthlyBudgetRef);
 
   const fixedExpensesRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user || !monthId) return null;
     return collection(firestore, 'users', user.uid, 'monthlyBudgets', monthId, 'fixedExpenses');
   }, [firestore, user, monthId]);
   const { data: fixedExpenses } = useCollection(fixedExpensesRef);
 
   const monthExpensesRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user || !monthId) return null;
     return collection(firestore, 'users', user.uid, 'monthlyBudgets', monthId, 'expenses');
   }, [firestore, user, monthId]);
   const { data: monthExpenses } = useCollection(monthExpensesRef);
@@ -61,14 +61,13 @@ export default function Dashboard() {
   const { data: learningGoals } = useCollection(goalsQuery);
 
   const diaryRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user || !todayStr) return null;
     return doc(firestore, 'users', user.uid, 'dailyDiaries', todayStr);
   }, [firestore, user, todayStr]);
   const { data: todayDiary } = useDoc(diaryRef);
 
-  // Smart Rolling Budget Calculations
   const budgetReport = useMemo(() => {
-    if (!monthlyBudgetDoc || !monthExpenses) return null;
+    if (!monthlyBudgetDoc || !monthExpenses || !mounted) return null;
 
     const dailyExpensesMap: Record<string, number> = {};
     monthExpenses.forEach(exp => {
@@ -93,7 +92,7 @@ export default function Dashboard() {
     };
 
     return calculateRollingBudget(config, dailyExpensesMap, []);
-  }, [monthlyBudgetDoc, monthExpenses, fixedExpenses, now]);
+  }, [monthlyBudgetDoc, monthExpenses, fixedExpenses, now, mounted]);
 
   const todayReport = budgetReport?.[todayStr];
   const dailyBaseAllowance = (todayReport?.baseBudget || 0) + (todayReport?.extraBudget || 0);
@@ -108,8 +107,9 @@ export default function Dashboard() {
   if (!mounted) {
     return (
       <AppShell>
-        <div className="flex h-[60vh] w-full items-center justify-center">
+        <div className="flex h-[60vh] w-full items-center justify-center flex-col gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Restoring Workspace...</p>
         </div>
       </AppShell>
     );
@@ -117,135 +117,178 @@ export default function Dashboard() {
 
   return (
     <AppShell>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Link href="/budget" className="block transition-transform hover:scale-[1.02] active:scale-[0.98]">
-          <Card className="shadow-md border-b-4 border-b-primary h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-bold uppercase tracking-tighter text-muted-foreground">Allowed Today</CardTitle>
-              <DollarSign className="w-4 h-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-black">₹{dailyBaseAllowance.toFixed(0)}</div>
-              <p className="text-[10px] text-muted-foreground mt-1">Daily target allocation</p>
-            </CardContent>
-          </Card>
-        </Link>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <DashboardCard 
+          href="/budget"
+          title="Daily Allowance"
+          value={`₹${dailyBaseAllowance.toFixed(0)}`}
+          subtext="Available today"
+          icon={<DollarSign className="w-4 h-4" />}
+          variant="primary"
+        />
 
-        <Link href="/budget" className="block transition-transform hover:scale-[1.02] active:scale-[0.98]">
-          <Card className={cn(
-            "shadow-md h-full transition-colors duration-300",
-            isOverspent ? "bg-destructive text-destructive-foreground" : 
-            isWithinBudget ? "bg-secondary text-secondary-foreground" : "bg-card"
-          )}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className={cn(
-                "text-sm font-bold uppercase tracking-tighter",
-                isOverspent || isWithinBudget ? "text-inherit" : "text-muted-foreground"
-              )}>Spent Today</CardTitle>
-              <TrendingUp className={cn(
-                "w-4 h-4",
-                isOverspent || isWithinBudget ? "text-inherit" : "text-secondary-foreground"
-              )} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-black">₹{spentToday.toFixed(0)}</div>
-              <p className={cn(
-                "text-[10px] mt-1",
-                isOverspent || isWithinBudget ? "text-inherit/80" : "text-muted-foreground"
-              )}>
-                {spentToday > dailyBaseAllowance ? "Exceeding daily target" : "Within sustainable limits"}
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
+        <DashboardCard 
+          href="/budget"
+          title="Spent Today"
+          value={`₹${spentToday.toFixed(0)}`}
+          subtext={isOverspent ? "Above limit" : "Safe zone"}
+          icon={<TrendingUp className="w-4 h-4" />}
+          variant={isOverspent ? "destructive" : isWithinBudget ? "secondary" : "default"}
+        />
 
-        <Link href="/learning" className="block transition-transform hover:scale-[1.02] active:scale-[0.98]">
-          <Card className="shadow-md h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-bold uppercase tracking-tighter text-muted-foreground">Goal Progress</CardTitle>
-              <BookOpen className="w-4 h-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-black">{goalsProgress}%</div>
-              <Progress value={goalsProgress} className="h-1.5 mt-2" />
-            </CardContent>
-          </Card>
-        </Link>
+        <DashboardCard 
+          href="/learning"
+          title="Skill Mastery"
+          value={`${goalsProgress}%`}
+          subtext="Completion rate"
+          icon={<BookOpen className="w-4 h-4" />}
+          progress={goalsProgress}
+        />
 
-        <Link href="/diary" className="block transition-transform hover:scale-[1.02] active:scale-[0.98]">
-          <Card className="shadow-md h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-bold uppercase tracking-tighter text-muted-foreground">Diary Entry</CardTitle>
-              <Calendar className="w-4 h-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                {todayDiary ? <CheckCircle2 className="w-6 h-6 text-secondary-foreground" /> : <AlertCircle className="w-6 h-6 text-destructive" />}
-                <div className="text-lg font-black">{todayDiary ? "Complete" : "Pending"}</div>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
+        <DashboardCard 
+          href="/diary"
+          title="Daily Reflection"
+          value={todayDiary ? "Logged" : "Pending"}
+          subtext={todayDiary ? "Well done!" : "Record thoughts"}
+          icon={todayDiary ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+          variant={todayDiary ? "secondary" : "default"}
+        />
       </div>
 
-      <div className="grid gap-6 mt-8 md:grid-cols-2">
-        <Link href="/reports" className="block transition-transform hover:scale-[1.01] active:scale-[0.99]">
-          <Card className="shadow-md overflow-hidden h-full">
-            <CardHeader className="bg-primary/5">
-              <CardTitle>Budget Insights</CardTitle>
-              <CardDescription>Real-time sustainability check.</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-4">
-              <div className={`p-4 rounded-xl border flex items-center justify-between ${remaining > 0 ? 'bg-green-50 border-green-100 dark:bg-green-950/10 dark:border-green-900/20' : 'bg-red-50 border-red-100 dark:bg-red-950/10 dark:border-red-900/20'}`}>
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-full ${remaining > 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
-                    {remaining > 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold uppercase text-muted-foreground tracking-tighter">Remaining Today</p>
-                    <p className="text-2xl font-black">₹{remaining.toFixed(0)}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Daily Base Allocation:</span>
-                  <span className="font-bold">₹{todayReport?.baseBudget.toFixed(0)}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Carry-Forward Adjustment:</span>
-                  <span className={`font-bold ${(todayReport?.carryForwardFromYesterday || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {(todayReport?.carryForwardFromYesterday || 0) >= 0 ? '+' : ''}₹{todayReport?.carryForwardFromYesterday.toFixed(0)}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link href="/learning" className="block transition-transform hover:scale-[1.01] active:scale-[0.99]">
-          <Card className="shadow-md h-full">
-            <CardHeader>
-              <CardTitle>Learning Mastery</CardTitle>
-              <CardDescription>Tracking your active goals.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {learningGoals?.length ? learningGoals.map((goal) => {
-                const p = Math.min(100, Math.round(((goal.completedCount || 0) / (goal.target || 1)) * 100));
-                return (
-                  <div key={goal.id} className="space-y-1">
-                    <div className="flex justify-between text-xs font-bold">
-                      <span>{goal.skill}</span>
-                      <span className="text-muted-foreground">{p}%</span>
+      <div className="grid gap-6 mt-6 lg:grid-cols-12">
+        <div className="lg:col-span-7 space-y-6">
+          <Link href="/reports" className="block group">
+            <Card className="shadow-lg overflow-hidden border-none ring-1 ring-border group-hover:ring-primary/30 transition-all duration-300">
+              <CardHeader className="bg-muted/30 border-b py-4">
+                <CardTitle className="text-base font-black flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-primary" />
+                  Budget Insight
+                </Badge>
+                <CardDescription className="text-[10px] font-medium uppercase tracking-tight">Real-time health check</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-6">
+                <div className={cn(
+                  "p-5 rounded-2xl border transition-all flex items-center justify-between",
+                  remaining > 0 
+                    ? 'bg-green-50/50 border-green-100 dark:bg-green-950/20 dark:border-green-900/30' 
+                    : 'bg-red-50/50 border-red-100 dark:bg-red-950/20 dark:border-red-900/30'
+                )}>
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      "p-3 rounded-xl shadow-sm",
+                      remaining > 0 
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400' 
+                        : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400'
+                    )}>
+                      {remaining > 0 ? <TrendingUp className="w-6 h-6" /> : <TrendingDown className="w-6 h-6" />}
                     </div>
-                    <Progress value={p} className="h-1.5" />
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Safe to Spend</p>
+                      <p className="text-3xl font-black">₹{remaining.toFixed(0)}</p>
+                    </div>
                   </div>
-                );
-              }) : <p className="text-xs italic text-muted-foreground">No goals active.</p>}
-            </CardContent>
-          </Card>
-        </Link>
+                  <ShieldCheck className={cn(
+                    "w-8 h-8 opacity-20",
+                    remaining > 0 ? "text-green-600" : "text-red-600"
+                  )} />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Base Allocation</p>
+                    <p className="text-sm font-black">₹{todayReport?.baseBudget.toFixed(0)}</p>
+                  </div>
+                  <div className="space-y-1 text-right">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Roll-over</p>
+                    <p className={cn(
+                      "text-sm font-black",
+                      (todayReport?.carryForwardFromYesterday || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                    )}>
+                      {(todayReport?.carryForwardFromYesterday || 0) >= 0 ? '+' : ''}₹{todayReport?.carryForwardFromYesterday.toFixed(0)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+
+        <div className="lg:col-span-5">
+          <Link href="/learning" className="block group h-full">
+            <Card className="shadow-lg h-full border-none ring-1 ring-border group-hover:ring-primary/30 transition-all duration-300">
+              <CardHeader className="bg-muted/30 border-b py-4">
+                <CardTitle className="text-base font-black">Active Skills</CardTitle>
+                <CardDescription className="text-[10px] font-medium uppercase tracking-tight">Daily Progress tracker</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-4">
+                {learningGoals?.length ? learningGoals.slice(0, 4).map((goal) => {
+                  const p = Math.min(100, Math.round(((goal.completedCount || 0) / (goal.target || 1)) * 100));
+                  return (
+                    <div key={goal.id} className="space-y-1.5">
+                      <div className="flex justify-between items-center text-[11px] font-black uppercase tracking-tighter">
+                        <span>{goal.skill}</span>
+                        <span className="text-muted-foreground">{p}%</span>
+                      </div>
+                      <Progress value={p} className="h-1.5" />
+                    </div>
+                  );
+                }) : (
+                  <div className="flex flex-col items-center justify-center py-10 text-center opacity-40 grayscale">
+                    <BookOpen className="h-10 w-10 mb-2" />
+                    <p className="text-[10px] font-black uppercase">No active goals</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
       </div>
     </AppShell>
+  );
+}
+
+interface DashboardCardProps {
+  href: string;
+  title: string;
+  value: string;
+  subtext: string;
+  icon: React.ReactNode;
+  variant?: 'primary' | 'secondary' | 'destructive' | 'default';
+  progress?: number;
+}
+
+function DashboardCard({ href, title, value, subtext, icon, variant = 'default', progress }: DashboardCardProps) {
+  return (
+    <Link href={href} className="block transition-transform hover:scale-[1.02] active:scale-[0.98]">
+      <Card className={cn(
+        "shadow-md h-full transition-all duration-300 border-none ring-1 ring-border relative overflow-hidden",
+        variant === 'primary' && "bg-primary text-primary-foreground ring-primary/20",
+        variant === 'secondary' && "bg-secondary text-secondary-foreground ring-secondary/20",
+        variant === 'destructive' && "bg-destructive text-destructive-foreground ring-destructive/20 animate-pulse"
+      )}>
+        <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 pt-4">
+          <CardTitle className={cn(
+            "text-[10px] font-black uppercase tracking-widest",
+            variant === 'default' ? "text-muted-foreground" : "text-inherit opacity-80"
+          )}>{title}</CardTitle>
+          <div className={cn(
+            "p-1.5 rounded-lg",
+            variant === 'default' ? "bg-muted text-primary" : "bg-white/10"
+          )}>
+            {icon}
+          </div>
+        </CardHeader>
+        <CardContent className="pb-4">
+          <div className="text-2xl font-black tracking-tight">{value}</div>
+          <p className={cn(
+            "text-[9px] font-bold uppercase mt-1",
+            variant === 'default' ? "text-muted-foreground" : "text-inherit opacity-70"
+          )}>{subtext}</p>
+          {progress !== undefined && (
+            <Progress value={progress} className="h-1 mt-3 bg-muted/20" />
+          )}
+        </CardContent>
+      </Card>
+    </Link>
   );
 }
