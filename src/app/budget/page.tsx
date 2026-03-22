@@ -11,9 +11,8 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
-import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, AlertTriangle, Pencil, X, Check } from 'lucide-react';
+import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, AlertTriangle, Pencil, X, Check, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { categorizeExpense } from '@/ai/flows/categorize-expense-flow';
 import { format, getDaysInMonth } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -21,6 +20,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
+import { encryptData, decryptData, decryptNumber } from '@/lib/encryption';
 
 export default function BudgetPage() {
   const { user } = useUser();
@@ -30,18 +30,18 @@ export default function BudgetPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  
-  // Extra budget state
-  const [isAddingExtra, setIsAddingExtra] = useState(false);
-  const [extraAmount, setExtraAmount] = useState('');
-  const [tempInitialBudget, setTempInitialBudget] = useState('');
+  const [privacyKey, setPrivacyKey] = useState<string | null>(null);
 
-  const [newCategory, setNewCategory] = useState({ name: '', type: 'daily' });
-  const [newFixed, setNewFixed] = useState({ name: '', amount: '', categoryId: '' });
-  const [newExpense, setNewExpense] = useState({ description: '', amount: '', categoryId: '' });
+  // Decrypted Data State
+  const [decryptedCategories, setDecryptedCategories] = useState<any[]>([]);
+  const [decryptedBudget, setDecryptedBudget] = useState<any>(null);
+  const [decryptedFixed, setDecryptedFixed] = useState<any[]>([]);
+  const [decryptedExpenses, setDecryptedExpenses] = useState<any[]>([]);
+  const [isDecrypting, setIsDecrypting] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    setPrivacyKey(localStorage.getItem('lifetrack_privacy_key'));
   }, []);
 
   const now = useMemo(() => new Date(), []);
@@ -70,241 +70,197 @@ export default function BudgetPage() {
     return collection(db, 'users', user.uid, 'monthlyBudgets', monthId, 'expenses');
   }, [db, user, monthId]);
 
-  const { data: categories } = useCollection(categoriesRef);
-  const { data: fixedExpenses } = useCollection(fixedExpensesRef);
-  const { data: monthlyBudgetDoc } = useDoc(monthlyBudgetRef);
-  const { data: expenses } = useCollection(expensesRef);
+  const { data: rawCategories } = useCollection(categoriesRef);
+  const { data: rawFixed } = useCollection(fixedExpensesRef);
+  const { data: rawBudget } = useDoc(monthlyBudgetRef);
+  const { data: rawExpenses } = useCollection(expensesRef);
 
-  const dailyCategories = categories?.filter(c => c.type === 'daily') || [];
-  const fixedCategories = categories?.filter(c => c.type === 'fixed') || [];
+  useEffect(() => {
+    const decryptAll = async () => {
+      if (!privacyKey) return;
+      setIsDecrypting(true);
 
-  const totalIncludedFixed = fixedExpenses?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
-  const netMonthlyPool = (monthlyBudgetDoc?.totalBudgetAmount || 0) - totalIncludedFixed;
-  const totalSpentThisMonth = expenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
+      // Decrypt Categories
+      if (rawCategories) {
+        const cats = await Promise.all(rawCategories.map(async c => ({
+          ...c,
+          name: await decryptData(c.name, privacyKey)
+        })));
+        setDecryptedCategories(cats);
+      }
+
+      // Decrypt Budget
+      if (rawBudget) {
+        setDecryptedBudget({
+          ...rawBudget,
+          totalBudgetAmount: await decryptNumber(rawBudget.totalBudgetAmount, privacyKey),
+          baseBudgetAmount: await decryptNumber(rawBudget.baseBudgetAmount, privacyKey),
+          extraBudgetAmount: await decryptNumber(rawBudget.extraBudgetAmount, privacyKey),
+        });
+      }
+
+      // Decrypt Fixed
+      if (rawFixed) {
+        const fixed = await Promise.all(rawFixed.map(async f => ({
+          ...f,
+          name: await decryptData(f.name, privacyKey),
+          amount: await decryptNumber(f.amount, privacyKey),
+        })));
+        setDecryptedFixed(fixed);
+      }
+
+      // Decrypt Expenses
+      if (rawExpenses) {
+        const exps = await Promise.all(rawExpenses.map(async e => ({
+          ...e,
+          description: await decryptData(e.description, privacyKey),
+          amount: await decryptNumber(e.amount, privacyKey),
+        })));
+        setDecryptedExpenses(exps);
+      }
+      setIsDecrypting(false);
+    };
+    decryptAll();
+  }, [rawCategories, rawBudget, rawFixed, rawExpenses, privacyKey]);
+
+  // Rest of logic using decrypted data...
+  const dailyCategories = decryptedCategories?.filter(c => c.type === 'daily') || [];
+  const fixedCategories = decryptedCategories?.filter(c => c.type === 'fixed') || [];
+  const totalIncludedFixed = decryptedFixed?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
+  const netMonthlyPool = (decryptedBudget?.totalBudgetAmount || 0) - totalIncludedFixed;
+  const totalSpentThisMonth = decryptedExpenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
   const remainingNetPool = netMonthlyPool - totalSpentThisMonth;
-
-  // Standard static daily base budget (Net Pool / Days in Month)
   const dailyBase = netMonthlyPool / daysInMonth;
   const calculatedWeekendBonus = Math.round(dailyBase * 0.5);
 
   const budgetReport = useMemo(() => {
-    if (!monthlyBudgetDoc || !expenses) return null;
-
+    if (!decryptedBudget || !decryptedExpenses) return null;
     const dailyExpensesMap: Record<string, number> = {};
-    expenses.forEach(exp => {
+    decryptedExpenses.forEach(exp => {
       dailyExpensesMap[exp.date] = (dailyExpensesMap[exp.date] || 0) + exp.amount;
     });
-
     const config: MonthlyConfig = {
-      totalBudget: monthlyBudgetDoc.totalBudgetAmount || 0,
+      totalBudget: decryptedBudget.totalBudgetAmount || 0,
       month: now.getMonth(),
       year: now.getFullYear(),
-      fixedExpenses: (fixedExpenses || []).map(f => ({
-        id: f.id,
-        name: f.name,
-        amount: f.amount,
-        included: f.includeInBudget
-      })),
-      saturdayExtra: monthlyBudgetDoc.isWeekendExtraBudgetEnabled ? calculatedWeekendBonus : 0,
-      sundayExtra: monthlyBudgetDoc.isWeekendExtraBudgetEnabled ? calculatedWeekendBonus : 0,
+      fixedExpenses: (decryptedFixed || []).map(f => ({ id: f.id, name: f.name, amount: f.amount, included: f.includeInBudget })),
+      saturdayExtra: decryptedBudget.isWeekendExtraBudgetEnabled ? calculatedWeekendBonus : 0,
+      sundayExtra: decryptedBudget.isWeekendExtraBudgetEnabled ? calculatedWeekendBonus : 0,
       holidayExtra: 0,
-      isWeekendEnabled: monthlyBudgetDoc.isWeekendExtraBudgetEnabled || false,
+      isWeekendEnabled: decryptedBudget.isWeekendExtraBudgetEnabled || false,
       isHolidayEnabled: false
     };
-
     return calculateRollingBudget(config, dailyExpensesMap, []);
-  }, [monthlyBudgetDoc, expenses, fixedExpenses, now, calculatedWeekendBonus]);
+  }, [decryptedBudget, decryptedExpenses, decryptedFixed, now, calculatedWeekendBonus]);
 
   const todayReport = budgetReport?.[todayStr];
   const dailyAllocationToday = dailyBase + (todayReport?.extraBudget || 0);
   const isOverspentToday = (todayReport?.spent || 0) > dailyAllocationToday;
   const isWithinBudget = (todayReport?.spent || 0) > 0 && !isOverspentToday;
 
-  useEffect(() => {
-    if (isOverspentToday) {
-      toast({
-        variant: "destructive",
-        title: "Daily Budget Exceeded!",
-        description: `You've spent ₹${(todayReport?.spent || 0).toFixed(0)}, which is ₹${((todayReport?.spent || 0) - dailyAllocationToday).toFixed(0)} more than your daily target.`,
-      });
-    }
-  }, [isOverspentToday, todayReport?.spent, dailyAllocationToday, toast]);
+  const [extraAmount, setExtraAmount] = useState('');
+  const [tempInitialBudget, setTempInitialBudget] = useState('');
+  const [isAddingExtra, setIsAddingExtra] = useState(false);
+  const [newCategory, setNewCategory] = useState({ name: '', type: 'daily' });
+  const [newFixed, setNewFixed] = useState({ name: '', amount: '', categoryId: '' });
+  const [newExpense, setNewExpense] = useState({ description: '', amount: '', categoryId: '' });
 
-  const saveMonthlyBudget = (updates: any) => {
-    if (!monthlyBudgetRef || !user) return;
+  const saveMonthlyBudget = async (updates: any) => {
+    if (!monthlyBudgetRef || !user || !privacyKey) return;
     
-    const currentData = monthlyBudgetDoc || {};
-    
+    const encryptedUpdates = { ...updates };
+    if (updates.totalBudgetAmount !== undefined) encryptedUpdates.totalBudgetAmount = await encryptData(updates.totalBudgetAmount, privacyKey);
+    if (updates.baseBudgetAmount !== undefined) encryptedUpdates.baseBudgetAmount = await encryptData(updates.baseBudgetAmount, privacyKey);
+    if (updates.extraBudgetAmount !== undefined) encryptedUpdates.extraBudgetAmount = await encryptData(updates.extraBudgetAmount, privacyKey);
+
     setDocumentNonBlocking(monthlyBudgetRef, {
-      ...updates,
+      ...encryptedUpdates,
       userId: user.uid,
       month: now.getMonth() + 1,
       year: now.getFullYear(),
       updatedAt: new Date().toISOString(),
-      createdAt: currentData.createdAt || new Date().toISOString(),
+      createdAt: rawBudget?.createdAt || new Date().toISOString(),
+      isEncrypted: true,
     }, { merge: true });
   };
 
   const handleSetInitialBudget = () => {
     const val = parseFloat(tempInitialBudget) || 0;
-    if (val <= 0) {
-      toast({ variant: 'destructive', title: "Invalid Amount", description: "Please enter a valid monthly budget." });
-      return;
-    }
-    saveMonthlyBudget({ 
-      totalBudgetAmount: val,
-      baseBudgetAmount: val,
-      extraBudgetAmount: 0 
-    });
+    if (val <= 0) return;
+    saveMonthlyBudget({ totalBudgetAmount: val, baseBudgetAmount: val, extraBudgetAmount: 0 });
     setTempInitialBudget('');
-    toast({ title: "Budget Locked", description: `Your monthly budget of ₹${val} has been set.` });
+    toast({ title: "Budget Vault Locked" });
   };
 
   const handleAddExtra = () => {
     const added = parseFloat(extraAmount) || 0;
     if (added <= 0) return;
-    
-    const currentTotal = monthlyBudgetDoc?.totalBudgetAmount || 0;
-    const currentExtra = monthlyBudgetDoc?.extraBudgetAmount || 0;
-    
-    saveMonthlyBudget({ 
-      totalBudgetAmount: currentTotal + added,
-      extraBudgetAmount: currentExtra + added
-    });
-    
+    const currentTotal = decryptedBudget?.totalBudgetAmount || 0;
+    const currentExtra = decryptedBudget?.extraBudgetAmount || 0;
+    saveMonthlyBudget({ totalBudgetAmount: currentTotal + added, extraBudgetAmount: currentExtra + added });
     setExtraAmount('');
     setIsAddingExtra(false);
-    toast({ title: "Extra funds added", description: `Added ₹${added} to your monthly budget.` });
   };
 
-  const addCategory = () => {
-    if (!newCategory.name.trim() || !categoriesRef) return;
+  const addCategory = async () => {
+    if (!newCategory.name.trim() || !categoriesRef || !privacyKey) return;
     addDocumentNonBlocking(categoriesRef, {
       userId: user?.uid,
-      name: newCategory.name.trim(),
+      name: await encryptData(newCategory.name.trim(), privacyKey),
       type: newCategory.type,
+      isEncrypted: true,
       createdAt: new Date().toISOString()
     });
     setNewCategory({ ...newCategory, name: '' });
-    toast({ title: "Category added" });
   };
 
-  const deleteCategory = (id: string) => {
-    if (!categoriesRef) return;
-    deleteDocumentNonBlocking(doc(categoriesRef, id));
-  };
-
-  const addFixedExpense = () => {
-    if (!newFixed.name || !newFixed.amount || !newFixed.categoryId || !fixedExpensesRef) {
-      toast({ variant: 'destructive', title: 'Missing Info' });
-      return;
-    }
+  const addFixedExpense = async () => {
+    if (!newFixed.name || !newFixed.amount || !newFixed.categoryId || !fixedExpensesRef || !privacyKey) return;
     setLoading(true);
     addDocumentNonBlocking(fixedExpensesRef, {
       userId: user?.uid,
       monthlyBudgetId: monthId,
-      name: newFixed.name,
-      amount: parseFloat(newFixed.amount),
+      name: await encryptData(newFixed.name, privacyKey),
+      amount: await encryptData(newFixed.amount, privacyKey),
       expenseCategoryId: newFixed.categoryId,
       includeInBudget: true,
+      isEncrypted: true,
       createdAt: new Date().toISOString()
     }).then(() => {
       setNewFixed({ name: '', amount: '', categoryId: '' });
       setLoading(false);
-      toast({ title: "Fixed expense added" });
     });
   };
 
-  const toggleFixed = (id: string, current: boolean) => {
-    if (!fixedExpensesRef) return;
-    updateDocumentNonBlocking(doc(fixedExpensesRef, id), { includeInBudget: !current });
-  };
-
-  const deleteFixed = (id: string) => {
-    if (!fixedExpensesRef) return;
-    deleteDocumentNonBlocking(doc(fixedExpensesRef, id));
-  };
-
-  const handleLogExpense = () => {
-    if (!newExpense.amount || !newExpense.categoryId || !user || !expensesRef) {
-      toast({ variant: 'destructive', title: 'Missing Information' });
-      return;
-    }
-    
+  const handleLogExpense = async () => {
+    if (!newExpense.amount || !newExpense.categoryId || !user || !expensesRef || !privacyKey) return;
     setLoading(true);
     const expenseData = {
       userId: user.uid,
       monthlyBudgetId: monthId,
-      description: newExpense.description || '',
-      amount: parseFloat(newExpense.amount),
+      description: await encryptData(newExpense.description || '', privacyKey),
+      amount: await encryptData(newExpense.amount, privacyKey),
       expenseCategoryId: newExpense.categoryId,
-      date: editingExpenseId ? (expenses?.find(e => e.id === editingExpenseId)?.date || todayStr) : todayStr,
+      date: editingExpenseId ? (decryptedExpenses?.find(e => e.id === editingExpenseId)?.date || todayStr) : todayStr,
+      isEncrypted: true,
       updatedAt: new Date().toISOString()
     };
-
     if (editingExpenseId) {
       updateDocumentNonBlocking(doc(expensesRef, editingExpenseId), expenseData);
       setEditingExpenseId(null);
-      toast({ title: "Expense updated" });
     } else {
-      addDocumentNonBlocking(expensesRef, {
-        ...expenseData,
-        createdAt: new Date().toISOString()
-      });
-      toast({ title: "Expense logged" });
+      addDocumentNonBlocking(expensesRef, { ...expenseData, createdAt: new Date().toISOString() });
     }
-
     setNewExpense({ description: '', amount: '', categoryId: '' });
     setLoading(false);
   };
 
-  const handleStartEdit = (exp: any) => {
-    setEditingExpenseId(exp.id);
-    setNewExpense({
-      description: exp.description || '',
-      amount: exp.amount.toString(),
-      categoryId: exp.expenseCategoryId
-    });
-    // Scroll to logger on mobile
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const cancelEdit = () => {
-    setEditingExpenseId(null);
-    setNewExpense({ description: '', amount: '', categoryId: '' });
-  };
-
-  const deleteExpense = (id: string) => {
-    if (!expensesRef) return;
-    deleteDocumentNonBlocking(doc(expensesRef, id));
-    toast({ title: "Expense removed" });
-  };
-
-  const handleAiSuggest = async () => {
-    if (!newExpense.description || !dailyCategories.length) return;
-    setAiLoading(true);
-    try {
-      const result = await categorizeExpense({
-        expenseDescription: newExpense.description,
-        existingCategories: dailyCategories.map(c => c.name)
-      });
-      const matched = dailyCategories.find(c => c.name.toLowerCase() === result.suggestedCategoryName.toLowerCase());
-      if (matched) setNewExpense(prev => ({ ...prev, categoryId: matched.id }));
-      toast({ title: "AI Suggestion", description: `Suggested: ${result.suggestedCategoryName}` });
-    } catch (err) {
-      toast({ variant: 'destructive', title: 'AI failed' });
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const isBudgetSet = (monthlyBudgetDoc?.totalBudgetAmount || 0) > 0;
-
-  if (!mounted) {
+  if (!mounted || isDecrypting) {
     return (
       <AppShell>
-        <div className="flex h-[60vh] w-full items-center justify-center">
+        <div className="flex h-[60vh] w-full items-center justify-center flex-col gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Opening Privacy Vault...</p>
         </div>
       </AppShell>
     );
@@ -312,125 +268,81 @@ export default function BudgetPage() {
 
   return (
     <AppShell>
+      {!privacyKey && (
+        <Alert variant="destructive" className="mb-6 border-2">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertTitle>Master Key Required</AlertTitle>
+          <AlertDescription>
+            You must set your Master Privacy Key in the sidebar to view or manage your budget.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* On mobile, show the "Sustainable Today" card first */}
         <div className="lg:hidden">
-          <SustainableTodayCard 
-            isOverspentToday={isOverspentToday}
-            isWithinBudget={isWithinBudget}
-            todayStr={todayStr}
-            dailyAllocationToday={dailyAllocationToday}
-            todayReport={todayReport}
-          />
+          <SustainableTodayCard isOverspentToday={isOverspentToday} isWithinBudget={isWithinBudget} todayStr={todayStr} dailyAllocationToday={dailyAllocationToday} todayReport={todayReport} />
         </div>
 
         <div className="lg:col-span-2 space-y-6">
-          {isOverspentToday && (
-            <Alert variant="destructive" className="animate-in fade-in slide-in-from-top-4 duration-500 shadow-lg">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Daily Limit Exceeded</AlertTitle>
-              <AlertDescription>
-                You've spent more than your daily slice. Stay within your daily target to sustain your monthly goal.
-              </AlertDescription>
-            </Alert>
-          )}
-
           <Card className="shadow-md border-t-4 border-t-primary">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Wallet className="h-5 w-5 text-primary" />
-                Monthly Budget Plan
-              </CardTitle>
-              <CardDescription>System auto-detected for {monthName}.</CardDescription>
+              <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5 text-primary" /> Monthly Budget Vault</CardTitle>
+              <CardDescription>Protected financial targets for {monthName}.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="total-budget">Total Monthly Budget (₹)</Label>
+                  <Label>Total Monthly Pool (Encrypted)</Label>
                   <div className="flex flex-col gap-2">
-                    {isBudgetSet ? (
+                    {decryptedBudget?.totalBudgetAmount > 0 ? (
                       <div className="space-y-3">
                         <div className="grid grid-cols-2 gap-2 text-xs font-medium">
                           <div className="p-2 border rounded bg-muted/30">
-                            <span className="text-muted-foreground block text-[10px] uppercase font-bold">Initial Base</span>
-                            <span className="font-bold text-sm">₹{(monthlyBudgetDoc?.baseBudgetAmount || 0).toLocaleString()}</span>
+                            <span className="text-muted-foreground block text-[10px] uppercase font-bold">Base Target</span>
+                            <span className="font-bold text-sm">₹{decryptedBudget.baseBudgetAmount.toLocaleString()}</span>
                           </div>
                           <div className="p-2 border rounded bg-muted/30">
-                            <span className="text-muted-foreground block text-[10px] uppercase font-bold">Extra Added</span>
-                            <span className="font-bold text-sm text-primary">₹{(monthlyBudgetDoc?.extraBudgetAmount || 0).toLocaleString()}</span>
+                            <span className="text-muted-foreground block text-[10px] uppercase font-bold">Encrypted Extra</span>
+                            <span className="font-bold text-sm text-primary">₹{decryptedBudget.extraBudgetAmount.toLocaleString()}</span>
                           </div>
                         </div>
-                        
                         <div className="flex items-center gap-2">
                           <div className="flex-1 h-12 px-4 py-2 rounded-md border bg-primary/5 font-black text-xl flex items-center justify-between">
                             <span className="text-xs uppercase text-primary/70 font-bold">Total Pool</span>
-                            <span>₹{monthlyBudgetDoc?.totalBudgetAmount?.toLocaleString()}</span>
+                            <span>₹{decryptedBudget.totalBudgetAmount.toLocaleString()}</span>
                           </div>
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
-                            onClick={() => setIsAddingExtra(!isAddingExtra)}
-                            className={cn("shrink-0 h-12 w-12 transition-all", isAddingExtra && "bg-primary text-white hover:bg-primary/90")}
-                          >
+                          <Button variant="outline" size="icon" onClick={() => setIsAddingExtra(!isAddingExtra)} className={cn("h-12 w-12", isAddingExtra && "bg-primary text-white")}>
                             {isAddingExtra ? <X className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
                           </Button>
                         </div>
                       </div>
                     ) : (
                       <div className="flex gap-2">
-                        <Input 
-                          id="total-budget" 
-                          type="number" 
-                          placeholder="e.g. 15000"
-                          value={tempInitialBudget} 
-                          onChange={(e) => setTempInitialBudget(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleSetInitialBudget()}
-                        />
-                        <Button onClick={handleSetInitialBudget}>Set</Button>
+                        <Input type="number" placeholder="Set Monthly Target..." value={tempInitialBudget} onChange={(e) => setTempInitialBudget(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSetInitialBudget()} />
+                        <Button onClick={handleSetInitialBudget}>Lock</Button>
                       </div>
                     )}
-
                     {isAddingExtra && (
-                      <div className="p-3 border rounded-lg bg-primary/5 animate-in slide-in-from-top-2 duration-300">
-                        <Label className="text-[10px] font-bold uppercase mb-2 block text-primary">Add Extra Funds</Label>
+                      <div className="p-3 border rounded-lg bg-primary/5 animate-in slide-in-from-top-2">
+                        <Label className="text-[10px] font-bold uppercase mb-2 block text-primary">Add Private Extra</Label>
                         <div className="flex gap-2">
-                          <Input 
-                            type="number" 
-                            placeholder="Amount to add" 
-                            value={extraAmount}
-                            onChange={(e) => setExtraAmount(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleAddExtra()}
-                            className="h-8 text-sm"
-                            autoFocus
-                          />
-                          <Button size="sm" className="h-8 px-2" onClick={handleAddExtra}>
-                            <Check className="h-3 w-3 mr-1" /> Add
-                          </Button>
+                          <Input type="number" placeholder="Extra amount..." value={extraAmount} onChange={(e) => setExtraAmount(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddExtra()} autoFocus />
+                          <Button size="sm" onClick={handleAddExtra}><Check className="h-3 w-3 mr-1" /> Add</Button>
                         </div>
                       </div>
                     )}
                   </div>
                 </div>
-
                 <div className="space-y-4 p-4 border rounded-xl bg-muted/20">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="weekend-toggle" className="flex items-center gap-2">
-                      <CalendarDays className="h-4 w-4 text-primary" />
-                      Weekend Boost
-                    </Label>
-                    <Switch 
-                      id="weekend-toggle"
-                      checked={monthlyBudgetDoc?.isWeekendExtraBudgetEnabled || false}
-                      onCheckedChange={(checked) => saveMonthlyBudget({ isWeekendExtraBudgetEnabled: checked })}
-                    />
+                    <Label className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-primary" /> Weekend Boost</Label>
+                    <Switch checked={decryptedBudget?.isWeekendExtraBudgetEnabled || false} onCheckedChange={(checked) => saveMonthlyBudget({ isWeekendExtraBudgetEnabled: checked })} />
                   </div>
-                  
-                  {monthlyBudgetDoc?.isWeekendExtraBudgetEnabled && (
-                    <div className="pt-2 animate-in fade-in slide-in-from-top-2">
-                      <div className="p-3 bg-white/50 dark:bg-muted/30 rounded-lg border border-dashed border-primary/30">
-                        <p className="text-xs text-muted-foreground mb-1">Calculated Bonus (50% of daily base)</p>
+                  {decryptedBudget?.isWeekendExtraBudgetEnabled && (
+                    <div className="pt-2">
+                      <div className="p-3 bg-white/50 dark:bg-muted/30 rounded-lg border border-dashed border-primary/30 text-center">
+                        <p className="text-xs text-muted-foreground uppercase font-bold tracking-tighter">Encrypted Daily Bonus</p>
                         <p className="text-xl font-black text-primary">₹{calculatedWeekendBonus}</p>
-                        <p className="text-[10px] text-muted-foreground mt-1 italic">Applied automatically to Saturday & Sunday</p>
                       </div>
                     </div>
                   )}
@@ -438,83 +350,45 @@ export default function BudgetPage() {
               </div>
             </CardContent>
             <CardFooter className="bg-muted/10 grid grid-cols-2 gap-4 py-4 border-t text-sm">
-              <div className="flex flex-col">
-                <span className="text-muted-foreground text-xs uppercase font-bold tracking-tighter">Net Pool Remaining</span>
-                <div className="flex flex-col">
-                  <span className="text-lg font-black">₹{remainingNetPool.toLocaleString()}</span>
-                  <span className="text-[10px] text-muted-foreground">of ₹{netMonthlyPool.toLocaleString()} pool</span>
-                </div>
-              </div>
-              <div className="flex flex-col border-l pl-4">
-                <span className="text-muted-foreground text-xs uppercase font-bold tracking-tighter">Daily Base Budget</span>
-                <span className="text-lg font-black">₹{dailyBase.toFixed(0)}</span>
-              </div>
+              <div className="flex flex-col"><span className="text-muted-foreground text-xs uppercase font-bold tracking-tighter">Private Net Pool</span><span className="text-lg font-black">₹{remainingNetPool.toLocaleString()}</span></div>
+              <div className="flex flex-col border-l pl-4"><span className="text-muted-foreground text-xs uppercase font-bold tracking-tighter">Daily Target</span><span className="text-lg font-black">₹{dailyBase.toFixed(0)}</span></div>
             </CardFooter>
           </Card>
 
           <Card className="shadow-md">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <ReceiptText className="h-5 w-5 text-primary" />
-                Fixed Monthly Expenses
-              </CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-lg flex items-center gap-2"><ReceiptText className="h-5 w-5 text-primary" /> Protected Fixed Expenses</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                <Input placeholder="Name" value={newFixed.name} onChange={(e) => setNewFixed({ ...newFixed, name: e.target.value })} className="h-9" />
+                <Input placeholder="Item Name" value={newFixed.name} onChange={(e) => setNewFixed({ ...newFixed, name: e.target.value })} />
                 <Select value={newFixed.categoryId} onValueChange={(v) => setNewFixed({ ...newFixed, categoryId: v })}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Category" /></SelectTrigger>
-                  <SelectContent>
-                    {fixedCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  </SelectContent>
+                  <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
+                  <SelectContent>{fixedCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                 </Select>
-                <Input type="number" placeholder="Amount" value={newFixed.amount} onChange={(e) => setNewFixed({ ...newFixed, amount: e.target.value })} className="h-9" />
-                <Button onClick={addFixedExpense} className="h-9 w-full"><Plus className="h-4 w-4 mr-1" /> Add</Button>
+                <Input type="number" placeholder="Amount" value={newFixed.amount} onChange={(e) => setNewFixed({ ...newFixed, amount: e.target.value })} />
+                <Button onClick={addFixedExpense}><Plus className="h-4 w-4 mr-1" /> Add</Button>
               </div>
-
               <div className="border rounded-lg overflow-hidden">
                 <Table>
-                  <TableHeader className="bg-muted/50 h-10">
-                    <TableRow>
-                      <TableHead className="text-xs h-10">Item</TableHead>
-                      <TableHead className="text-xs h-10">Amount</TableHead>
-                      <TableHead className="text-xs h-10">Incl.</TableHead>
-                      <TableHead className="text-xs h-10 text-right">Delete</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                  <TableHeader className="bg-muted/50"><TableRow><TableHead className="text-xs">Item</TableHead><TableHead className="text-xs">Amount</TableHead><TableHead className="text-xs">Incl.</TableHead><TableHead className="text-xs text-right">Delete</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {fixedExpenses?.length ? fixedExpenses.map((expense) => (
+                    {decryptedFixed?.length ? decryptedFixed.map((expense) => (
                       <TableRow key={expense.id} className="h-12">
                         <TableCell className="font-medium text-sm">{expense.name}</TableCell>
                         <TableCell className="text-sm font-bold">₹{expense.amount.toLocaleString()}</TableCell>
-                        <TableCell><Switch checked={expense.includeInBudget} onCheckedChange={() => toggleFixed(expense.id, expense.includeInBudget)} /></TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => deleteFixed(expense.id)} className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                        </TableCell>
+                        <TableCell><Switch checked={expense.includeInBudget} onCheckedChange={() => updateDocumentNonBlocking(doc(fixedExpensesRef!, expense.id), { includeInBudget: !expense.includeInBudget })} /></TableCell>
+                        <TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => deleteDocumentNonBlocking(doc(fixedExpensesRef!, expense.id))} className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button></TableCell>
                       </TableRow>
-                    )) : (
-                      <TableRow><TableCell colSpan={4} className="text-center py-4 text-xs italic text-muted-foreground">No fixed expenses.</TableCell></TableRow>
-                    )}
+                    )) : <TableRow><TableCell colSpan={4} className="text-center py-4 text-xs italic text-muted-foreground">No secure fixed expenses.</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </div>
             </CardContent>
           </Card>
 
-          <Card className={cn("shadow-md border-l-4 transition-all duration-300", editingExpenseId ? "border-l-orange-400 bg-orange-50/30 dark:bg-orange-950/20" : "border-l-primary")}>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                {editingExpenseId ? <Pencil className="h-5 w-5 text-orange-500" /> : <BrainCircuit className="h-5 w-5 text-primary" />}
-                {editingExpenseId ? "Edit Logged Item" : "Smart Logger"}
-              </CardTitle>
-            </CardHeader>
+          <Card className={cn("shadow-md border-l-4 transition-all", editingExpenseId ? "border-l-orange-400 bg-orange-50/30" : "border-l-primary")}>
+            <CardHeader><CardTitle className="text-lg flex items-center gap-2">{editingExpenseId ? <Pencil className="h-5 w-5 text-orange-500" /> : <BrainCircuit className="h-5 w-5 text-primary" />} Secure Logger</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <Input placeholder="Description (Optional)" value={newExpense.description} onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })} />
-                <Button variant="outline" size="icon" onClick={handleAiSuggest} disabled={aiLoading || !!editingExpenseId}>
-                  {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BrainCircuit className="h-4 w-4" />}
-                </Button>
-              </div>
+              <Input placeholder="Private Description..." value={newExpense.description} onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })} />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <Select value={newExpense.categoryId} onValueChange={(val) => setNewExpense({ ...newExpense, categoryId: val })}>
                   <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
@@ -523,47 +397,32 @@ export default function BudgetPage() {
                 <Input type="number" placeholder="Amount ₹" value={newExpense.amount} onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })} />
               </div>
               <div className="flex gap-2">
-                <Button onClick={handleLogExpense} className={cn("flex-1", editingExpenseId && "bg-orange-500 hover:bg-orange-600")} disabled={loading}>
-                  {loading ? "Saving..." : editingExpenseId ? "Update Expense" : "Log Daily Expense"}
+                <Button onClick={handleLogExpense} className={cn("flex-1", editingExpenseId && "bg-orange-500")} disabled={loading}>
+                  {loading ? "Encrypting..." : editingExpenseId ? "Update Item" : "Securely Log Item"}
                 </Button>
-                {editingExpenseId && (
-                  <Button variant="outline" onClick={cancelEdit} className="gap-2">
-                    <X className="h-4 w-4" /> Cancel
-                  </Button>
-                )}
+                {editingExpenseId && <Button variant="outline" onClick={() => { setEditingExpenseId(null); setNewExpense({ description: '', amount: '', categoryId: '' }); }}><X className="h-4 w-4" /></Button>}
               </div>
             </CardContent>
           </Card>
 
           <Card className="shadow-md">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2"><History className="h-5 w-5 text-primary" /> Logged Expenses</CardTitle>
-            </CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center gap-2"><History className="h-5 w-5 text-primary" /> Secure Activity History</CardTitle></CardHeader>
             <CardContent>
               <ScrollArea className="h-[350px] w-full border rounded-lg">
                 <Table>
-                  <TableHeader className="bg-muted/50 sticky top-0 z-10">
-                    <TableRow>
-                      <TableHead className="text-xs">Date</TableHead>
-                      <TableHead className="text-xs">Item</TableHead>
-                      <TableHead className="text-xs">Amount</TableHead>
-                      <TableHead className="w-20 text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                  <TableHeader className="bg-muted/50 sticky top-0 z-10"><TableRow><TableHead className="text-xs">Date</TableHead><TableHead className="text-xs">Item</TableHead><TableHead className="text-xs">Amount</TableHead><TableHead className="w-20 text-right">Actions</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {expenses?.length ? [...expenses].sort((a,b) => b.date.localeCompare(a.date)).map((exp) => (
-                      <TableRow key={exp.id} className={cn("h-10 text-xs", editingExpenseId === exp.id && "bg-orange-50 dark:bg-orange-950/20")}>
-                        <TableCell className="text-muted-foreground whitespace-nowrap">{format(new Date(exp.date), 'dd MMM')}</TableCell>
-                        <TableCell className="font-medium truncate max-w-[120px]">{exp.description || 'Expense'}</TableCell>
+                    {decryptedExpenses?.length ? [...decryptedExpenses].sort((a,b) => b.date.localeCompare(a.date)).map((exp) => (
+                      <TableRow key={exp.id} className={cn("h-10 text-xs", editingExpenseId === exp.id && "bg-orange-50")}>
+                        <TableCell className="text-muted-foreground">{format(new Date(exp.date), 'dd MMM')}</TableCell>
+                        <TableCell className="font-medium truncate max-w-[120px]">{exp.description || '[Encrypted]'}</TableCell>
                         <TableCell className="font-bold">₹{exp.amount}</TableCell>
                         <TableCell className="text-right flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => handleStartEdit(exp)} className="h-7 w-7 text-muted-foreground hover:text-orange-500"><Pencil className="h-3.5 w-3.5" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => deleteExpense(exp.id)} className="h-7 w-7 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => { setEditingExpenseId(exp.id); setNewExpense({ description: exp.description || '', amount: exp.amount.toString(), categoryId: exp.expenseCategoryId }); }} className="h-7 w-7"><Pencil className="h-3.5 w-3.5" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => deleteDocumentNonBlocking(doc(expensesRef!, exp.id))} className="h-7 w-7 text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
                         </TableCell>
                       </TableRow>
-                    )) : (
-                      <TableRow><TableCell colSpan={4} className="text-center py-10 text-muted-foreground italic">No spending logged yet.</TableCell></TableRow>
-                    )}
+                    )) : <TableRow><TableCell colSpan={4} className="text-center py-10 text-muted-foreground italic">No history logged yet.</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </ScrollArea>
@@ -572,47 +431,15 @@ export default function BudgetPage() {
         </div>
 
         <div className="hidden lg:block space-y-6">
-          <SustainableTodayCard 
-            isOverspentToday={isOverspentToday}
-            isWithinBudget={isWithinBudget}
-            todayStr={todayStr}
-            dailyAllocationToday={dailyAllocationToday}
-            todayReport={todayReport}
-          />
-
+          <SustainableTodayCard isOverspentToday={isOverspentToday} isWithinBudget={isWithinBudget} todayStr={todayStr} dailyAllocationToday={dailyAllocationToday} todayReport={todayReport} />
           <Card className="shadow-md">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2"><LayoutGrid className="h-5 w-5 text-primary" /> Categories</CardTitle>
-            </CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-lg flex items-center gap-2"><LayoutGrid className="h-5 w-5 text-primary" /> Label Vault</CardTitle></CardHeader>
             <CardContent>
               <Tabs defaultValue="daily" onValueChange={(v) => setNewCategory({ ...newCategory, type: v })}>
-                <TabsList className="grid w-full grid-cols-2 mb-4">
-                  <TabsTrigger value="daily">Daily</TabsTrigger>
-                  <TabsTrigger value="fixed">Fixed</TabsTrigger>
-                </TabsList>
-                
-                <div className="flex gap-2 mb-6">
-                  <Input placeholder="New label..." value={newCategory.name} onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && addCategory()} className="h-9" />
-                  <Button size="icon" onClick={addCategory} className="h-9 w-9"><Plus className="h-4 w-4" /></Button>
-                </div>
-
-                <TabsContent value="daily" className="flex flex-wrap gap-2">
-                  {dailyCategories.map(c => (
-                    <div key={c.id} className="flex items-center gap-1 pl-3 pr-1 py-1 bg-primary/10 text-primary rounded-full text-[10px] font-bold uppercase tracking-tight">
-                      {c.name}
-                      <button onClick={() => deleteCategory(c.id)} className="ml-1 text-destructive hover:bg-destructive/10 rounded-full p-0.5"><Trash2 className="h-3 w-3" /></button>
-                    </div>
-                  ))}
-                </TabsContent>
-
-                <TabsContent value="fixed" className="flex flex-wrap gap-2">
-                  {fixedCategories.map(c => (
-                    <div key={c.id} className="flex items-center gap-1 pl-3 pr-1 py-1 bg-secondary/20 text-secondary-foreground rounded-full text-[10px] font-bold uppercase tracking-tight">
-                      {c.name}
-                      <button onClick={() => deleteCategory(c.id)} className="ml-1 text-destructive hover:bg-destructive/10 rounded-full p-0.5"><Trash2 className="h-3 w-3" /></button>
-                    </div>
-                  ))}
-                </TabsContent>
+                <TabsList className="grid w-full grid-cols-2 mb-4"><TabsTrigger value="daily">Daily</TabsTrigger><TabsTrigger value="fixed">Fixed</TabsTrigger></TabsList>
+                <div className="flex gap-2 mb-6"><Input placeholder="New private label..." value={newCategory.name} onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && addCategory()} /><Button size="icon" onClick={addCategory}><Plus className="h-4 w-4" /></Button></div>
+                <TabsContent value="daily" className="flex flex-wrap gap-2">{dailyCategories.map(c => <div key={c.id} className="flex items-center gap-1 pl-3 pr-1 py-1 bg-primary/10 text-primary rounded-full text-[10px] font-bold uppercase">{c.name}<button onClick={() => deleteDocumentNonBlocking(doc(categoriesRef!, c.id))} className="ml-1 text-destructive p-0.5"><Trash2 className="h-3 w-3" /></button></div>)}</TabsContent>
+                <TabsContent value="fixed" className="flex flex-wrap gap-2">{fixedCategories.map(c => <div key={c.id} className="flex items-center gap-1 pl-3 pr-1 py-1 bg-secondary/20 rounded-full text-[10px] font-bold uppercase">{c.name}<button onClick={() => deleteDocumentNonBlocking(doc(categoriesRef!, c.id))} className="ml-1 text-destructive p-0.5"><Trash2 className="h-3 w-3" /></button></div>)}</TabsContent>
               </Tabs>
             </CardContent>
           </Card>
@@ -624,49 +451,20 @@ export default function BudgetPage() {
 
 function SustainableTodayCard({ isOverspentToday, isWithinBudget, todayStr, dailyAllocationToday, todayReport }: any) {
   return (
-    <Card className={cn(
-      "shadow-xl transition-colors duration-500",
-      isOverspentToday ? "bg-destructive text-destructive-foreground animate-pulse" : 
-      isWithinBudget ? "bg-secondary text-secondary-foreground" : 
-      "bg-primary text-primary-foreground"
-    )}>
+    <Card className={cn("shadow-xl transition-colors duration-500", isOverspentToday ? "bg-destructive text-destructive-foreground animate-pulse" : isWithinBudget ? "bg-secondary text-secondary-foreground" : "bg-primary text-primary-foreground")}>
       <CardHeader>
-        <CardTitle className="text-2xl flex items-center gap-2">
-          <Coins className="h-6 w-6" />
-          Sustainable Today
-        </CardTitle>
-        <CardDescription className="text-inherit opacity-80 font-medium">
-          {todayStr} • Dynamic Daily Budget
-        </CardDescription>
+        <CardTitle className="text-2xl flex items-center gap-2"><Coins className="h-6 w-6" /> Safe Today</CardTitle>
+        <CardDescription className="text-inherit opacity-80 font-medium">{todayStr} • Encrypted Daily Cap</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="text-5xl font-black tracking-tighter drop-shadow-sm">
-          ₹{Math.max(0, dailyAllocationToday - (todayReport?.spent || 0)).toFixed(0)}
-        </div>
-        
+        <div className="text-5xl font-black tracking-tighter drop-shadow-sm">₹{Math.max(0, dailyAllocationToday - (todayReport?.spent || 0)).toFixed(0)}</div>
         <div className="space-y-4 pt-4 border-t border-white/20">
-          <div className="flex justify-between items-center text-sm font-bold opacity-90">
-            <span>Spent Today:</span>
-            <span className="text-lg">₹{(todayReport?.spent || 0).toFixed(0)}</span>
-          </div>
-          
-          <div className="flex justify-between items-center text-sm font-black pt-2 border-t border-white/10">
-            <span>Remaining Daily Base Budget:</span>
-            <span className="text-2xl">₹{Math.max(0, dailyAllocationToday - (todayReport?.spent || 0)).toFixed(0)}</span>
-          </div>
-
-          {isOverspentToday && (
-            <div className="pt-2 flex items-center justify-center gap-2 text-xs font-bold text-white uppercase animate-bounce bg-white/10 py-2 rounded-lg">
-              <AlertTriangle className="h-4 w-4" /> Overspent by ₹{((todayReport?.spent || 0) - dailyAllocationToday).toFixed(0)}
-            </div>
-          )}
+          <div className="flex justify-between items-center text-sm font-bold opacity-90"><span>Private Spent:</span><span className="text-lg">₹{(todayReport?.spent || 0).toFixed(0)}</span></div>
+          <div className="flex justify-between items-center text-sm font-black pt-2 border-t border-white/10"><span>Remaining Daily Cap:</span><span className="text-2xl">₹{Math.max(0, dailyAllocationToday - (todayReport?.spent || 0)).toFixed(0)}</span></div>
+          {isOverspentToday && <div className="pt-2 flex items-center justify-center gap-2 text-xs font-bold text-white uppercase animate-bounce bg-white/10 py-2 rounded-lg"><AlertTriangle className="h-4 w-4" /> Limit Exceeded by ₹{((todayReport?.spent || 0) - dailyAllocationToday).toFixed(0)}</div>}
         </div>
       </CardContent>
-      <CardFooter className="pt-0 pb-4 flex justify-center">
-        <div className="bg-white/10 px-3 py-1 rounded-full text-[10px] font-medium backdrop-blur-sm">
-          System maintains your monthly budget cap.
-        </div>
-      </CardFooter>
+      <CardFooter className="pt-0 pb-4 flex justify-center"><div className="bg-white/10 px-3 py-1 rounded-full text-[10px] font-medium backdrop-blur-sm">Vault enforces your monthly caps.</div></CardFooter>
     </Card>
   );
 }

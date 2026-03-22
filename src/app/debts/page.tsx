@@ -1,49 +1,79 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppShell } from '@/components/layout/shell';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
-import { Plus, Trash2, CheckCircle, Circle, HandCoins, UserPlus, Info } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, Circle, HandCoins, UserPlus, Info, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { encryptData, decryptData, decryptNumber } from '@/lib/encryption';
 
 export default function DebtsPage() {
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   
+  const [privacyKey, setPrivacyKey] = useState<string | null>(null);
   const [newDebt, setNewDebt] = useState({ debtorName: '', amount: '', description: '' });
+  const [decryptedDebts, setDecryptedDebts] = useState<any[]>([]);
+  const [isDecrypting, setIsDecrypting] = useState(false);
+
+  useEffect(() => {
+    setPrivacyKey(localStorage.getItem('lifetrack_privacy_key'));
+  }, []);
 
   const debtsRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return collection(db, 'users', user.uid, 'debts');
   }, [db, user]);
 
-  const { data: debts, isLoading } = useCollection(debtsRef);
+  const { data: rawDebts, isLoading: isRawLoading } = useCollection(debtsRef);
 
-  const addDebt = () => {
-    if (!newDebt.debtorName || !newDebt.amount || !debtsRef) {
-      toast({ variant: 'destructive', title: 'Missing Info', description: 'Please enter a name and amount.' });
+  useEffect(() => {
+    const decryptAll = async () => {
+      if (!rawDebts || !privacyKey) {
+        setDecryptedDebts(rawDebts || []);
+        return;
+      }
+      setIsDecrypting(true);
+      const decrypted = await Promise.all(rawDebts.map(async (debt) => ({
+        ...debt,
+        debtorName: await decryptData(debt.debtorName, privacyKey),
+        amount: await decryptNumber(debt.amount, privacyKey),
+        description: await decryptData(debt.description, privacyKey),
+      })));
+      setDecryptedDebts(decrypted);
+      setIsDecrypting(false);
+    };
+    decryptAll();
+  }, [rawDebts, privacyKey]);
+
+  const addDebt = async () => {
+    if (!newDebt.debtorName || !newDebt.amount || !debtsRef || !privacyKey) {
+      if (!privacyKey) toast({ variant: 'destructive', title: 'Security Error', description: 'Master Key not found.' });
       return;
     }
     
-    addDocumentNonBlocking(debtsRef, {
+    const encryptedPayload = {
       userId: user?.uid,
-      debtorName: newDebt.debtorName,
-      amount: parseFloat(newDebt.amount),
-      description: newDebt.description || '',
+      debtorName: await encryptData(newDebt.debtorName, privacyKey),
+      amount: await encryptData(newDebt.amount, privacyKey),
+      description: await encryptData(newDebt.description, privacyKey),
       isPaid: false,
+      isEncrypted: true,
       createdAt: new Date().toISOString()
-    });
+    };
+
+    addDocumentNonBlocking(debtsRef, encryptedPayload);
 
     setNewDebt({ debtorName: '', amount: '', description: '' });
-    toast({ title: "Debt Added" });
+    toast({ title: "Encrypted Debt Added" });
   };
 
   const togglePaid = (id: string, currentStatus: boolean) => {
@@ -57,10 +87,10 @@ export default function DebtsPage() {
   const deleteDebt = (id: string) => {
     if (!debtsRef) return;
     deleteDocumentNonBlocking(doc(debtsRef, id));
-    toast({ title: "Debt record removed" });
+    toast({ title: "Record removed" });
   };
 
-  const totalOwed = debts?.filter(d => !d.isPaid).reduce((sum, d) => sum + d.amount, 0) || 0;
+  const totalOwed = decryptedDebts?.filter(d => !d.isPaid).reduce((sum, d) => sum + d.amount, 0) || 0;
 
   return (
     <AppShell>
@@ -71,8 +101,8 @@ export default function DebtsPage() {
               <HandCoins className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-2xl md:text-3xl font-black tracking-tight">Debt Collector</h2>
-              <p className="text-xs md:text-sm text-muted-foreground">Track money others owe you.</p>
+              <h2 className="text-2xl md:text-3xl font-black tracking-tight">Debt Vault</h2>
+              <p className="text-xs md:text-sm text-muted-foreground uppercase font-bold tracking-widest">End-to-End Encrypted Receivables</p>
             </div>
           </div>
           <div className="bg-primary/10 px-6 py-3 rounded-2xl border border-primary/20 flex flex-col items-center md:items-start">
@@ -85,21 +115,21 @@ export default function DebtsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <UserPlus className="h-5 w-5 text-primary" />
-              New Record
+              Add Protected Record
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Debtor Name</Label>
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Debtor Name</Label>
                 <Input 
-                  placeholder="e.g. Rahul" 
+                  placeholder="Private Name..." 
                   value={newDebt.debtorName} 
                   onChange={e => setNewDebt({...newDebt, debtorName: e.target.value})} 
                 />
               </div>
               <div className="space-y-2">
-                <Label>Amount (₹)</Label>
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Amount (₹)</Label>
                 <Input 
                   type="number" 
                   placeholder="0.00" 
@@ -108,16 +138,16 @@ export default function DebtsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Notes (Optional)</Label>
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Notes</Label>
                 <Input 
-                  placeholder="Reason for debt" 
+                  placeholder="Private notes..." 
                   value={newDebt.description} 
                   onChange={e => setNewDebt({...newDebt, description: e.target.value})} 
                 />
               </div>
             </div>
-            <Button onClick={addDebt} className="w-full mt-6 shadow-md">
-              <Plus className="mr-2 h-4 w-4" /> Log Debt
+            <Button onClick={addDebt} className="w-full mt-6 shadow-md font-bold">
+              <Plus className="mr-2 h-4 w-4" /> Secure Record
             </Button>
           </CardContent>
         </Card>
@@ -125,18 +155,21 @@ export default function DebtsPage() {
         <div className="space-y-4">
           <h3 className="text-lg font-bold flex items-center gap-2">
             <Info className="h-4 w-4 text-muted-foreground" />
-            Active Receivables
+            Active Vault Records
           </h3>
           
           <div className="grid gap-3">
-            {isLoading ? (
-              <div className="text-center py-10 text-muted-foreground italic">Loading your records...</div>
-            ) : debts?.length === 0 ? (
+            {(isRawLoading || isDecrypting) ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-3 text-sm font-bold uppercase tracking-widest">Decrypting Local Data...</span>
+              </div>
+            ) : decryptedDebts?.length === 0 ? (
               <Card className="p-10 border-dashed text-center text-muted-foreground italic">
-                No debts recorded yet.
+                No secure records found.
               </Card>
             ) : (
-              debts?.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((debt) => (
+              decryptedDebts?.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((debt) => (
                 <div 
                   key={debt.id} 
                   className={cn(
@@ -162,7 +195,7 @@ export default function DebtsPage() {
                         {debt.debtorName}
                       </h4>
                       <p className="text-xs text-muted-foreground truncate">
-                        {debt.description || "No notes"} • {new Date(debt.createdAt).toLocaleDateString()}
+                        {debt.description || "No private notes"} • {new Date(debt.createdAt).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
@@ -174,7 +207,7 @@ export default function DebtsPage() {
                       )}>
                         ₹{debt.amount.toLocaleString()}
                       </p>
-                      {debt.isPaid && <span className="text-[10px] font-bold uppercase text-green-600">Paid</span>}
+                      {debt.isPaid && <span className="text-[10px] font-bold uppercase text-green-600">Reconciled</span>}
                     </div>
                     <Button 
                       variant="ghost" 

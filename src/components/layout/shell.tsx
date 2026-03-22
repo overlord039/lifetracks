@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, 
   GraduationCap, 
@@ -10,7 +10,10 @@ import {
   BarChart3, 
   LogOut,
   HandCoins,
-  Calculator
+  Calculator,
+  ShieldCheck,
+  Unlock,
+  Lock
 } from 'lucide-react';
 import { 
   Sidebar, 
@@ -31,6 +34,17 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/theme-toggle';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog";
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 
 const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
@@ -47,10 +61,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const { toast } = useToast();
+
+  const [privacyKey, setPrivacyKey] = useState<string | null>(null);
+  const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
+  const [tempKey, setTempKey] = useState('');
+
+  useEffect(() => {
+    const savedKey = localStorage.getItem('lifetrack_privacy_key');
+    if (savedKey) {
+      setPrivacyKey(savedKey);
+    } else if (pathname !== '/login') {
+      setIsKeyModalOpen(true);
+    }
+  }, [pathname]);
 
   const handleLogout = async () => {
     await signOut(auth);
     router.push('/login');
+  };
+
+  const savePrivacyKey = () => {
+    if (!tempKey.trim()) return;
+    localStorage.setItem('lifetrack_privacy_key', tempKey);
+    setPrivacyKey(tempKey);
+    setIsKeyModalOpen(false);
+    toast({ title: "Privacy Key Set", description: "Your dashboard is now end-to-end encrypted." });
+    window.location.reload(); // Refresh to re-decrypt all state
   };
 
   return (
@@ -81,17 +118,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               ))}
             </SidebarMenu>
           </SidebarContent>
-          <SidebarFooter className="p-4">
-            <div className="flex items-center gap-3 mb-4 p-2 rounded-lg bg-sidebar-accent/50">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                  {user?.email?.charAt(0).toUpperCase() || 'U'}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col min-w-0">
-                <span className="text-sm font-medium truncate">{user?.email?.split('@')[0] || 'User'}</span>
-                <span className="text-[10px] text-muted-foreground truncate">{user?.email}</span>
+          <SidebarFooter className="p-4 space-y-4">
+            <div className="flex flex-col gap-2 p-2 rounded-lg bg-sidebar-accent/50">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                    {user?.email?.charAt(0).toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-medium truncate">{user?.email?.split('@')[0] || 'User'}</span>
+                  <span className="text-[10px] text-muted-foreground truncate">{user?.email}</span>
+                </div>
               </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setIsKeyModalOpen(true)} 
+                className="mt-2 h-7 text-[10px] uppercase font-bold tracking-tighter"
+              >
+                {privacyKey ? <Lock className="h-3 w-3 mr-1" /> : <ShieldCheck className="h-3 w-3 mr-1" />}
+                Privacy Key
+              </Button>
             </div>
             <Button 
               variant="ghost" 
@@ -107,8 +155,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <header className="flex h-14 items-center gap-4 border-b bg-background px-6 lg:h-[60px]">
             <SidebarTrigger className="lg:hidden" />
             <div className="flex-1">
-              <h1 className="text-lg font-semibold">
+              <h1 className="text-lg font-semibold flex items-center gap-2">
                 {navItems.find(item => item.url === pathname)?.title || 'Dashboard'}
+                {privacyKey && <ShieldCheck className="h-4 w-4 text-green-500" title="End-to-End Encrypted" />}
               </h1>
             </div>
             <ThemeToggle />
@@ -118,6 +167,38 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </main>
         </SidebarInset>
       </div>
+
+      <Dialog open={isKeyModalOpen} onOpenChange={(o) => pathname !== '/login' && setIsKeyModalOpen(o)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              Set Master Privacy Key
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              This key encrypts your entire life track. It is stored <strong>only on this device</strong>.
+              If lost, your cloud data remains scrambled and unreadable forever.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Master Key</Label>
+              <Input 
+                type="password" 
+                placeholder="Enter secret passphrase..." 
+                value={tempKey}
+                onChange={(e) => setTempKey(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && savePrivacyKey()}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={savePrivacyKey} className="w-full font-bold">
+              <Unlock className="mr-2 h-4 w-4" /> Unlock Vault
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   );
 }

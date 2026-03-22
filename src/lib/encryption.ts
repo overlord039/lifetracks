@@ -1,6 +1,6 @@
 /**
  * @fileOverview Client-side encryption utility for sensitive data.
- * Uses Web Crypto API (AES-GCM) to encrypt and decrypt strings.
+ * Uses Web Crypto API (AES-GCM) to encrypt and decrypt strings and numbers.
  */
 
 const ALGORITHM = 'AES-GCM';
@@ -21,11 +21,14 @@ async function deriveKey(passphrase: string): Promise<CryptoKey> {
 }
 
 /**
- * Encrypts a string using the provided passphrase.
+ * Encrypts a value (string or number) using the provided passphrase.
  * Returns a base64 encoded string containing the IV and ciphertext.
  */
-export async function encryptData(text: string, passphrase: string): Promise<string> {
+export async function encryptData(value: string | number | undefined | null, passphrase: string): Promise<string> {
+  if (value === undefined || value === null) return '';
+  const text = value.toString();
   if (!text) return '';
+  
   try {
     const encoder = new TextEncoder();
     const data = encoder.encode(text);
@@ -45,15 +48,15 @@ export async function encryptData(text: string, passphrase: string): Promise<str
     return btoa(String.fromCharCode(...result));
   } catch (error) {
     console.error('Encryption failed:', error);
-    return text; // Fallback to plain text if encryption fails (should not happen in modern browsers)
+    return text;
   }
 }
 
 /**
  * Decrypts a base64 encoded string using the provided passphrase.
  */
-export async function decryptData(encoded: string, passphrase: string): Promise<string> {
-  if (!encoded || !passphrase) return encoded;
+export async function decryptData(encoded: string | undefined | null, passphrase: string): Promise<string> {
+  if (!encoded || !passphrase) return encoded || '';
   
   // Basic check if it looks like base64
   if (!/^[A-Za-z0-9+/=]+$/.test(encoded)) return encoded;
@@ -74,7 +77,16 @@ export async function decryptData(encoded: string, passphrase: string): Promise<
     
     return decoder.decode(decrypted);
   } catch (error) {
-    // If decryption fails, it might be unencrypted legacy data or wrong key
-    return encoded.length > 50 ? '[Encrypted Content - Key Required]' : encoded;
+    return encoded.length > 30 ? '[Encrypted]' : encoded;
   }
+}
+
+/**
+ * Decrypts a base64 encoded string and returns it as a number.
+ */
+export async function decryptNumber(encoded: string | number | undefined | null, passphrase: string): Promise<number> {
+  if (typeof encoded === 'number') return encoded;
+  const decrypted = await decryptData(encoded, passphrase);
+  const num = parseFloat(decrypted);
+  return isNaN(num) ? 0 : num;
 }
