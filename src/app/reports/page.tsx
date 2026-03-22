@@ -248,65 +248,65 @@ export default function ReportsPage() {
 
   return (
     <AppShell>
-      <div className="space-y-6 max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-card p-4 rounded-2xl shadow-sm border">
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="p-2 bg-primary/10 rounded-lg text-primary">
-              <CalendarDays className="h-6 w-6" />
+      <div className="space-y-4 md:space-y-6 max-w-7xl mx-auto">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-3 bg-card p-3 md:p-4 rounded-2xl shadow-sm border">
+          <div className="flex items-center gap-2 md:gap-3 w-full md:w-auto">
+            <div className="p-1.5 md:p-2 bg-primary/10 rounded-lg text-primary">
+              <CalendarDays className="h-5 w-5 md:h-6 md:w-6" />
             </div>
             <div>
-              <h2 className="text-xl md:text-2xl font-black tracking-tight">{format(selectedDate, 'MMMM yyyy')}</h2>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">Reporting Period</p>
+              <h2 className="text-lg md:text-2xl font-black tracking-tight">{format(selectedDate, 'MMMM yyyy')}</h2>
+              <p className="text-[8px] md:text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">Reporting Period</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-            <Button variant="outline" size="sm" onClick={() => changeMonth(-1)} className="h-9 px-3 flex-1 md:flex-initial">
-              <ChevronLeft className="h-4 w-4 mr-1" /> {format(prevDate, 'MMM')}
+          <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
+            <Button variant="outline" size="sm" onClick={() => changeMonth(-1)} className="h-8 md:h-9 px-2 md:px-3 flex-1 md:flex-initial text-[10px] md:text-xs">
+              <ChevronLeft className="h-3.5 w-3.5 mr-0.5 md:mr-1" /> {format(prevDate, 'MMM')}
             </Button>
-            <Button variant="secondary" size="sm" disabled className="h-9 font-bold px-4 md:px-6 flex-1 md:flex-initial whitespace-nowrap">
-              Current Selection
+            <Button variant="secondary" size="sm" disabled className="h-8 md:h-9 font-bold px-3 md:px-6 flex-1 md:flex-initial whitespace-nowrap text-[10px] md:text-xs">
+              Current
             </Button>
             <Button 
               variant="outline" 
               size="sm" 
               onClick={() => changeMonth(1)} 
               disabled={format(selectedDate, 'yyyyMM') === format(new Date(), 'yyyyMM')}
-              className="h-9 px-3 flex-1 md:flex-initial"
+              className="h-8 md:h-9 px-2 md:px-3 flex-1 md:flex-initial text-[10px] md:text-xs"
             >
-              {format(subMonths(selectedDate, -1), 'MMM')} <ChevronRight className="h-4 w-4 ml-1" />
+              {format(subMonths(selectedDate, -1), 'MMM')} <ChevronRight className="h-3.5 w-3.5 ml-0.5 md:ml-1" />
             </Button>
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="shadow-md border-t-4 border-t-primary lg:col-span-1">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <TableProperties className="h-5 w-5 text-primary" />
+        <div className="grid gap-4 md:gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <Card className="shadow-md border-t-4 border-t-primary lg:col-span-1 rounded-2xl overflow-hidden">
+            <CardHeader className="pb-2 pt-4 px-4 md:px-6">
+              <CardTitle className="text-base md:text-lg flex items-center gap-2 font-black">
+                <TableProperties className="h-4 w-4 md:h-5 md:w-5 text-primary" />
                 Monthly Tally
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 md:space-y-4 p-4 md:p-6">
               <div className="space-y-2">
-                <div className="flex justify-between items-center text-sm">
+                <div className="flex justify-between items-center text-xs md:text-sm">
                   <span className="text-muted-foreground font-medium">Monthly Pool</span>
                   <span className="font-black">₹{totals.budget.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between items-center text-sm">
+                <div className="flex justify-between items-center text-xs md:text-sm">
                   <span className="text-muted-foreground font-medium">Fixed Expenses</span>
                   <span className="font-bold text-destructive">₹{totals.fixed.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between items-center text-sm">
+                <div className="flex justify-between items-center text-xs md:text-sm">
                   <span className="text-muted-foreground font-medium">Daily Spending</span>
                   <div className="flex flex-col items-end">
                     <span className="font-bold">₹{totals.daily.toLocaleString()}</span>
                     {totals.dailyDiff !== 0 && (
                       <span className={cn(
-                        "text-[10px] font-bold flex items-center gap-0.5",
+                        "text-[8px] md:text-[10px] font-bold flex items-center gap-0.5",
                         totals.dailyDiff > 0 ? "text-destructive" : "text-green-600 dark:text-green-400"
                       )}>
-                        {totals.dailyDiff > 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                        ₹{Math.abs(totals.dailyDiff).toLocaleString()} from {format(prevDate, 'MMM')}
+                        {totals.dailyDiff > 0 ? <ArrowUpRight className="h-2.5 w-2.5" /> : <ArrowDownRight className="h-2.5 w-2.5" />}
+                        ₹{Math.abs(totals.dailyDiff).toLocaleString()} vs {format(prevDate, 'MMM')}
                       </span>
                     )}
                   </div>
@@ -315,35 +315,35 @@ export default function ReportsPage() {
 
               <Separator />
 
-              <div className="pt-2 flex items-center justify-between">
+              <div className="pt-1 md:pt-2 flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Remaining Balance</p>
+                  <p className="text-[8px] md:text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Remaining Balance</p>
                   <p className={cn(
-                    "text-xl md:text-3xl font-black",
+                    "text-xl md:text-3xl font-black tracking-tighter",
                     totals.remaining >= 0 ? 'text-primary' : 'text-destructive'
                   )}>
                     ₹{totals.remaining.toLocaleString()}
                   </p>
                 </div>
                 <div className={cn(
-                  "p-3 rounded-xl",
+                  "p-2 md:p-3 rounded-xl",
                   totals.remaining >= 0 ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"
                 )}>
-                  {totals.remaining >= 0 ? <TrendingUp className="h-6 w-6" /> : <TrendingDown className="h-6 w-6" />}
+                  {totals.remaining >= 0 ? <TrendingUp className="h-5 w-5 md:h-6 md:w-6" /> : <TrendingDown className="h-5 w-5 md:h-6 md:w-6" />}
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="shadow-md lg:col-span-1">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Activity className="h-5 w-5 text-orange-500" />
+          <Card className="shadow-md lg:col-span-1 rounded-2xl overflow-hidden">
+            <CardHeader className="pb-2 pt-4 px-4 md:px-6">
+              <CardTitle className="text-base md:text-lg flex items-center gap-2 font-black">
+                <Activity className="h-4 w-4 md:h-5 md:w-5 text-orange-500" />
                 Weekly Pulse
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="h-[100px] w-full">
+            <CardContent className="space-y-4 p-4 md:p-6">
+              <div className="h-[80px] md:h-[100px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={weeklyReport.weeklyData}>
                     <Bar dataKey="spent" fill="#FFB74D" radius={[2, 2, 0, 0]} />
@@ -355,16 +355,16 @@ export default function ReportsPage() {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <div className="pt-2">
+              <div className="pt-1 md:pt-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase text-muted-foreground">Current Week</span>
-                  <span className="text-sm font-black">₹{weeklyReport.currentWeekSpent.toLocaleString()}</span>
+                  <span className="text-[9px] md:text-[10px] font-bold uppercase text-muted-foreground">Current Week</span>
+                  <span className="text-xs md:text-sm font-black">₹{weeklyReport.currentWeekSpent.toLocaleString()}</span>
                 </div>
                 {weeklyReport.lastWeekSpent > 0 && (
                   <div className="flex items-center justify-between mt-1">
-                    <span className="text-[10px] font-bold uppercase text-muted-foreground">Vs. Last Week</span>
+                    <span className="text-[9px] md:text-[10px] font-bold uppercase text-muted-foreground">Vs. Last Week</span>
                     <span className={cn(
-                      "text-[10px] font-bold flex items-center",
+                      "text-[9px] md:text-[10px] font-bold flex items-center",
                       weekDiff > 0 ? "text-destructive" : "text-green-600 dark:text-green-400"
                     )}>
                       {weekDiff > 0 ? <ArrowUpRight className="h-3 w-3 mr-0.5" /> : <ArrowDownRight className="h-3 w-3 mr-0.5" />}
@@ -374,21 +374,21 @@ export default function ReportsPage() {
                 )}
               </div>
             </CardContent>
-            <CardFooter className="bg-orange-50/50 dark:bg-orange-950/20 py-2 border-t">
-              <p className="text-[10px] font-medium text-orange-700 dark:text-orange-400 mx-auto">
+            <CardFooter className="bg-orange-50/50 dark:bg-orange-950/20 py-2 border-t px-4">
+              <p className="text-[9px] font-bold text-orange-700 dark:text-orange-400 mx-auto uppercase tracking-tighter">
                 {weekDiff > 0 ? "Weekly spend trending up" : weekDiff < 0 ? "Spending less this week" : "Stable weekly pace"}
               </p>
             </CardFooter>
           </Card>
 
-          <Card className="shadow-md lg:col-span-1">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Activity className="h-5 w-5 text-secondary-foreground" />
+          <Card className="shadow-md lg:col-span-1 rounded-2xl overflow-hidden">
+            <CardHeader className="pb-2 pt-4 px-4 md:px-6">
+              <CardTitle className="text-base md:text-lg flex items-center gap-2 font-black">
+                <Activity className="h-4 w-4 md:h-5 md:w-5 text-secondary-foreground" />
                 Categories
               </CardTitle>
             </CardHeader>
-            <CardContent className="h-[200px] p-0 flex items-center justify-center">
+            <CardContent className="h-[180px] md:h-[200px] p-0 flex items-center justify-center">
               {chartsData.categoryData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -396,8 +396,8 @@ export default function ReportsPage() {
                       data={chartsData.categoryData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={40}
-                      outerRadius={65}
+                      innerRadius={35}
+                      outerRadius={60}
                       paddingAngle={5}
                       dataKey="value"
                     >
@@ -412,25 +412,25 @@ export default function ReportsPage() {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="text-muted-foreground text-xs italic">
+                <div className="text-muted-foreground text-xs italic py-10">
                   No categorical data.
                 </div>
               )}
             </CardContent>
           </Card>
 
-          <Card className="shadow-md lg:col-span-1 bg-muted/10 border-dashed border-2">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Minus className="h-5 w-5 text-muted-foreground" />
-                Vs. Prev Month
+          <Card className="shadow-md lg:col-span-1 bg-muted/10 border-dashed border-2 rounded-2xl overflow-hidden">
+            <CardHeader className="pb-2 pt-4 px-4 md:px-6">
+              <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                <Minus className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
+                Comparison
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 pt-4">
+            <CardContent className="space-y-3 md:space-y-4 pt-2 md:pt-4 p-4 md:p-6">
               <div className="p-3 bg-card rounded-xl border shadow-sm">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Monthly Spend</p>
+                <p className="text-[9px] md:text-[10px] font-bold text-muted-foreground uppercase mb-1">Monthly Spend</p>
                 <div className="flex items-center gap-1">
-                  <span className="text-lg font-black">₹{totals.daily.toLocaleString()}</span>
+                  <span className="text-base md:text-lg font-black tracking-tighter">₹{totals.daily.toLocaleString()}</span>
                   {totals.dailyDiff !== 0 && (
                     <span className={cn(
                       "text-[10px] font-bold",
@@ -442,37 +442,37 @@ export default function ReportsPage() {
                 </div>
               </div>
               <div className="bg-primary/5 p-3 rounded-xl border border-primary/20">
-                <p className="text-[10px] font-medium text-foreground leading-relaxed">
+                <p className="text-[9px] md:text-[10px] font-black text-foreground leading-snug tracking-tight">
                   {totals.dailyDiff > 0 
                     ? `Increased by ₹${Math.abs(totals.dailyDiff).toLocaleString()} vs ${format(prevDate, 'MMM')}.` 
                     : totals.dailyDiff < 0 
                     ? `Saved ₹${Math.abs(totals.dailyDiff).toLocaleString()} vs ${format(prevDate, 'MMM')}.`
-                    : `Same as last month.`}
+                    : `Spending is exactly same as last month.`}
                 </p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="md:col-span-2 lg:col-span-4 shadow-md overflow-hidden">
-            <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <Card className="md:col-span-2 lg:col-span-4 shadow-md overflow-hidden rounded-2xl">
+            <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 px-4 md:px-6 pt-4">
               <div>
-                <CardTitle className="text-lg">Spending Tracker</CardTitle>
-                <CardDescription>Visualizing your spending trends over time.</CardDescription>
+                <CardTitle className="text-base md:text-lg font-black">Spending Tracker</CardTitle>
+                <CardDescription className="text-[10px] uppercase font-bold tracking-tight">Visualizing your spending trends over time.</CardDescription>
               </div>
               <Tabs value={viewType} onValueChange={(v: any) => setViewType(v)} className="w-full md:w-auto">
-                <TabsList className="grid w-full grid-cols-3 md:w-[300px]">
-                  <TabsTrigger value="weekly">Weekly</TabsTrigger>
-                  <TabsTrigger value="monthly">Monthly</TabsTrigger>
-                  <TabsTrigger value="annual">Annual</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-3 md:w-[300px] h-8 p-1">
+                  <TabsTrigger value="weekly" className="text-[10px] font-bold">Weekly</TabsTrigger>
+                  <TabsTrigger value="monthly" className="text-[10px] font-bold">Monthly</TabsTrigger>
+                  <TabsTrigger value="annual" className="text-[10px] font-bold">Annual</TabsTrigger>
                 </TabsList>
               </Tabs>
             </CardHeader>
-            <CardContent className="h-[300px] md:h-[400px] pt-4 -ml-4 md:ml-0">
+            <CardContent className="h-[250px] md:h-[400px] pt-4 -ml-4 md:ml-0 p-4 md:p-6">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartsData.spendingData} margin={{ left: -10, right: 10 }}>
+                <BarChart data={chartsData.spendingData} margin={{ left: -10, right: 10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
-                  <XAxis dataKey="name" fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                  <YAxis fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                  <XAxis dataKey="name" fontSize={9} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis fontSize={9} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                   <Tooltip 
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--card-foreground))' }}
                     formatter={(value: number, name: string, props: any) => [

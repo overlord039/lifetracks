@@ -16,7 +16,8 @@ import {
   DollarSign,
   TrendingDown,
   Loader2,
-  ShieldCheck
+  ShieldCheck,
+  Badge
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
@@ -117,7 +118,7 @@ export default function Dashboard() {
 
   return (
     <AppShell>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
         <DashboardCard 
           href="/budget"
           title="Daily Allowance"
@@ -155,53 +156,53 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="grid gap-6 mt-6 lg:grid-cols-12">
-        <div className="lg:col-span-7 space-y-6">
+      <div className="grid gap-4 md:gap-6 mt-4 md:mt-6 lg:grid-cols-12">
+        <div className="lg:col-span-7 space-y-4 md:space-y-6">
           <Link href="/reports" className="block group">
-            <Card className="shadow-lg overflow-hidden border-none ring-1 ring-border group-hover:ring-primary/30 transition-all duration-300">
-              <CardHeader className="bg-muted/30 border-b py-4">
-                <CardTitle className="text-base font-black flex items-center gap-2">
+            <Card className="shadow-lg overflow-hidden border-none ring-1 ring-border group-hover:ring-primary/30 transition-all duration-300 rounded-2xl">
+              <CardHeader className="bg-muted/30 border-b py-3 md:py-4 px-4 md:px-6">
+                <CardTitle className="text-sm md:text-base font-black flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-primary" />
                   Budget Insight
                 </CardTitle>
-                <CardDescription className="text-[10px] font-medium uppercase tracking-tight">Real-time health check</CardDescription>
+                <CardDescription className="text-[9px] md:text-[10px] font-medium uppercase tracking-tight">Real-time health check</CardDescription>
               </CardHeader>
-              <CardContent className="pt-6 space-y-6">
+              <CardContent className="p-4 md:p-6 space-y-4 md:space-y-6">
                 <div className={cn(
-                  "p-5 rounded-2xl border transition-all flex items-center justify-between",
+                  "p-4 md:p-5 rounded-2xl border transition-all flex items-center justify-between",
                   remaining > 0 
                     ? 'bg-green-50/50 border-green-100 dark:bg-green-950/20 dark:border-green-900/30' 
                     : 'bg-red-50/50 border-red-100 dark:bg-red-950/20 dark:border-red-900/30'
                 )}>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3 md:gap-4">
                     <div className={cn(
-                      "p-3 rounded-xl shadow-sm",
+                      "p-2 md:p-3 rounded-xl shadow-sm",
                       remaining > 0 
                         ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400' 
                         : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400'
                     )}>
-                      {remaining > 0 ? <TrendingUp className="w-6 h-6" /> : <TrendingDown className="w-6 h-6" />}
+                      {remaining > 0 ? <TrendingUp className="w-5 h-5 md:w-6 md:h-6" /> : <TrendingDown className="w-5 h-5 md:w-6 md:h-6" />}
                     </div>
                     <div>
-                      <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Safe to Spend</p>
-                      <p className="text-3xl font-black">₹{remaining.toFixed(0)}</p>
+                      <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground tracking-widest">Safe to Spend</p>
+                      <p className="text-2xl md:text-3xl font-black tracking-tighter">₹{remaining.toFixed(0)}</p>
                     </div>
                   </div>
                   <ShieldCheck className={cn(
-                    "w-8 h-8 opacity-20",
+                    "w-6 h-6 md:w-8 md:h-8 opacity-20",
                     remaining > 0 ? "text-green-600" : "text-red-600"
                   )} />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Base Allocation</p>
-                    <p className="text-sm font-black">₹{todayReport?.baseBudget.toFixed(0)}</p>
+                  <div className="space-y-0.5 md:space-y-1">
+                    <p className="text-[8px] md:text-[10px] font-bold text-muted-foreground uppercase">Base Allocation</p>
+                    <p className="text-xs md:text-sm font-black">₹{todayReport?.baseBudget.toFixed(0)}</p>
                   </div>
-                  <div className="space-y-1 text-right">
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Roll-over</p>
+                  <div className="space-y-0.5 md:space-y-1 text-right">
+                    <p className="text-[8px] md:text-[10px] font-bold text-muted-foreground uppercase">Roll-over</p>
                     <p className={cn(
-                      "text-sm font-black",
+                      "text-xs md:text-sm font-black",
                       (todayReport?.carryForwardFromYesterday || 0) >= 0 ? 'text-green-600' : 'text-red-600'
                     )}>
                       {(todayReport?.carryForwardFromYesterday || 0) >= 0 ? '+' : ''}₹{todayReport?.carryForwardFromYesterday.toFixed(0)}
@@ -215,27 +216,27 @@ export default function Dashboard() {
 
         <div className="lg:col-span-5">
           <Link href="/learning" className="block group h-full">
-            <Card className="shadow-lg h-full border-none ring-1 ring-border group-hover:ring-primary/30 transition-all duration-300">
-              <CardHeader className="bg-muted/30 border-b py-4">
-                <CardTitle className="text-base font-black">Active Skills</CardTitle>
-                <CardDescription className="text-[10px] font-medium uppercase tracking-tight">Daily Progress tracker</CardDescription>
+            <Card className="shadow-lg h-full border-none ring-1 ring-border group-hover:ring-primary/30 transition-all duration-300 rounded-2xl">
+              <CardHeader className="bg-muted/30 border-b py-3 md:py-4 px-4 md:px-6">
+                <CardTitle className="text-sm md:text-base font-black">Active Skills</CardTitle>
+                <CardDescription className="text-[9px] md:text-[10px] font-medium uppercase tracking-tight">Daily Progress tracker</CardDescription>
               </CardHeader>
-              <CardContent className="pt-6 space-y-4">
+              <CardContent className="p-4 md:p-6 space-y-3 md:space-y-4">
                 {learningGoals?.length ? learningGoals.slice(0, 4).map((goal) => {
                   const p = Math.min(100, Math.round(((goal.completedCount || 0) / (goal.target || 1)) * 100));
                   return (
                     <div key={goal.id} className="space-y-1.5">
-                      <div className="flex justify-between items-center text-[11px] font-black uppercase tracking-tighter">
-                        <span>{goal.skill}</span>
+                      <div className="flex justify-between items-center text-[10px] md:text-[11px] font-black uppercase tracking-tighter">
+                        <span className="truncate max-w-[70%]">{goal.skill}</span>
                         <span className="text-muted-foreground">{p}%</span>
                       </div>
-                      <Progress value={p} className="h-1.5" />
+                      <Progress value={p} className="h-1 md:h-1.5" />
                     </div>
                   );
                 }) : (
                   <div className="flex flex-col items-center justify-center py-10 text-center opacity-40 grayscale">
-                    <BookOpen className="h-10 w-10 mb-2" />
-                    <p className="text-[10px] font-black uppercase">No active goals</p>
+                    <BookOpen className="h-8 w-8 mb-2" />
+                    <p className="text-[9px] font-black uppercase">No active goals</p>
                   </div>
                 )}
               </CardContent>
@@ -261,14 +262,14 @@ function DashboardCard({ href, title, value, subtext, icon, variant = 'default',
   return (
     <Link href={href} className="block transition-transform hover:scale-[1.02] active:scale-[0.98]">
       <Card className={cn(
-        "shadow-md h-full transition-all duration-300 border-none ring-1 ring-border relative overflow-hidden",
+        "shadow-md h-full transition-all duration-300 border-none ring-1 ring-border relative overflow-hidden rounded-2xl",
         variant === 'primary' && "bg-primary text-primary-foreground ring-primary/20",
         variant === 'secondary' && "bg-secondary text-secondary-foreground ring-secondary/20",
         variant === 'destructive' && "bg-destructive text-destructive-foreground ring-destructive/20 animate-pulse"
       )}>
-        <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 pt-4 px-3 sm:px-4">
+        <CardHeader className="flex flex-row items-center justify-between pb-1 space-y-0 pt-3 md:pt-4 px-3 md:px-4">
           <CardTitle className={cn(
-            "text-[9px] sm:text-[10px] font-black uppercase tracking-widest leading-tight",
+            "text-[8px] md:text-[10px] font-black uppercase tracking-widest leading-tight",
             variant === 'default' ? "text-muted-foreground" : "text-inherit opacity-80"
           )}>{title}</CardTitle>
           <div className={cn(
@@ -278,14 +279,14 @@ function DashboardCard({ href, title, value, subtext, icon, variant = 'default',
             {icon}
           </div>
         </CardHeader>
-        <CardContent className="pb-4 px-3 sm:px-4">
-          <div className="text-xl sm:text-2xl font-black tracking-tight truncate">{value}</div>
+        <CardContent className="pb-3 md:pb-4 px-3 md:px-4">
+          <div className="text-lg md:text-2xl font-black tracking-tighter truncate">{value}</div>
           <p className={cn(
-            "text-[8px] sm:text-[9px] font-bold uppercase mt-0.5",
+            "text-[7px] md:text-[9px] font-bold uppercase mt-0.5 truncate",
             variant === 'default' ? "text-muted-foreground" : "text-inherit opacity-70"
           )}>{subtext}</p>
           {progress !== undefined && (
-            <Progress value={progress} className="h-1 mt-2.5 bg-muted/20" />
+            <Progress value={progress} className="h-0.5 md:h-1 mt-2 md:mt-2.5 bg-muted/20" />
           )}
         </CardContent>
       </Card>
