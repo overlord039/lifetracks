@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
@@ -14,7 +14,8 @@ import {
   Calendar,
   BookOpen,
   DollarSign,
-  TrendingDown
+  TrendingDown,
+  Loader2
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
@@ -24,8 +25,13 @@ import { cn } from '@/lib/utils';
 export default function Dashboard() {
   const { user } = useUser();
   const firestore = useFirestore();
+  const [mounted, setMounted] = useState(false);
   
-  const now = new Date();
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const now = useMemo(() => new Date(), []);
   const todayStr = format(now, 'yyyy-MM-dd');
   const monthId = format(now, 'yyyyMM');
 
@@ -90,8 +96,6 @@ export default function Dashboard() {
   }, [monthlyBudgetDoc, monthExpenses, fixedExpenses, now]);
 
   const todayReport = budgetReport?.[todayStr];
-  const allowedToday = todayReport?.allowedBudget || 0;
-  // User specifically requested to display only the daily base allowance (base + extra)
   const dailyBaseAllowance = (todayReport?.baseBudget || 0) + (todayReport?.extraBudget || 0);
   const spentToday = todayReport?.spent || 0;
   const remaining = Math.max(0, dailyBaseAllowance - spentToday);
@@ -100,6 +104,16 @@ export default function Dashboard() {
 
   const isOverspent = spentToday > dailyBaseAllowance;
   const isWithinBudget = spentToday <= dailyBaseAllowance && spentToday > 0;
+
+  if (!mounted) {
+    return (
+      <AppShell>
+        <div className="flex h-[60vh] w-full items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>

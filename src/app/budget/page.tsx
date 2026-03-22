@@ -29,6 +29,7 @@ export default function BudgetPage() {
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
   
   // Extra budget state
   const [isAddingExtra, setIsAddingExtra] = useState(false);
@@ -39,7 +40,11 @@ export default function BudgetPage() {
   const [newFixed, setNewFixed] = useState({ name: '', amount: '', categoryId: '' });
   const [newExpense, setNewExpense] = useState({ description: '', amount: '', categoryId: '' });
 
-  const now = new Date();
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const now = useMemo(() => new Date(), []);
   const monthId = format(now, 'yyyyMM');
   const todayStr = format(now, 'yyyy-MM-dd');
   const monthName = format(now, 'MMMM yyyy');
@@ -294,6 +299,16 @@ export default function BudgetPage() {
   };
 
   const isBudgetSet = (monthlyBudgetDoc?.totalBudgetAmount || 0) > 0;
+
+  if (!mounted) {
+    return (
+      <AppShell>
+        <div className="flex h-[60vh] w-full items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
