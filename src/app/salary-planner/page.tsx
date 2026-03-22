@@ -264,7 +264,7 @@ export default function SalaryPlannerPage() {
             </Card>
 
             {showResults && (
-              <Card className="shadow-md border-l-4 border-l-blue-400 bg-blue-50/10 transition-all duration-500">
+              <Card className="shadow-md border-l-4 border-l-blue-400 bg-blue-50/10 dark:bg-blue-900/10 transition-all duration-500">
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
                     <ShieldCheck className="h-5 w-5 text-blue-500" />
@@ -276,8 +276,8 @@ export default function SalaryPlannerPage() {
                     Your planned expenses are <span className="font-black text-foreground">₹{amounts.expense.toLocaleString()}</span>. 
                     Sync this to your budget module to automate your monthly target.
                   </p>
-                  <div className="p-4 bg-white/50 border border-blue-100 rounded-2xl space-y-4 shadow-sm">
-                    <p className="text-[10px] font-black text-blue-800 uppercase tracking-tighter">Automate Monthly Target?</p>
+                  <div className="p-4 bg-white/50 dark:bg-background/20 border border-blue-100 dark:border-blue-900/30 rounded-2xl space-y-4 shadow-sm">
+                    <p className="text-[10px] font-black text-blue-800 dark:text-blue-300 uppercase tracking-tighter">Automate Monthly Target?</p>
                     <Button size="sm" onClick={syncWithBudget} className="w-full bg-blue-600 hover:bg-blue-700 font-bold shadow-sm">Sync with Budget</Button>
                   </div>
                 </CardContent>
@@ -362,7 +362,16 @@ export default function SalaryPlannerPage() {
                               ))}
                             </Pie>
                             <RechartsTooltip 
-                              contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 8px 30px rgba(0,0,0,0.12)', fontSize: '10px', fontWeight: 'bold' }}
+                              contentStyle={{ 
+                                borderRadius: '16px', 
+                                border: 'none', 
+                                boxShadow: '0 8px 30px rgba(0,0,0,0.12)', 
+                                fontSize: '10px', 
+                                fontWeight: 'bold',
+                                backgroundColor: 'hsl(var(--card))',
+                                color: 'hsl(var(--card-foreground))'
+                              }}
+                              itemStyle={{ color: 'inherit' }}
                               formatter={(v: number) => `₹${v.toLocaleString()}`} 
                             />
                             <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', paddingTop: '20px' }} />
@@ -405,7 +414,14 @@ export default function SalaryPlannerPage() {
                               ))}
                             </Pie>
                             <RechartsTooltip 
-                              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                              contentStyle={{ 
+                                borderRadius: '12px', 
+                                border: 'none', 
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                backgroundColor: 'hsl(var(--card))',
+                                color: 'hsl(var(--card-foreground))'
+                              }}
+                              itemStyle={{ color: 'inherit' }}
                               formatter={(v: number) => `₹${v.toLocaleString()}`} 
                             />
                             <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
