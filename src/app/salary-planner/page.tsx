@@ -23,7 +23,8 @@ import {
   AlertTriangle, 
   Save, 
   ArrowRightLeft,
-  ChevronRight
+  ChevronRight,
+  Wallet
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -36,6 +37,7 @@ import {
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const COLORS = ['#64B5F6', '#81C784', '#FFB74D', '#BA68C8', '#F06292'];
 const INV_COLORS = ['#BA68C8', '#64B5F6', '#FFD54F'];
@@ -203,12 +205,12 @@ export default function SalaryPlannerPage() {
               <Calculator className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-2xl md:text-3xl font-black tracking-tight">Salary Planner</h2>
+              <h2 className="text-2xl md:text-3xl font-black tracking-tight text-foreground">Salary Planner</h2>
               <p className="text-xs md:text-sm text-muted-foreground">Strategize your monthly income allocation.</p>
             </div>
           </div>
           {showResults && (
-            <Button onClick={handleSave} className="shadow-md bg-primary hover:bg-primary/90">
+            <Button onClick={handleSave} className="shadow-md">
               <Save className="mr-2 h-4 w-4" /> Save Strategy
             </Button>
           )}
