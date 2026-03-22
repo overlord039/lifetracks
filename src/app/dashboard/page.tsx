@@ -117,7 +117,7 @@ export default function Dashboard() {
 
   return (
     <AppShell>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <DashboardCard 
           href="/budget"
           title="Daily Allowance"
@@ -266,26 +266,26 @@ function DashboardCard({ href, title, value, subtext, icon, variant = 'default',
         variant === 'secondary' && "bg-secondary text-secondary-foreground ring-secondary/20",
         variant === 'destructive' && "bg-destructive text-destructive-foreground ring-destructive/20 animate-pulse"
       )}>
-        <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 pt-4">
+        <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 pt-4 px-3 sm:px-4">
           <CardTitle className={cn(
-            "text-[10px] font-black uppercase tracking-widest",
+            "text-[9px] sm:text-[10px] font-black uppercase tracking-widest leading-tight",
             variant === 'default' ? "text-muted-foreground" : "text-inherit opacity-80"
           )}>{title}</CardTitle>
           <div className={cn(
-            "p-1.5 rounded-lg",
+            "p-1 rounded-lg shrink-0",
             variant === 'default' ? "bg-muted text-primary" : "bg-white/10"
           )}>
             {icon}
           </div>
         </CardHeader>
-        <CardContent className="pb-4">
-          <div className="text-2xl font-black tracking-tight">{value}</div>
+        <CardContent className="pb-4 px-3 sm:px-4">
+          <div className="text-xl sm:text-2xl font-black tracking-tight truncate">{value}</div>
           <p className={cn(
-            "text-[9px] font-bold uppercase mt-1",
+            "text-[8px] sm:text-[9px] font-bold uppercase mt-0.5",
             variant === 'default' ? "text-muted-foreground" : "text-inherit opacity-70"
           )}>{subtext}</p>
           {progress !== undefined && (
-            <Progress value={progress} className="h-1 mt-3 bg-muted/20" />
+            <Progress value={progress} className="h-1 mt-2.5 bg-muted/20" />
           )}
         </CardContent>
       </Card>
