@@ -9,7 +9,8 @@ import {
   BookText, 
   BarChart3, 
   LogOut,
-  HandCoins
+  HandCoins,
+  Calculator
 } from 'lucide-react';
 import { 
   Sidebar, 
@@ -33,6 +34,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 
 const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
+  { title: 'Salary Planner', url: '/salary-planner', icon: Calculator },
   { title: 'Learning', url: '/learning', icon: GraduationCap },
   { title: 'Budget', url: '/budget', icon: Wallet },
   { title: 'Debts', url: '/debts', icon: HandCoins },

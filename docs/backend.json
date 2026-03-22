@@ -305,6 +305,41 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "userId", "debtorName", "amount", "isPaid", "createdAt"]
+    },
+    "SalaryProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SalaryProfile",
+      "type": "object",
+      "description": "Stores user's salary and overall split preferences.",
+      "properties": {
+        "userId": { "type": "string" },
+        "salary": { "type": "number" },
+        "age": { "type": "number" },
+        "expensePercent": { "type": "number" },
+        "savingsPercent": { "type": "number" },
+        "investmentPercent": { "type": "number" },
+        "healthPercent": { "type": "number" },
+        "personalPercent": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "salary", "age", "expensePercent", "savingsPercent", "investmentPercent", "healthPercent", "personalPercent", "createdAt"]
+    },
+    "InvestmentAllocation": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "InvestmentAllocation",
+      "type": "object",
+      "description": "Stores age-based investment splits.",
+      "properties": {
+        "userId": { "type": "string" },
+        "equityPercent": { "type": "number" },
+        "debtPercent": { "type": "number" },
+        "goldPercent": { "type": "number" },
+        "equityAmount": { "type": "number" },
+        "debtAmount": { "type": "number" },
+        "goldAmount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "equityPercent", "debtPercent", "goldPercent", "equityAmount", "debtAmount", "goldAmount", "createdAt"]
     }
   },
   "auth": {
@@ -385,6 +420,24 @@
           "schema": { "$ref": "#/backend/entities/Debt" },
           "description": "Track money owed by others.",
           "params": [{ "name": "userId", "description": "User UID" }, { "name": "debtId", "description": "Debt ID" }]
+        }
+      },
+      {
+        "path": "/users/{userId}/salaryProfiles/{profileId}",
+        "definition": {
+          "entityName": "SalaryProfile",
+          "schema": { "$ref": "#/backend/entities/SalaryProfile" },
+          "description": "User's salary profiles.",
+          "params": [{ "name": "userId", "description": "User UID" }, { "name": "profileId", "description": "Profile ID" }]
+        }
+      },
+      {
+        "path": "/users/{userId}/investmentAllocations/{allocationId}",
+        "definition": {
+          "entityName": "InvestmentAllocation",
+          "schema": { "$ref": "#/backend/entities/InvestmentAllocation" },
+          "description": "User's investment allocations.",
+          "params": [{ "name": "userId", "description": "User UID" }, { "name": "allocationId", "description": "Allocation ID" }]
         }
       }
     ]
