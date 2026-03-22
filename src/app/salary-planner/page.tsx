@@ -24,8 +24,7 @@ import {
   Wallet,
   Coins,
   ShieldCheck,
-  Target,
-  Badge
+  Target
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
