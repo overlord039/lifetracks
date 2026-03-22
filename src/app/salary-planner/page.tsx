@@ -133,18 +133,6 @@ export default function SalaryPlannerPage() {
 
   const totalPercent = Object.values(percents).reduce((a, b) => a + b, 0);
 
-  const handleGenerate = () => {
-    if (numSalary <= 0) {
-      toast({ variant: 'destructive', title: 'Invalid Salary', description: 'Monthly salary must be greater than 0.' });
-      return;
-    }
-    if (numAge < 0) {
-      toast({ variant: 'destructive', title: 'Invalid Age', description: 'Age cannot be negative.' });
-      return;
-    }
-    setShowResults(true);
-  };
-
   const handleSave = () => {
     if (!user || !salaryRef || !investmentRef) return;
     if (totalPercent !== 100) {
@@ -161,7 +149,8 @@ export default function SalaryPlannerPage() {
       investmentPercent: percents.investment,
       healthPercent: percents.health,
       personalPercent: percents.personal,
-      createdAt: new Date().toISOString()
+      createdAt: savedProfile?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     }, { merge: true });
 
     setDocumentNonBlocking(investmentRef, {
@@ -175,7 +164,21 @@ export default function SalaryPlannerPage() {
       createdAt: new Date().toISOString()
     }, { merge: true });
 
-    toast({ title: 'Plan Saved', description: 'Your salary profile has been updated.' });
+    toast({ title: 'Plan Saved', description: 'Your salary profile has been stored in the database.' });
+  };
+
+  const handleGenerate = () => {
+    if (numSalary <= 0) {
+      toast({ variant: 'destructive', title: 'Invalid Salary', description: 'Monthly salary must be greater than 0.' });
+      return;
+    }
+    if (numAge < 0) {
+      toast({ variant: 'destructive', title: 'Invalid Age', description: 'Age cannot be negative.' });
+      return;
+    }
+    setShowResults(true);
+    // Automatically save initial generation
+    handleSave();
   };
 
   const syncWithBudget = () => {
@@ -193,7 +196,7 @@ export default function SalaryPlannerPage() {
       createdAt: new Date().toISOString()
     }, { merge: true });
 
-    toast({ title: 'Budget Synced', description: `₹${amounts.expense.toLocaleString()} set as your monthly budget.` });
+    toast({ title: 'Budget Synced', description: `₹${amounts.expense.toLocaleString()} set as your monthly budget in the database.` });
   };
 
   return (
