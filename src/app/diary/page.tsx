@@ -161,7 +161,7 @@ export default function DiaryPage() {
 
   return (
     <AppShell>
-      <div className="max-w-6xl mx-auto flex flex-col gap-6 pb-24 md:pb-6">
+      <div className="max-w-6xl mx-auto flex flex-col gap-6 pb-12 md:pb-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-primary/20 rounded-2xl text-primary shadow-sm border border-primary/10">
@@ -230,6 +230,18 @@ export default function DiaryPage() {
           </div>
 
           <div className="lg:col-span-4 h-full">
+            {/* Mobile Lock Reflection Button - Placed on top of Chronicle section */}
+            <div className="md:hidden mb-6">
+              <Button 
+                onClick={saveEntry} 
+                disabled={loading} 
+                className="w-full shadow-2xl h-14 font-black text-base rounded-2xl bg-primary text-primary-foreground border-2 border-white/20 active:scale-95 transition-transform"
+              >
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} 
+                Lock Reflection
+              </Button>
+            </div>
+            
             <Card className="shadow-lg rounded-2xl border-none ring-1 ring-border h-full flex flex-col overflow-hidden">
               <CardHeader className="bg-muted/30 border-b py-4 px-6">
                 <CardTitle className="text-base flex items-center gap-2 font-black">
@@ -274,18 +286,6 @@ export default function DiaryPage() {
               </CardContent>
             </Card>
           </div>
-        </div>
-
-        {/* Mobile Fixed Button Container */}
-        <div className="md:hidden fixed bottom-6 left-4 right-4 z-50">
-          <Button 
-            onClick={saveEntry} 
-            disabled={loading} 
-            className="w-full shadow-2xl h-14 font-black text-base rounded-2xl bg-primary text-primary-foreground border-2 border-white/20 active:scale-95 transition-transform"
-          >
-            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} 
-            Lock Reflection
-          </Button>
         </div>
       </div>
 
