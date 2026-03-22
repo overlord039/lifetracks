@@ -24,7 +24,8 @@ import {
   Save, 
   ArrowRightLeft,
   ChevronRight,
-  Wallet
+  Wallet,
+  Coins
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -164,7 +165,7 @@ export default function SalaryPlannerPage() {
       createdAt: new Date().toISOString()
     }, { merge: true });
 
-    toast({ title: 'Plan Saved', description: 'Your salary profile has been stored in the database.' });
+    toast({ title: 'Plan Saved', description: 'Your salary profile has been stored successfully.' });
   };
 
   const handleGenerate = () => {
@@ -196,254 +197,266 @@ export default function SalaryPlannerPage() {
       createdAt: new Date().toISOString()
     }, { merge: true });
 
-    toast({ title: 'Budget Synced', description: `₹${amounts.expense.toLocaleString()} set as your monthly budget in the database.` });
+    toast({ title: 'Budget Synced', description: `₹${amounts.expense.toLocaleString()} set as your monthly budget.` });
   };
 
   return (
     <AppShell>
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-primary/20 rounded-xl text-primary shadow-sm">
-              <Calculator className="w-6 h-6" />
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-primary/10 rounded-2xl text-primary shadow-inner">
+              <Calculator className="w-7 h-7" />
             </div>
             <div>
-              <h2 className="text-2xl md:text-3xl font-black tracking-tight text-foreground">Salary Planner</h2>
-              <p className="text-xs md:text-sm text-muted-foreground">Strategize your monthly income allocation.</p>
+              <h2 className="text-3xl font-black tracking-tighter text-foreground">Salary Planner</h2>
+              <p className="text-sm text-muted-foreground font-medium">Strategize and optimize your monthly income split.</p>
             </div>
           </div>
           {showResults && (
-            <Button onClick={handleSave} className="shadow-md">
-              <Save className="mr-2 h-4 w-4" /> Save Strategy
+            <Button onClick={handleSave} className="shadow-lg px-6 gap-2">
+              <Save className="h-4 w-4" /> Save Strategy
             </Button>
           )}
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          <Card className="lg:col-span-1 shadow-lg border-t-4 border-t-primary h-fit">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Info className="h-5 w-5 text-primary" />
-                Income Input
-              </CardTitle>
-              <CardDescription>Enter your basics to start planning.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="salary">Monthly Salary (₹)</Label>
-                <Input 
-                  id="salary" 
-                  type="number" 
-                  placeholder="e.g. 50000" 
-                  value={salary} 
-                  onChange={(e) => setSalary(e.target.value)}
-                  className="font-bold text-lg"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="age">Age</Label>
-                <Input 
-                  id="age" 
-                  type="number" 
-                  placeholder="e.g. 25" 
-                  value={age} 
-                  onChange={(e) => setAge(e.target.value)}
-                />
-                {numAge > 0 && (numAge < 18 || numAge > 70) && (
-                  <p className="text-[10px] text-orange-500 font-bold flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" /> Note: Investment advice is optimized for age 18-70.
-                  </p>
-                )}
-              </div>
-              <Button onClick={handleGenerate} className="w-full mt-2">Generate Plan</Button>
-            </CardContent>
-          </Card>
+        <div className="grid gap-6 lg:grid-cols-12">
+          {/* Input Panel */}
+          <div className="lg:col-span-4 space-y-6">
+            <Card className="shadow-md border-t-4 border-t-primary">
+              <CardHeader>
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <Coins className="h-5 w-5 text-primary" />
+                  Income Input
+                </CardTitle>
+                <CardDescription>Define your base numbers to start the allocation.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="salary" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Monthly Salary (₹)</Label>
+                  <Input 
+                    id="salary" 
+                    type="number" 
+                    placeholder="e.g. 50000" 
+                    value={salary} 
+                    onChange={(e) => setSalary(e.target.value)}
+                    className="font-black text-2xl h-14 bg-muted/20"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="age" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Your Age</Label>
+                  <Input 
+                    id="age" 
+                    type="number" 
+                    placeholder="e.g. 25" 
+                    value={age} 
+                    onChange={(e) => setAge(e.target.value)}
+                    className="h-12 font-medium"
+                  />
+                  {numAge > 0 && (numAge < 18 || numAge > 70) && (
+                    <div className="flex items-center gap-2 p-2 bg-orange-50 text-orange-700 rounded-md border border-orange-100 mt-2">
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                      <p className="text-[10px] font-bold">Risk profile optimized for ages 18-70.</p>
+                    </div>
+                  )}
+                </div>
+                <Button onClick={handleGenerate} className="w-full h-12 text-lg font-bold shadow-md">
+                  Generate Plan <ChevronRight className="ml-1 h-5 w-5" />
+                </Button>
+              </CardContent>
+            </Card>
 
-          {showResults && (
-            <div className="lg:col-span-2 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <Card className="shadow-lg">
+            {showResults && (
+              <Card className="shadow-md border-l-4 border-l-blue-400 bg-blue-50/10 hidden lg:block">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <ArrowRightLeft className="h-5 w-5 text-primary" />
-                    Salary Breakup (Total: {totalPercent}%)
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Wallet className="h-5 w-5 text-blue-500" />
+                    Budget Link
                   </CardTitle>
-                  <CardDescription>Adjust sliders to customize your monthly split.</CardDescription>
                 </CardHeader>
-                <CardContent className="grid gap-8 md:grid-cols-2">
-                  <div className="space-y-6">
-                    {[
-                      { id: 'expense', label: 'Expenses', icon: Wallet, color: 'text-blue-500' },
-                      { id: 'savings', label: 'Savings', icon: PiggyBank, color: 'text-green-500' },
-                      { id: 'investment', label: 'Investments', icon: TrendingUp, color: 'text-orange-500' },
-                      { id: 'health', label: 'Health', icon: HeartPulse, color: 'text-purple-500' },
-                      { id: 'personal', label: 'Personal', icon: Smile, color: 'text-pink-500' }
-                    ].map((item) => (
-                      <div key={item.id} className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <Label className="flex items-center gap-2">
-                            <item.icon className={cn("h-4 w-4", item.color)} />
-                            {item.label} ({percents[item.id as keyof typeof percents]}%)
-                          </Label>
-                          <span className="text-sm font-black">₹{amounts[item.id as keyof typeof amounts].toLocaleString()}</span>
-                        </div>
-                        <Slider 
-                          value={[percents[item.id as keyof typeof percents]]}
-                          max={100}
-                          step={1}
-                          onValueChange={([val]) => setPercents({...percents, [item.id]: val})}
-                        />
-                      </div>
-                    ))}
-                    
-                    {totalPercent !== 100 && (
-                      <Alert variant="destructive" className="py-2">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertDescription className="text-xs">Percentages must sum to 100%. Current: {totalPercent}%</AlertDescription>
-                      </Alert>
-                    )}
-                  </div>
-
-                  <div className="h-[250px] flex items-center justify-center bg-muted/10 rounded-xl relative">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={salaryData}
-                          innerRadius={60}
-                          outerRadius={80}
-                          paddingAngle={5}
-                          dataKey="value"
-                        >
-                          {salaryData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <RechartsTooltip formatter={(v: number) => `₹${v.toLocaleString()}`} />
-                        <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="text-center">
-                        <span className="text-[10px] uppercase font-bold text-muted-foreground">Monthly</span>
-                        <p className="text-lg font-black tracking-tight">₹{numSalary.toLocaleString()}</p>
-                      </div>
+                <CardContent className="space-y-4">
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    Your planned expenses are <span className="font-black text-foreground">₹{amounts.expense.toLocaleString()}</span>. 
+                    Syncing this with your budget module helps automate your monthly goal.
+                  </p>
+                  <div className="p-4 bg-white/50 border border-blue-100 rounded-2xl space-y-4 shadow-sm">
+                    <p className="text-xs font-black text-blue-800 uppercase tracking-tighter">Sync with Budget Module?</p>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={syncWithBudget} className="flex-1 bg-blue-600 hover:bg-blue-700 font-bold">Sync Now</Button>
                     </div>
                   </div>
                 </CardContent>
               </Card>
+            )}
+          </div>
 
-              <div className="grid gap-6 md:grid-cols-2">
-                <Card className="shadow-lg border-l-4 border-l-orange-400">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <TrendingUp className="h-5 w-5 text-orange-500" />
-                      Investment Split
-                    </CardTitle>
-                    <CardDescription>Based on age {numAge} (Risk Optimized)</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="h-[180px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={invData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={45}
-                            outerRadius={65}
-                            paddingAngle={5}
-                            dataKey="value"
-                          >
-                            {invData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip formatter={(v: number) => `₹${v.toLocaleString()}`} />
-                          <Legend iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="p-2 border rounded-lg bg-muted/20">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Equity</p>
-                        <p className="text-sm font-black">₹{invAllocation.equityAmt.toFixed(0)}</p>
-                        <p className="text-[10px] text-primary">{invAllocation.equityP}%</p>
-                      </div>
-                      <div className="p-2 border rounded-lg bg-muted/20">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Debt</p>
-                        <p className="text-sm font-black">₹{invAllocation.debtAmt.toFixed(0)}</p>
-                        <p className="text-[10px] text-primary">{invAllocation.debtP}%</p>
-                      </div>
-                      <div className="p-2 border rounded-lg bg-muted/20">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Gold</p>
-                        <p className="text-sm font-black">₹{invAllocation.goldAmt.toFixed(0)}</p>
-                        <p className="text-[10px] text-primary">{invAllocation.goldP}%</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-lg border-l-4 border-l-blue-400 bg-blue-50/10">
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Wallet className="h-5 w-5 text-blue-500" />
-                      Budget Link
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-sm leading-relaxed">
-                      Your planned expenses for this month are <span className="font-bold text-blue-600">₹{amounts.expense.toLocaleString()}</span>. 
-                      Setting this as your monthly budget helps you stay accountable.
-                    </p>
-                    <div className="p-4 bg-white/50 border border-blue-100 rounded-xl space-y-3">
-                      <p className="text-xs font-bold text-blue-800">Do you want to use this as your monthly budget?</p>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={syncWithBudget} className="flex-1 bg-blue-600 hover:bg-blue-700">Yes, Set Budget</Button>
-                        <Button size="sm" variant="outline" className="flex-1">Not Now</Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter>
-                    {amounts.savings < (numSalary * 0.1) && (
-                      <div className="flex items-start gap-2 text-[10px] font-bold text-orange-600 bg-orange-50 p-2 rounded w-full">
-                        <AlertTriangle className="h-3 w-3 shrink-0" />
-                        Your savings are below the recommended 10-20% level. Consider reducing expenses.
-                      </div>
-                    )}
-                  </CardFooter>
-                </Card>
+          {/* Results Area */}
+          <div className="lg:col-span-8 space-y-6">
+            {!showResults ? (
+              <div className="h-full flex flex-col items-center justify-center p-12 border-2 border-dashed rounded-3xl opacity-50 space-y-4">
+                <Calculator className="h-16 w-16 text-muted-foreground" />
+                <p className="text-lg font-medium text-muted-foreground">Enter your income details to see the magic.</p>
               </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-bold flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-500" /> Allocation Breakdown
-                    </CardTitle>
+            ) : (
+              <div className="animate-in fade-in slide-in-from-right-4 duration-700 space-y-6">
+                <Card className="shadow-lg overflow-hidden">
+                  <CardHeader className="bg-muted/30 border-b">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <CardTitle className="text-xl flex items-center gap-2">
+                          <ArrowRightLeft className="h-5 w-5 text-primary" />
+                          Salary Breakup
+                        </CardTitle>
+                        <CardDescription>Customizable splits for balanced living.</CardDescription>
+                      </div>
+                      <div className={cn(
+                        "px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest",
+                        totalPercent === 100 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                      )}>
+                        Total: {totalPercent}%
+                      </div>
+                    </div>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    <SectionDesc label="Expenses" text="Daily living costs like rent, food, travel, and bills." />
-                    <SectionDesc label="Savings" text="Emergency fund for unexpected situations." />
-                    <SectionDesc label="Investments" text="Used to grow wealth over time." />
-                    <SectionDesc label="Health" text="Medical, insurance, and fitness expenses." />
-                    <SectionDesc label="Personal" text="Entertainment, hobbies, and lifestyle spending." />
+                  <CardContent className="grid gap-10 md:grid-cols-5 p-8">
+                    <div className="md:col-span-3 space-y-8">
+                      {[
+                        { id: 'expense', label: 'Expenses', icon: Wallet, color: 'text-blue-500', trackColor: COLORS[0] },
+                        { id: 'savings', label: 'Savings', icon: PiggyBank, color: 'text-green-500', trackColor: COLORS[1] },
+                        { id: 'investment', label: 'Investments', icon: TrendingUp, color: 'text-orange-500', trackColor: COLORS[2] },
+                        { id: 'health', label: 'Health', icon: HeartPulse, color: 'text-purple-500', trackColor: COLORS[3] },
+                        { id: 'personal', label: 'Personal', icon: Smile, color: 'text-pink-500', trackColor: COLORS[4] }
+                      ].map((item) => (
+                        <div key={item.id} className="space-y-3">
+                          <div className="flex justify-between items-center">
+                            <Label className="flex items-center gap-2 font-bold">
+                              <item.icon className={cn("h-4 w-4", item.color)} />
+                              {item.label} <span className="text-muted-foreground font-medium ml-1">({percents[item.id as keyof typeof percents]}%)</span>
+                            </Label>
+                            <span className="text-lg font-black tracking-tighter">₹{amounts[item.id as keyof typeof amounts].toLocaleString()}</span>
+                          </div>
+                          <Slider 
+                            value={[percents[item.id as keyof typeof percents]]}
+                            max={100}
+                            step={1}
+                            onValueChange={([val]) => setPercents({...percents, [item.id]: val})}
+                            className="[&_[role=slider]]:bg-white [&_[role=slider]]:border-primary"
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="md:col-span-2 flex flex-col items-center justify-center space-y-6">
+                      <div className="w-full h-[280px] relative">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={salaryData}
+                              innerRadius={70}
+                              outerRadius={90}
+                              paddingAngle={8}
+                              dataKey="value"
+                              stroke="none"
+                            >
+                              {salaryData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <RechartsTooltip 
+                              contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                              formatter={(v: number) => `₹${v.toLocaleString()}`} 
+                            />
+                            <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                          <span className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">Total Income</span>
+                          <p className="text-2xl font-black tracking-tighter">₹{numSalary.toLocaleString()}</p>
+                        </div>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-bold flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-orange-500" /> Asset Breakdown
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <SectionDesc label="Equity" text="High return, high risk investments like stocks." />
-                    <SectionDesc label="Debt" text="Stable, low-risk investments like fixed deposits." />
-                    <SectionDesc label="Gold" text="Safe asset that protects against inflation." />
-                  </CardContent>
-                </Card>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <Card className="shadow-md border-t-4 border-t-orange-400">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg flex items-center gap-2 font-black">
+                        <TrendingUp className="h-5 w-5 text-orange-500" />
+                        Investment Matrix
+                      </CardTitle>
+                      <CardDescription>Optimized for age {numAge}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="h-[200px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={invData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={50}
+                              outerRadius={70}
+                              paddingAngle={5}
+                              dataKey="value"
+                              stroke="none"
+                            >
+                              {invData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <RechartsTooltip 
+                              contentStyle={{ borderRadius: '12px', border: 'none' }}
+                              formatter={(v: number) => `₹${v.toLocaleString()}`} 
+                            />
+                            <Legend iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold' }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { label: 'Equity', amt: invAllocation.equityAmt, p: invAllocation.equityP },
+                          { label: 'Debt', amt: invAllocation.debtAmt, p: invAllocation.debtP },
+                          { label: 'Gold', amt: invAllocation.goldAmt, p: invAllocation.goldP }
+                        ].map(item => (
+                          <div key={item.label} className="p-3 border rounded-2xl bg-muted/20 text-center space-y-1">
+                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{item.label}</p>
+                            <p className="text-xs font-black">₹{item.amt.toFixed(0)}</p>
+                            <p className="text-[10px] text-primary font-bold">{item.p}%</p>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="shadow-md">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg flex items-center gap-2 font-black">
+                        <Info className="h-5 w-5 text-muted-foreground" />
+                        Strategic Guidelines
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6 pt-2 overflow-y-auto max-h-[350px] pr-2">
+                      <div className="space-y-4">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-primary">Core Allocation</h4>
+                        <SectionDesc label="Expenses" text="Daily living costs like rent, food, travel, and bills." />
+                        <SectionDesc label="Savings" text="Emergency fund for unexpected situations." />
+                        <SectionDesc label="Investments" text="Used to grow wealth over time." />
+                        <SectionDesc label="Health" text="Medical, insurance, and fitness expenses." />
+                        <SectionDesc label="Personal" text="Entertainment, hobbies, and lifestyle spending." />
+                      </div>
+                      <Separator />
+                      <div className="space-y-4">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-orange-500">Asset Strategy</h4>
+                        <SectionDesc label="Equity" text="High return, high risk investments like stocks." />
+                        <SectionDesc label="Debt" text="Stable, low-risk investments like fixed deposits." />
+                        <SectionDesc label="Gold" text="Safe asset that protects against inflation." />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </AppShell>
@@ -452,9 +465,13 @@ export default function SalaryPlannerPage() {
 
 function SectionDesc({ label, text }: { label: string, text: string }) {
   return (
-    <div className="space-y-0.5">
-      <p className="text-xs font-black uppercase text-muted-foreground tracking-tighter">{label}</p>
-      <p className="text-[11px] text-foreground/80 leading-snug">{text}</p>
+    <div className="group space-y-1">
+      <p className="text-[11px] font-black uppercase text-foreground group-hover:text-primary transition-colors tracking-tighter">{label}</p>
+      <p className="text-[11px] text-muted-foreground leading-snug">{text}</p>
     </div>
   );
+}
+
+function Separator() {
+  return <div className="h-px w-full bg-border" />;
 }
