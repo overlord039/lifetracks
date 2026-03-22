@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -249,7 +248,7 @@ export default function ReportsPage() {
   return (
     <AppShell>
       <div className="space-y-6 max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-4 rounded-2xl shadow-sm border">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-card p-4 rounded-2xl shadow-sm border">
           <div className="flex items-center gap-3 w-full md:w-auto">
             <div className="p-2 bg-primary/10 rounded-lg text-primary">
               <CalendarDays className="h-6 w-6" />
@@ -348,6 +347,7 @@ export default function ReportsPage() {
                   <BarChart data={weeklyReport.weeklyData}>
                     <Bar dataKey="spent" fill="#FFB74D" radius={[2, 2, 0, 0]} />
                     <Tooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--card-foreground))' }}
                       formatter={(v: number) => `₹${v.toLocaleString()}`}
                       labelClassName="text-[10px] font-bold"
                     />
@@ -373,8 +373,8 @@ export default function ReportsPage() {
                 )}
               </div>
             </CardContent>
-            <CardFooter className="bg-orange-50/50 py-2 border-t">
-              <p className="text-[10px] font-medium text-orange-700 mx-auto">
+            <CardFooter className="bg-orange-50/50 dark:bg-orange-950/20 py-2 border-t">
+              <p className="text-[10px] font-medium text-orange-700 dark:text-orange-400 mx-auto">
                 {weekDiff > 0 ? "Weekly spend trending up" : weekDiff < 0 ? "Spending less this week" : "Stable weekly pace"}
               </p>
             </CardFooter>
@@ -405,6 +405,7 @@ export default function ReportsPage() {
                       ))}
                     </Pie>
                     <Tooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--card-foreground))' }}
                       formatter={(value: number) => `₹${value.toLocaleString()}`}
                     />
                   </PieChart>
@@ -425,7 +426,7 @@ export default function ReportsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 pt-4">
-              <div className="p-3 bg-white rounded-xl border shadow-sm">
+              <div className="p-3 bg-card rounded-xl border shadow-sm">
                 <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Monthly Spend</p>
                 <div className="flex items-center gap-1">
                   <span className="text-lg font-black">₹{totals.daily.toLocaleString()}</span>
@@ -472,7 +473,7 @@ export default function ReportsPage() {
                   <XAxis dataKey="name" fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                   <YAxis fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                   <Tooltip 
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--card-foreground))' }}
                     formatter={(value: number, name: string, props: any) => [
                       `₹${value.toLocaleString()}`, 
                       props.payload.fullLabel || props.payload.name
