@@ -412,7 +412,7 @@ export default function BudgetPage() {
                   
                   {monthlyBudgetDoc?.isWeekendExtraBudgetEnabled && (
                     <div className="pt-2 animate-in fade-in slide-in-from-top-2">
-                      <div className="p-3 bg-white/50 rounded-lg border border-dashed border-primary/30">
+                      <div className="p-3 bg-white/50 dark:bg-muted/30 rounded-lg border border-dashed border-primary/30">
                         <p className="text-xs text-muted-foreground mb-1">Calculated Bonus (50% of daily base)</p>
                         <p className="text-xl font-black text-primary">₹{calculatedWeekendBonus}</p>
                         <p className="text-[10px] text-muted-foreground mt-1 italic">Applied automatically to Saturday & Sunday</p>
@@ -486,7 +486,7 @@ export default function BudgetPage() {
             </CardContent>
           </Card>
 
-          <Card className={cn("shadow-md border-l-4 transition-all duration-300", editingExpenseId ? "border-l-orange-400 bg-orange-50/30" : "border-l-primary")}>
+          <Card className={cn("shadow-md border-l-4 transition-all duration-300", editingExpenseId ? "border-l-orange-400 bg-orange-50/30 dark:bg-orange-950/20" : "border-l-primary")}>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 {editingExpenseId ? <Pencil className="h-5 w-5 text-orange-500" /> : <BrainCircuit className="h-5 w-5 text-primary" />}
@@ -537,7 +537,7 @@ export default function BudgetPage() {
                   </TableHeader>
                   <TableBody>
                     {expenses?.length ? [...expenses].sort((a,b) => b.date.localeCompare(a.date)).map((exp) => (
-                      <TableRow key={exp.id} className={cn("h-10 text-xs", editingExpenseId === exp.id && "bg-orange-50")}>
+                      <TableRow key={exp.id} className={cn("h-10 text-xs", editingExpenseId === exp.id && "bg-orange-50 dark:bg-orange-950/20")}>
                         <TableCell className="text-muted-foreground whitespace-nowrap">{format(new Date(exp.date), 'dd MMM')}</TableCell>
                         <TableCell className="font-medium truncate max-w-[120px]">{exp.description || 'Expense'}</TableCell>
                         <TableCell className="font-bold">₹{exp.amount}</TableCell>
