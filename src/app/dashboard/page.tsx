@@ -163,7 +163,7 @@ export default function Dashboard() {
                 <CardTitle className="text-base font-black flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-primary" />
                   Budget Insight
-                </Badge>
+                </CardTitle>
                 <CardDescription className="text-[10px] font-medium uppercase tracking-tight">Real-time health check</CardDescription>
               </CardHeader>
               <CardContent className="pt-6 space-y-6">
