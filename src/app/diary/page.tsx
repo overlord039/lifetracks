@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -50,8 +49,6 @@ export default function DiaryPage() {
   const [mounted, setMounted] = useState(false);
   
   const [privacyKey, setPrivacyKey] = useState<string>('');
-  const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
-  const [tempKey, setTempKey] = useState('');
 
   useEffect(() => {
     setMounted(true);
@@ -124,7 +121,10 @@ export default function DiaryPage() {
   }, [allEntries, privacyKey, mounted]);
 
   const saveEntry = async () => {
-    if (!user || !diaryRef || !privacyKey) return;
+    if (!user || !diaryRef || !privacyKey) {
+      if (!privacyKey) toast({ variant: 'destructive', title: 'Security Lock', description: 'Unlock your Master Key to save reflections.' });
+      return;
+    }
     setLoading(true);
 
     const encryptedPayload = {
@@ -161,7 +161,7 @@ export default function DiaryPage() {
 
   return (
     <AppShell>
-      <div className="max-w-6xl mx-auto flex flex-col gap-6">
+      <div className="max-w-6xl mx-auto flex flex-col gap-6 pb-24 md:pb-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-primary/20 rounded-2xl text-primary shadow-sm border border-primary/10">
@@ -175,7 +175,11 @@ export default function DiaryPage() {
               <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{format(new Date(), 'EEEE, MMMM do yyyy')}</p>
             </div>
           </div>
-          <Button onClick={saveEntry} disabled={loading} className="shadow-lg h-12 px-6 font-black text-sm rounded-2xl">
+          <Button 
+            onClick={saveEntry} 
+            disabled={loading} 
+            className="hidden md:flex shadow-lg h-12 px-6 font-black text-sm rounded-2xl"
+          >
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} 
             Lock Reflection
           </Button>
@@ -212,10 +216,10 @@ export default function DiaryPage() {
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  <DiaryInput label="Achievements" icon={<CheckCircle2 className="w-3 h-3"/>} placeholder="Key accomplishments today..." value={localEntry.whatIDidToday} onChange={val => setLocalEntry({...localEntry, whatIDidToday: val})} />
-                  <DiaryInput label="New Learnings" icon={<Lightbulb className="w-3 h-3"/>} placeholder="Insights or new skills..." value={localEntry.whatILearned} onChange={val => setLocalEntry({...localEntry, whatILearned: val})} />
-                  <DiaryInput label="Blockers" icon={<AlertTriangle className="w-3 h-3"/>} placeholder="Challenges faced today..." value={localEntry.challengesBlockers} onChange={val => setLocalEntry({...localEntry, challengesBlockers: val})} />
-                  <DiaryInput label="Next Targets" icon={<Target className="w-3 h-3"/>} placeholder="Strategy for tomorrow..." value={localEntry.tomorrowsPlan} onChange={val => setLocalEntry({...localEntry, tomorrowsPlan: val})} />
+                  <DiaryInput label="Achievements" icon={<CheckCircle2 className="w-3 h-3"/>} placeholder="Key accomplishments today..." value={localEntry.whatIDidToday} onChange={(val: string) => setLocalEntry({...localEntry, whatIDidToday: val})} />
+                  <DiaryInput label="New Learnings" icon={<Lightbulb className="w-3 h-3"/>} placeholder="Insights or new skills..." value={localEntry.whatILearned} onChange={(val: string) => setLocalEntry({...localEntry, whatILearned: val})} />
+                  <DiaryInput label="Blockers" icon={<AlertTriangle className="w-3 h-3"/>} placeholder="Challenges faced today..." value={localEntry.challengesBlockers} onChange={(val: string) => setLocalEntry({...localEntry, challengesBlockers: val})} />
+                  <DiaryInput label="Next Targets" icon={<Target className="w-3 h-3"/>} placeholder="Strategy for tomorrow..." value={localEntry.tomorrowsPlan} onChange={(val: string) => setLocalEntry({...localEntry, tomorrowsPlan: val})} />
                 </div>
               </CardContent>
               <CardFooter className="bg-primary/5 text-primary text-[10px] font-black uppercase tracking-widest flex items-center gap-3 py-3 px-6 border-t mt-4">
@@ -270,6 +274,18 @@ export default function DiaryPage() {
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* Mobile Fixed Button Container */}
+        <div className="md:hidden fixed bottom-6 left-4 right-4 z-50">
+          <Button 
+            onClick={saveEntry} 
+            disabled={loading} 
+            className="w-full shadow-2xl h-14 font-black text-base rounded-2xl bg-primary text-primary-foreground border-2 border-white/20 active:scale-95 transition-transform"
+          >
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} 
+            Lock Reflection
+          </Button>
         </div>
       </div>
 
