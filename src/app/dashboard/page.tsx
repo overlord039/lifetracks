@@ -182,9 +182,9 @@ export default function Dashboard() {
               <CardDescription>Real-time sustainability check.</CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
-              <div className={`p-4 rounded-xl border flex items-center justify-between ${remaining > 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+              <div className={`p-4 rounded-xl border flex items-center justify-between ${remaining > 0 ? 'bg-green-50 border-green-100 dark:bg-green-950/10 dark:border-green-900/20' : 'bg-red-50 border-red-100 dark:bg-red-950/10 dark:border-red-900/20'}`}>
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-full ${remaining > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  <div className={`p-2 rounded-full ${remaining > 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
                     {remaining > 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
                   </div>
                   <div>
@@ -200,7 +200,7 @@ export default function Dashboard() {
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Carry-Forward Adjustment:</span>
-                  <span className={`font-bold ${(todayReport?.carryForwardFromYesterday || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <span className={`font-bold ${(todayReport?.carryForwardFromYesterday || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                     {(todayReport?.carryForwardFromYesterday || 0) >= 0 ? '+' : ''}₹{todayReport?.carryForwardFromYesterday.toFixed(0)}
                   </span>
                 </div>

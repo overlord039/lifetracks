@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -302,7 +303,7 @@ export default function ReportsPage() {
                     {totals.dailyDiff !== 0 && (
                       <span className={cn(
                         "text-[10px] font-bold flex items-center gap-0.5",
-                        totals.dailyDiff > 0 ? "text-destructive" : "text-green-600"
+                        totals.dailyDiff > 0 ? "text-destructive" : "text-green-600 dark:text-green-400"
                       )}>
                         {totals.dailyDiff > 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
                         ₹{Math.abs(totals.dailyDiff).toLocaleString()} from {format(prevDate, 'MMM')}
@@ -364,7 +365,7 @@ export default function ReportsPage() {
                     <span className="text-[10px] font-bold uppercase text-muted-foreground">Vs. Last Week</span>
                     <span className={cn(
                       "text-[10px] font-bold flex items-center",
-                      weekDiff > 0 ? "text-destructive" : "text-green-600"
+                      weekDiff > 0 ? "text-destructive" : "text-green-600 dark:text-green-400"
                     )}>
                       {weekDiff > 0 ? <ArrowUpRight className="h-3 w-3 mr-0.5" /> : <ArrowDownRight className="h-3 w-3 mr-0.5" />}
                       ₹{Math.abs(weekDiff).toLocaleString()}
@@ -433,7 +434,7 @@ export default function ReportsPage() {
                   {totals.dailyDiff !== 0 && (
                     <span className={cn(
                       "text-[10px] font-bold",
-                      totals.dailyDiff > 0 ? "text-destructive" : "text-green-600"
+                      totals.dailyDiff > 0 ? "text-destructive" : "text-green-600 dark:text-green-400"
                     )}>
                       {totals.dailyDiff > 0 ? '↑' : '↓'}
                     </span>
