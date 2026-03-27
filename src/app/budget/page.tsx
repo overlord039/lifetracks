@@ -11,7 +11,8 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
-import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, AlertTriangle, Pencil, X, Check, ShieldAlert, Badge } from 'lucide-react';
+import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, AlertTriangle, Pencil, X, Check, ShieldAlert } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { format, getDaysInMonth } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -400,9 +401,9 @@ export default function BudgetPage() {
           </div>
 
           <Card className="shadow-lg rounded-2xl border-none ring-1 ring-border overflow-hidden">
-            <CardHeader className="bg-muted/30 border-b py-2.5 px-4 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm md:text-base flex items-center gap-2 font-black"><History className="h-4 w-4 text-primary" /> Activity History</CardTitle>
-              <Badge variant="outline" className="text-[8px] md:text-[9px] font-black uppercase px-2">{decryptedExpenses?.length || 0} Records</Badge>
+            <CardHeader className="bg-muted/30 border-b py-3 flex flex-row items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2 font-black"><History className="h-4 w-4 text-primary" /> Activity History</CardTitle>
+              <Badge variant="outline" className="text-[9px] font-black uppercase">{decryptedExpenses?.length || 0} Records</Badge>
             </CardHeader>
             <CardContent className="p-0">
               <ScrollArea className="h-[250px] md:h-[300px] w-full">

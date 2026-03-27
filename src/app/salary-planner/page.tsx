@@ -48,6 +48,14 @@ type Percents = {
   personal: number;
 };
 
+const DEFAULT_RATIOS: Percents = {
+  expense: 50,
+  savings: 20,
+  investment: 20,
+  health: 5,
+  personal: 5
+};
+
 export default function SalaryPlannerPage() {
   const { user } = useUser();
   const db = useFirestore();
@@ -60,13 +68,7 @@ export default function SalaryPlannerPage() {
 
   const [salary, setSalary] = useState<string>('');
   const [age, setAge] = useState<string>('');
-  const [percents, setPercents] = useState<Percents>({
-    expense: 50,
-    savings: 20,
-    investment: 20,
-    health: 5,
-    personal: 5
-  });
+  const [percents, setPercents] = useState<Percents>(DEFAULT_RATIOS);
 
   const [showResults, setShowResults] = useState(false);
 
@@ -100,10 +102,6 @@ export default function SalaryPlannerPage() {
   const numSalary = parseFloat(salary) || 0;
   const numAge = parseInt(age) || 0;
 
-  /**
-   * Proportional Percentage Update:
-   * When one category changes, others adjust while maintaining their relative ratios.
-   */
   const updatePercent = useCallback((id: keyof Percents, newVal: number) => {
     setPercents(prev => {
       const oldVal = prev[id];
@@ -115,16 +113,17 @@ export default function SalaryPlannerPage() {
       const targetOthersTotal = 100 - newVal;
 
       if (totalOthers > 0) {
-        // Proportional redistribution
+        // Proportional redistribution based on CURRENT values
         const multiplier = targetOthersTotal / totalOthers;
         otherKeys.forEach(k => {
           nextPercents[k] = Math.max(0, Math.round(prev[k] * multiplier * 10) / 10);
         });
       } else {
-        // Equal redistribution if all others were 0
-        const equalShare = Math.round((targetOthersTotal / otherKeys.length) * 10) / 10;
+        // Proportional redistribution based on DEFAULT ratios if all others were 0
+        const defaultTotalOthers = otherKeys.reduce((sum, k) => sum + DEFAULT_RATIOS[k], 0);
         otherKeys.forEach(k => {
-          nextPercents[k] = equalShare;
+          const ratio = DEFAULT_RATIOS[k] / defaultTotalOthers;
+          nextPercents[k] = Math.max(0, Math.round(targetOthersTotal * ratio * 10) / 10);
         });
       }
 
