@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -11,7 +12,8 @@ import {
   HandCoins,
   Calculator,
   ShieldCheck,
-  Info
+  Info,
+  Users
 } from 'lucide-react';
 import { 
   Sidebar, 
@@ -40,6 +42,7 @@ const navItems = [
   { title: 'Salary Planner', url: '/salary-planner', icon: Calculator },
   { title: 'Learning', url: '/learning', icon: GraduationCap },
   { title: 'Budget', url: '/budget', icon: Wallet },
+  { title: 'Split Pay', url: '/split-pay', icon: Users },
   { title: 'Debts', url: '/debts', icon: HandCoins },
   { title: 'Diary', url: '/diary', icon: BookText },
   { title: 'Reports', url: '/reports', icon: BarChart3 },

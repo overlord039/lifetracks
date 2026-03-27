@@ -34,6 +34,13 @@ service cloud.firestore {
       allow update: if isExistingOwner(userId) && isImmutable('id');
       allow delete: if isExistingOwner(userId);
 
+      match /splitExpenses/{expenseId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId);
+        allow update: if isExistingOwner(userId) && isImmutable('userId');
+        allow delete: if isExistingOwner(userId);
+      }
+
       match /learningGoals/{goalId} {
         allow get, list: if isOwner(userId);
         allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId);

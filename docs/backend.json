@@ -253,6 +253,21 @@
         "createdAt"
       ]
     },
+    "SplitExpense": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SplitExpense",
+      "type": "object",
+      "description": "Represents a shared expense to be split between people.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "description": { "type": "string", "description": "Encrypted description" },
+        "totalAmount": { "type": "string", "description": "Encrypted total amount" },
+        "participants": { "type": "string", "description": "Encrypted comma-separated list of names" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "description", "totalAmount", "participants", "createdAt"]
+    },
     "LearningGoal": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "LearningGoal",
@@ -358,6 +373,15 @@
           "schema": { "$ref": "#/backend/entities/User" },
           "description": "Stores user profile information.",
           "params": [{ "name": "userId", "description": "User UID" }]
+        }
+      },
+      {
+        "path": "/users/{userId}/splitExpenses/{expenseId}",
+        "definition": {
+          "entityName": "SplitExpense",
+          "schema": { "$ref": "#/backend/entities/SplitExpense" },
+          "description": "Track shared expenses.",
+          "params": [{ "name": "userId", "description": "User UID" }, { "name": "expenseId", "description": "Expense ID" }]
         }
       },
       {
