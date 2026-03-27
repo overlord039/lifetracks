@@ -261,12 +261,27 @@
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
+        "roomId": { "type": "string", "description": "Optional reference to a SplitRoom" },
         "description": { "type": "string", "description": "Encrypted description" },
         "totalAmount": { "type": "string", "description": "Encrypted total amount" },
         "participants": { "type": "string", "description": "Encrypted comma-separated list of names" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "userId", "description", "totalAmount", "participants", "createdAt"]
+    },
+    "SplitRoom": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SplitRoom",
+      "type": "object",
+      "description": "A group of people for recurring split expenses.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string", "description": "Encrypted room name" },
+        "participants": { "type": "string", "description": "Encrypted comma-separated list of names" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "name", "participants", "createdAt"]
     },
     "LearningGoal": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -382,6 +397,15 @@
           "schema": { "$ref": "#/backend/entities/SplitExpense" },
           "description": "Track shared expenses.",
           "params": [{ "name": "userId", "description": "User UID" }, { "name": "expenseId", "description": "Expense ID" }]
+        }
+      },
+      {
+        "path": "/users/{userId}/splitRooms/{roomId}",
+        "definition": {
+          "entityName": "SplitRoom",
+          "schema": { "$ref": "#/backend/entities/SplitRoom" },
+          "description": "Groups for shared expenses.",
+          "params": [{ "name": "userId", "description": "User UID" }, { "name": "roomId", "description": "Room ID" }]
         }
       },
       {
