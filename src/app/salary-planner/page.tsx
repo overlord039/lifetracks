@@ -101,39 +101,39 @@ export default function SalaryPlannerPage() {
   const numAge = parseInt(age) || 0;
 
   /**
-   * Smart Percentage Update:
-   * When one category changes, adjust others to maintain 100% total.
+   * Proportional Percentage Update:
+   * When one category changes, others adjust while maintaining their relative ratios.
    */
   const updatePercent = useCallback((id: keyof Percents, newVal: number) => {
     setPercents(prev => {
       const oldVal = prev[id];
-      const diff = newVal - oldVal;
-      const keys = Object.keys(prev) as (keyof Percents)[];
-      const otherKeys = keys.filter(k => k !== id);
+      if (oldVal === newVal) return prev;
       
-      let nextPercents = { ...prev, [id]: newVal };
-      
-      // Redistribute the difference among other categories
-      if (diff !== 0) {
-        let remainingToAdjust = -diff;
-        const totalOthers = otherKeys.reduce((sum, k) => sum + prev[k], 0);
-        
-        if (totalOthers > 0 || diff < 0) {
-          otherKeys.forEach(k => {
-            const share = totalOthers > 0 ? prev[k] / totalOthers : 1 / otherKeys.length;
-            const adjustment = remainingToAdjust * share;
-            nextPercents[k] = Math.max(0, Math.round((prev[k] + adjustment) * 10) / 10);
-          });
-        }
+      const nextPercents = { ...prev, [id]: newVal };
+      const otherKeys = (Object.keys(prev) as (keyof Percents)[]).filter(k => k !== id);
+      const totalOthers = otherKeys.reduce((sum, k) => sum + prev[k], 0);
+      const targetOthersTotal = 100 - newVal;
+
+      if (totalOthers > 0) {
+        // Proportional redistribution
+        const multiplier = targetOthersTotal / totalOthers;
+        otherKeys.forEach(k => {
+          nextPercents[k] = Math.max(0, Math.round(prev[k] * multiplier * 10) / 10);
+        });
+      } else {
+        // Equal redistribution if all others were 0
+        const equalShare = Math.round((targetOthersTotal / otherKeys.length) * 10) / 10;
+        otherKeys.forEach(k => {
+          nextPercents[k] = equalShare;
+        });
       }
 
-      // Final normalization to ensure strict 100%
-      const finalTotal = Object.values(nextPercents).reduce((a, b) => a + b, 0);
-      const error = 100 - finalTotal;
-      if (Math.abs(error) > 0) {
-        // Find a key to apply the rounding error to
-        const keyToAdjust = otherKeys.find(k => nextPercents[k] > 0) || 'savings';
-        nextPercents[keyToAdjust as keyof Percents] = Math.round((nextPercents[keyToAdjust as keyof Percents] + error) * 10) / 10;
+      // Final normalization for rounding errors to ensure sum is exactly 100
+      const currentSum = Object.values(nextPercents).reduce((a, b) => a + b, 0);
+      const diff = 100 - currentSum;
+      if (Math.abs(diff) > 0.01) {
+        const keyToAdjust = otherKeys.find(k => nextPercents[k] > 0) || otherKeys[0];
+        nextPercents[keyToAdjust] = Math.round((nextPercents[keyToAdjust] + diff) * 10) / 10;
       }
 
       return nextPercents;
