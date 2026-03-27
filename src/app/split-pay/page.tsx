@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import { 
   Users, 
@@ -18,12 +18,11 @@ import {
   UserCircle, 
   History, 
   Calculator, 
-  ShieldCheck, 
   DoorOpen, 
   CheckCircle2, 
   ChevronRight,
   ArrowLeft,
-  HandCoins
+  Check
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { encryptData, decryptData, decryptNumber } from '@/lib/encryption';
@@ -58,6 +57,7 @@ export default function SplitPayPage() {
   const [expenseAmt, setExpenseAmt] = useState('');
   const [paidBy, setPaidBy] = useState('');
   const [splitType, setSplitType] = useState<SplitType>('equal');
+  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [customSplits, setCustomSplits] = useState<Record<string, string>>({});
 
   const groupsRef = useMemoFirebase(() => {
@@ -82,6 +82,13 @@ export default function SplitPayPage() {
   const activeGroup = useMemo(() => 
     decryptedGroups.find(g => g.id === selectedGroupId), 
   [decryptedGroups, selectedGroupId]);
+
+  // Sync participants when group or tab changes
+  useEffect(() => {
+    if (activeGroup) {
+      setSelectedParticipants(activeGroup.members);
+    }
+  }, [activeGroup]);
 
   // Decrypt Data
   useEffect(() => {
@@ -193,19 +200,37 @@ export default function SplitPayPage() {
     toast({ title: "Group Created", description: "Your encrypted circle is ready." });
   };
 
+  const toggleParticipant = (member: string) => {
+    setSelectedParticipants(prev => 
+      prev.includes(member) 
+        ? prev.filter(m => m !== member) 
+        : [...prev, member]
+    );
+  };
+
   const handleAddExpense = async () => {
     if (!expenseAmt || !expenseDesc || !paidBy || !activeGroup || !user || !expensesRef) return;
+    if (selectedParticipants.length === 0) {
+      toast({ variant: 'destructive', title: "No participants", description: "Select at least one member to split with." });
+      return;
+    }
     
     const amt = parseFloat(expenseAmt);
     let splits: Record<string, number> = {};
 
+    // Initialize all group members with 0
+    activeGroup.members.forEach((m: string) => splits[m] = 0);
+
     if (splitType === 'equal') {
-      const count = activeGroup.members.length;
+      const count = selectedParticipants.length;
       const base = Math.floor((amt / count) * 100) / 100;
       let remainder = Math.round((amt - (base * count)) * 100) / 100;
-      activeGroup.members.forEach((name: string, i: number) => {
+      selectedParticipants.forEach((name: string, i: number) => {
         let s = base;
-        if (remainder > 0) { s = Math.round((s + 0.01) * 100) / 100; remainder = Math.round((remainder - 0.01) * 100) / 100; }
+        if (remainder > 0) { 
+          s = Math.round((s + 0.01) * 100) / 100; 
+          remainder = Math.round((remainder - 0.01) * 100) / 100; 
+        }
         splits[name] = s;
       });
     } else if (splitType === 'custom') {
@@ -214,14 +239,14 @@ export default function SplitPayPage() {
         toast({ variant: 'destructive', title: "Math Error", description: `Custom splits must total ₹${amt}. Current: ₹${totalCustom}` });
         return;
       }
-      activeGroup.members.forEach((m: string) => splits[m] = parseFloat(customSplits[m]) || 0);
+      selectedParticipants.forEach((m: string) => splits[m] = parseFloat(customSplits[m]) || 0);
     } else if (splitType === 'percentage') {
       const totalP = Object.values(customSplits).reduce((s, v) => s + (parseFloat(v) || 0), 0);
       if (Math.abs(totalP - 100) > 0.1) {
         toast({ variant: 'destructive', title: "Math Error", description: "Percentages must total 100%." });
         return;
       }
-      activeGroup.members.forEach((m: string) => splits[m] = (amt * (parseFloat(customSplits[m]) || 0)) / 100);
+      selectedParticipants.forEach((m: string) => splits[m] = (amt * (parseFloat(customSplits[m]) || 0)) / 100);
     }
 
     setIsSubmitting(true);
@@ -241,6 +266,7 @@ export default function SplitPayPage() {
     setExpenseDesc('');
     setPaidBy('');
     setCustomSplits({});
+    setSelectedParticipants(activeGroup.members);
     setIsSubmitting(false);
     toast({ title: "Expense Added", description: "Successfully split and encrypted." });
   };
@@ -418,13 +444,13 @@ export default function SplitPayPage() {
                           <Badge variant="outline" className="text-[8px] font-black uppercase">{exp.splitType}</Badge>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {Object.entries(exp.splits).map(([name, share]: any) => (
+                          {Object.entries(exp.splits).map(([name, share]: any) => share > 0 ? (
                             <div key={name} className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 rounded-full border border-primary/20">
                               <span className="text-[9px] font-black uppercase text-primary">{name}</span>
                               <Separator orientation="vertical" className="h-2.5 bg-primary/30" />
                               <span className="text-[10px] font-bold">₹{share.toFixed(2)}</span>
                             </div>
-                          ))}
+                          ) : null)}
                         </div>
                       </div>
                     ))}
@@ -445,7 +471,7 @@ export default function SplitPayPage() {
                   <CardTitle className="text-base font-black flex items-center gap-2"><Calculator className="h-4 w-4 text-primary" /> Post Expense</CardTitle>
                 </CardHeader>
                 <CardContent className="pt-6 space-y-6 px-6">
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-6 md:grid-cols-2">
                     <div className="space-y-4">
                       <div className="space-y-2">
                         <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Bill Description</Label>
@@ -465,11 +491,32 @@ export default function SplitPayPage() {
                             <SelectValue placeholder="Select Payer" />
                           </SelectTrigger>
                           <SelectContent>
-                            {activeGroup.members.map((m: string) => (
+                            {activeGroup?.members.map((m: string) => (
                               <SelectItem key={m} value={m} className="font-black">{m}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Split Among</Label>
+                        <div className="flex flex-wrap gap-2 p-3 bg-muted/20 rounded-2xl border border-dashed">
+                          {activeGroup?.members.map((m: string) => (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => toggleParticipant(m)}
+                              className={cn(
+                                "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-1.5 border",
+                                selectedParticipants.includes(m) 
+                                  ? "bg-primary text-primary-foreground border-primary shadow-md" 
+                                  : "bg-background text-muted-foreground border-border opacity-60"
+                              )}
+                            >
+                              {selectedParticipants.includes(m) && <Check className="h-3 w-3" />}
+                              {m}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
 
@@ -487,8 +534,8 @@ export default function SplitPayPage() {
 
                       {splitType !== 'equal' && (
                         <div className="space-y-3 p-4 bg-muted/20 rounded-2xl border border-dashed">
-                          <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest text-center mb-2">Individual Split</p>
-                          {activeGroup.members.map((m: string) => (
+                          <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest text-center mb-2">Participant Portion</p>
+                          {selectedParticipants.map((m: string) => (
                             <div key={m} className="flex items-center justify-between gap-4">
                               <span className="text-[10px] font-black uppercase truncate">{m}</span>
                               <div className="relative w-24">
@@ -506,10 +553,13 @@ export default function SplitPayPage() {
                         </div>
                       )}
 
-                      <Button onClick={handleAddExpense} disabled={isSubmitting} className="w-full h-12 rounded-2xl font-black shadow-lg gap-2 mt-auto">
-                        {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                        Confirm Split
-                      </Button>
+                      <div className="pt-4 mt-auto">
+                        <Button onClick={handleAddExpense} disabled={isSubmitting} className="w-full h-12 rounded-2xl font-black shadow-lg gap-2">
+                          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                          Confirm Split
+                        </Button>
+                        <p className="text-[8px] font-black text-center mt-2 uppercase text-muted-foreground opacity-60">Splitting exactly ₹{expenseAmt || '0'} among {selectedParticipants.length} people</p>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
