@@ -23,9 +23,7 @@ import {
   CheckCircle2, 
   ChevronRight,
   ArrowLeft,
-  PieChart as ChartIcon,
-  HandCoins,
-  ArrowRightLeft
+  HandCoins
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { encryptData, decryptData, decryptNumber } from '@/lib/encryption';
@@ -91,40 +89,50 @@ export default function SplitPayPage() {
       if (!user) return;
       setIsDecrypting(true);
 
-      if (rawGroups) {
-        const decoded = await Promise.all(rawGroups.map(async g => ({
-          ...g,
-          name: g.isEncrypted ? await decryptData(g.name, user.uid) : g.name,
-          members: (g.isEncrypted ? await decryptData(g.members, user.uid) : g.members).split(',').map((m: string) => m.trim()).filter(Boolean)
-        })));
-        setDecryptedGroups(decoded);
-      }
+      try {
+        if (rawGroups) {
+          const decoded = await Promise.all(rawGroups.map(async g => ({
+            ...g,
+            name: g.isEncrypted ? await decryptData(g.name, user.uid) : g.name,
+            members: (g.isEncrypted ? await decryptData(g.members, user.uid) : g.members).split(',').map((m: string) => m.trim()).filter(Boolean)
+          })));
+          setDecryptedGroups(decoded);
+        }
 
-      if (rawExpenses) {
-        const decoded = await Promise.all(rawExpenses.map(async e => {
-          const splitsStr = e.isEncrypted ? await decryptData(e.splitsJson, user.uid) : (e.splitsJson || '{}');
-          return {
-            ...e,
-            description: e.isEncrypted ? await decryptData(e.description, user.uid) : e.description,
-            amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : parseFloat(e.amount),
-            paidBy: e.isEncrypted ? await decryptData(e.paidBy, user.uid) : e.paidBy,
-            splits: JSON.parse(splitsStr)
-          };
-        }));
-        setDecryptedExpenses(decoded);
-      }
+        if (rawExpenses) {
+          const decoded = await Promise.all(rawExpenses.map(async e => {
+            const splitsStr = e.isEncrypted ? await decryptData(e.splitsJson, user.uid) : (e.splitsJson || '{}');
+            let parsedSplits = {};
+            try {
+              parsedSplits = JSON.parse(splitsStr || '{}');
+            } catch (err) {
+              console.error("Failed to parse splits JSON:", err);
+            }
+            return {
+              ...e,
+              description: e.isEncrypted ? await decryptData(e.description, user.uid) : e.description,
+              amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : parseFloat(e.amount),
+              paidBy: e.isEncrypted ? await decryptData(e.paidBy, user.uid) : e.paidBy,
+              splits: parsedSplits
+            };
+          }));
+          setDecryptedExpenses(decoded);
+        }
 
-      if (rawSettlements) {
-        const decoded = await Promise.all(rawSettlements.map(async s => ({
-          ...s,
-          from: s.isEncrypted ? await decryptData(s.from, user.uid) : s.from,
-          to: s.isEncrypted ? await decryptData(s.to, user.uid) : s.to,
-          amount: e.isEncrypted ? await decryptNumber(s.amount, user.uid) : parseFloat(s.amount),
-        })));
-        setDecryptedSettlements(decoded);
+        if (rawSettlements) {
+          const decoded = await Promise.all(rawSettlements.map(async s => ({
+            ...s,
+            from: s.isEncrypted ? await decryptData(s.from, user.uid) : s.from,
+            to: s.isEncrypted ? await decryptData(s.to, user.uid) : s.to,
+            amount: s.isEncrypted ? await decryptNumber(s.amount, user.uid) : parseFloat(s.amount),
+          })));
+          setDecryptedSettlements(decoded);
+        }
+      } catch (err) {
+        console.error("Decryption error:", err);
+      } finally {
+        setIsDecrypting(false);
       }
-
-      setIsDecrypting(false);
     };
     decryptAll();
   }, [rawGroups, rawExpenses, rawSettlements, user]);
