@@ -380,11 +380,11 @@ export default function SplitPayPage() {
             </div>
           </div>
 
-          <Tabs defaultValue="balance" className="w-full">
+          <Tabs defaultValue="add" className="w-full">
             <TabsList className="grid w-full grid-cols-3 h-11 p-1 bg-muted rounded-2xl mb-4">
-              <TabsTrigger value="balance" className="rounded-xl font-black text-xs">Balances</TabsTrigger>
-              <TabsTrigger value="history" className="rounded-xl font-black text-xs">Activity</TabsTrigger>
               <TabsTrigger value="add" className="rounded-xl font-black text-xs">Add Bill</TabsTrigger>
+              <TabsTrigger value="history" className="rounded-xl font-black text-xs">Activity</TabsTrigger>
+              <TabsTrigger value="balance" className="rounded-xl font-black text-xs">Balances</TabsTrigger>
             </TabsList>
 
             <TabsContent value="balance" className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
