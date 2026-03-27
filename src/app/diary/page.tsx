@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
 import { doc, collection } from 'firebase/firestore';
 import { format, parseISO } from 'date-fns';
@@ -21,11 +20,8 @@ import {
   Lightbulb, 
   AlertTriangle, 
   Target,
-  Lock,
-  Unlock,
   ShieldCheck,
-  Loader2,
-  ChevronRight
+  Loader2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -34,8 +30,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-  DialogFooter as UIDialogFooter
+  DialogDescription
 } from "@/components/ui/dialog";
 import { encryptData, decryptData } from '@/lib/encryption';
 import { cn } from '@/lib/utils';
@@ -47,13 +42,9 @@ export default function DiaryPage() {
   const [loading, setLoading] = useState(false);
   const [selectedHistoryEntry, setSelectedHistoryEntry] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
-  
-  const [privacyKey, setPrivacyKey] = useState<string>('');
 
   useEffect(() => {
     setMounted(true);
-    const savedKey = localStorage.getItem('lifetrack_privacy_key');
-    if (savedKey) setPrivacyKey(savedKey);
   }, []);
 
   const todayStr = mounted ? format(new Date(), 'yyyy-MM-dd') : '';
@@ -84,22 +75,22 @@ export default function DiaryPage() {
 
   useEffect(() => {
     const processEntry = async () => {
-      if (entry && privacyKey && mounted) {
+      if (entry && user && mounted) {
         setLocalEntry({
-          whatIDidToday: await decryptData(entry.whatIDidToday || '', privacyKey),
-          whatILearned: await decryptData(entry.whatILearned || '', privacyKey),
-          challengesBlockers: await decryptData(entry.challengesBlockers || '', privacyKey),
-          tomorrowsPlan: await decryptData(entry.tomorrowsPlan || '', privacyKey),
-          mood: await decryptData(entry.mood || '', privacyKey) || '😊'
+          whatIDidToday: entry.isEncrypted ? await decryptData(entry.whatIDidToday || '', user.uid) : (entry.whatIDidToday || ''),
+          whatILearned: entry.isEncrypted ? await decryptData(entry.whatILearned || '', user.uid) : (entry.whatILearned || ''),
+          challengesBlockers: entry.isEncrypted ? await decryptData(entry.challengesBlockers || '', user.uid) : (entry.challengesBlockers || ''),
+          tomorrowsPlan: entry.isEncrypted ? await decryptData(entry.tomorrowsPlan || '', user.uid) : (entry.tomorrowsPlan || ''),
+          mood: entry.isEncrypted ? await decryptData(entry.mood || '', user.uid) : (entry.mood || '😊')
         });
       }
     };
     processEntry();
-  }, [entry, privacyKey, mounted]);
+  }, [entry, user, mounted]);
 
   useEffect(() => {
     const decryptHistory = async () => {
-      if (!allEntries || !privacyKey || !mounted) {
+      if (!allEntries || !user || !mounted) {
         setDecryptedEntries(allEntries || []);
         return;
       }
@@ -107,32 +98,29 @@ export default function DiaryPage() {
       const decrypted = await Promise.all(
         allEntries.map(async (item) => ({
           ...item,
-          whatIDidToday: await decryptData(item.whatIDidToday || '', privacyKey),
-          whatILearned: await decryptData(item.whatILearned || '', privacyKey),
-          challengesBlockers: await decryptData(item.challengesBlockers || '', privacyKey),
-          tomorrowsPlan: await decryptData(item.tomorrowsPlan || '', privacyKey),
-          mood: await decryptData(item.mood || '', privacyKey)
+          whatIDidToday: item.isEncrypted ? await decryptData(item.whatIDidToday || '', user.uid) : (item.whatIDidToday || ''),
+          whatILearned: item.isEncrypted ? await decryptData(item.whatILearned || '', user.uid) : (item.whatILearned || ''),
+          challengesBlockers: item.isEncrypted ? await decryptData(item.challengesBlockers || '', user.uid) : (item.challengesBlockers || ''),
+          tomorrowsPlan: item.isEncrypted ? await decryptData(item.tomorrowsPlan || '', user.uid) : (item.tomorrowsPlan || ''),
+          mood: item.isEncrypted ? await decryptData(item.mood || '', user.uid) : (item.mood || '😊')
         }))
       );
       setDecryptedEntries(decrypted);
       setIsDecrypting(false);
     };
     decryptHistory();
-  }, [allEntries, privacyKey, mounted]);
+  }, [allEntries, user, mounted]);
 
   const saveEntry = async () => {
-    if (!user || !diaryRef || !privacyKey) {
-      if (!privacyKey) toast({ variant: 'destructive', title: 'Security Lock', description: 'Unlock your Master Key to save reflections.' });
-      return;
-    }
+    if (!user || !diaryRef) return;
     setLoading(true);
 
     const encryptedPayload = {
-      whatIDidToday: await encryptData(localEntry.whatIDidToday, privacyKey),
-      whatILearned: await encryptData(localEntry.whatILearned, privacyKey),
-      challengesBlockers: await encryptData(localEntry.challengesBlockers, privacyKey),
-      tomorrowsPlan: await encryptData(localEntry.tomorrowsPlan, privacyKey),
-      mood: await encryptData(localEntry.mood, privacyKey),
+      whatIDidToday: await encryptData(localEntry.whatIDidToday, user.uid),
+      whatILearned: await encryptData(localEntry.whatILearned, user.uid),
+      challengesBlockers: await encryptData(localEntry.challengesBlockers, user.uid),
+      tomorrowsPlan: await encryptData(localEntry.tomorrowsPlan, user.uid),
+      mood: await encryptData(localEntry.mood, user.uid),
       isEncrypted: true,
       userId: user.uid,
       date: todayStr,
@@ -141,7 +129,7 @@ export default function DiaryPage() {
     };
 
     setDocumentNonBlocking(diaryRef, encryptedPayload, { merge: true });
-    toast({ title: "Vault Locked & Saved!", description: "Reflection secured with AES-GCM." });
+    toast({ title: "Reflection Secured", description: "Your memoir is protected by AES-GCM." });
     setLoading(false);
   };
 
@@ -150,7 +138,7 @@ export default function DiaryPage() {
       <AppShell>
         <div className="flex h-[60vh] w-full items-center justify-center flex-col gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Unlocking Memoirs...</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Opening Memoirs...</p>
         </div>
       </AppShell>
     );
@@ -181,7 +169,7 @@ export default function DiaryPage() {
             className="hidden md:flex shadow-lg h-12 px-6 font-black text-sm rounded-2xl"
           >
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} 
-            Lock Reflection
+            Secure Reflection
           </Button>
         </div>
 
@@ -224,13 +212,12 @@ export default function DiaryPage() {
               </CardContent>
               <CardFooter className="bg-primary/5 text-primary text-[10px] font-black uppercase tracking-widest flex items-center gap-3 py-3 px-6 border-t mt-4">
                 <Quote className="w-3 h-3" />
-                <span>Memoir is secured locally with AES-GCM 256.</span>
+                <span>Memoir is secured automatically with AES-GCM 256.</span>
               </CardFooter>
             </Card>
           </div>
 
           <div className="lg:col-span-4 h-full">
-            {/* Mobile Lock Reflection Button - Placed on top of Chronicle section */}
             <div className="md:hidden mb-6">
               <Button 
                 onClick={saveEntry} 
@@ -238,7 +225,7 @@ export default function DiaryPage() {
                 className="w-full shadow-2xl h-14 font-black text-base rounded-2xl bg-primary text-primary-foreground border-2 border-white/20 active:scale-95 transition-transform"
               >
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} 
-                Lock Reflection
+                Secure Reflection
               </Button>
             </div>
             
@@ -272,7 +259,7 @@ export default function DiaryPage() {
                           <span className="text-xl">{item.mood || '😊'}</span>
                         </div>
                         <p className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed italic">
-                          {item.whatIDidToday || "E2EE Secured Memoir"}
+                          {item.whatIDidToday || "Secured Memoir"}
                         </p>
                       </div>
                     )) : (
@@ -289,7 +276,6 @@ export default function DiaryPage() {
         </div>
       </div>
 
-      {/* Entry Detail Dialog */}
       <Dialog open={!!selectedHistoryEntry} onOpenChange={(open) => !open && setSelectedHistoryEntry(null)}>
         <DialogContent className="max-w-[90vw] sm:max-w-md p-0 overflow-hidden rounded-3xl border-none shadow-2xl">
           <div className="h-20 bg-primary flex items-end px-8 relative">

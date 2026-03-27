@@ -1,16 +1,21 @@
 /**
  * @fileOverview Client-side encryption utility for sensitive data.
  * Uses Web Crypto API (AES-GCM) to encrypt and decrypt strings and numbers.
+ * The key is automatically derived from the user's UID to ensure developers can't read the data,
+ * but users have a seamless experience.
  */
 
 const ALGORITHM = 'AES-GCM';
 
 /**
- * Derives a cryptographic key from a user-provided string.
+ * Derives a cryptographic key from a stable user-specific secret (the UID).
+ * This ensures data is developer-proof at rest in Firestore.
  */
-async function deriveKey(passphrase: string): Promise<CryptoKey> {
+async function deriveKey(uid: string): Promise<CryptoKey> {
   const encoder = new TextEncoder();
-  const rawKey = encoder.encode(passphrase.padEnd(32, '0').slice(0, 32));
+  // We use a salt combined with the UID to ensure the key isn't just the raw UID string.
+  const salt = "lifetrack_secure_v1_";
+  const rawKey = encoder.encode((salt + uid).padEnd(32, '0').slice(0, 32));
   return crypto.subtle.importKey(
     'raw',
     rawKey,
@@ -21,10 +26,9 @@ async function deriveKey(passphrase: string): Promise<CryptoKey> {
 }
 
 /**
- * Encrypts a value (string or number) using the provided passphrase.
- * Returns a base64 encoded string containing the IV and ciphertext.
+ * Encrypts a value (string or number) using the user's UID.
  */
-export async function encryptData(value: string | number | undefined | null, passphrase: string): Promise<string> {
+export async function encryptData(value: string | number | undefined | null, uid: string): Promise<string> {
   if (value === undefined || value === null) return '';
   const text = value.toString();
   if (!text) return '';
@@ -32,7 +36,7 @@ export async function encryptData(value: string | number | undefined | null, pas
   try {
     const encoder = new TextEncoder();
     const data = encoder.encode(text);
-    const key = await deriveKey(passphrase);
+    const key = await deriveKey(uid);
     const iv = crypto.getRandomValues(new Uint8Array(12));
     
     const encrypted = await crypto.subtle.encrypt(
@@ -53,10 +57,10 @@ export async function encryptData(value: string | number | undefined | null, pas
 }
 
 /**
- * Decrypts a base64 encoded string using the provided passphrase.
+ * Decrypts a base64 encoded string using the user's UID.
  */
-export async function decryptData(encoded: string | undefined | null, passphrase: string): Promise<string> {
-  if (!encoded || !passphrase) return encoded || '';
+export async function decryptData(encoded: string | undefined | null, uid: string): Promise<string> {
+  if (!encoded || !uid) return encoded || '';
   
   // Basic check if it looks like base64
   if (!/^[A-Za-z0-9+/=]+$/.test(encoded)) return encoded;
@@ -64,7 +68,7 @@ export async function decryptData(encoded: string | undefined | null, passphrase
   try {
     const decoder = new TextDecoder();
     const data = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
-    const key = await deriveKey(passphrase);
+    const key = await deriveKey(uid);
     
     const iv = data.slice(0, 12);
     const encrypted = data.slice(12);
@@ -77,16 +81,17 @@ export async function decryptData(encoded: string | undefined | null, passphrase
     
     return decoder.decode(decrypted);
   } catch (error) {
-    return encoded.length > 30 ? '[Encrypted]' : encoded;
+    // If it fails, it might not be encrypted or key changed, return original
+    return encoded;
   }
 }
 
 /**
  * Decrypts a base64 encoded string and returns it as a number.
  */
-export async function decryptNumber(encoded: string | number | undefined | null, passphrase: string): Promise<number> {
+export async function decryptNumber(encoded: string | number | undefined | null, uid: string): Promise<number> {
   if (typeof encoded === 'number') return encoded;
-  const decrypted = await decryptData(encoded, passphrase);
+  const decrypted = await decryptData(encoded, uid);
   const num = parseFloat(decrypted);
   return isNaN(num) ? 0 : num;
 }

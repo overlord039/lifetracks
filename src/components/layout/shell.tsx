@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -12,10 +11,7 @@ import {
   HandCoins,
   Calculator,
   ShieldCheck,
-  Unlock,
-  Lock,
-  Info,
-  AlertCircle
+  Info
 } from 'lucide-react';
 import { 
   Sidebar, 
@@ -36,17 +32,6 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/theme-toggle';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter
-} from "@/components/ui/dialog";
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -66,33 +51,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const { toast } = useToast();
-
-  const [privacyKey, setPrivacyKey] = useState<string | null>(null);
-  const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
-  const [tempKey, setTempKey] = useState('');
-
-  useEffect(() => {
-    const savedKey = localStorage.getItem('lifetrack_privacy_key');
-    if (savedKey) {
-      setPrivacyKey(savedKey);
-    } else if (pathname !== '/login' && pathname !== '/about' && pathname !== '/') {
-      setIsKeyModalOpen(true);
-    }
-  }, [pathname]);
 
   const handleLogout = async () => {
     await signOut(auth);
     router.push('/login');
-  };
-
-  const savePrivacyKey = () => {
-    if (!tempKey.trim()) return;
-    localStorage.setItem('lifetrack_privacy_key', tempKey);
-    setPrivacyKey(tempKey);
-    setIsKeyModalOpen(false);
-    toast({ title: "Privacy Key Set", description: "Your dashboard is now end-to-end encrypted." });
-    window.location.reload(); 
   };
 
   return (
@@ -136,15 +98,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <span className="text-[10px] text-muted-foreground truncate font-medium">{user?.email}</span>
                 </div>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setIsKeyModalOpen(true)} 
-                className="mt-2 h-8 text-[10px] uppercase font-black tracking-widest shadow-sm"
-              >
-                {privacyKey ? <Lock className="h-3 w-3 mr-1.5 text-green-500" /> : <ShieldCheck className="h-3 w-3 mr-1.5" />}
-                Privacy Key
-              </Button>
             </div>
             <Button 
               variant="ghost" 
@@ -164,15 +117,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <h1 className="text-sm md:text-lg font-black truncate tracking-tight">
                 {navItems.find(item => item.url === pathname)?.title || 'Dashboard'}
               </h1>
-              {privacyKey ? (
-                <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800 text-[8px] md:text-[9px] uppercase font-black tracking-tighter px-1.5 py-0">
-                  <ShieldCheck className="h-2.5 w-2.5 mr-1" /> Encrypted
-                </Badge>
-              ) : (
-                <Badge variant="destructive" className="text-[8px] md:text-[9px] uppercase font-black tracking-tighter px-1.5 py-0">
-                  <AlertCircle className="h-2.5 w-2.5 mr-1" /> Unlocked
-                </Badge>
-              )}
+              <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800 text-[8px] md:text-[9px] uppercase font-black tracking-tighter px-1.5 py-0">
+                <ShieldCheck className="h-2.5 w-2.5 mr-1" /> Automated E2EE
+              </Badge>
             </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />
@@ -188,40 +135,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </main>
         </SidebarInset>
       </div>
-
-      <Dialog open={isKeyModalOpen} onOpenChange={(o) => (pathname !== '/login' && pathname !== '/about' && pathname !== '/') && setIsKeyModalOpen(o)}>
-        <DialogContent className="max-w-[92vw] sm:max-w-sm rounded-2xl p-6">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg font-black">
-              <ShieldCheck className="h-6 w-6 text-primary" />
-              Master Privacy Key
-            </DialogTitle>
-            <DialogDescription className="text-xs leading-relaxed text-muted-foreground mt-2">
-              This key encrypts your entire life track. It is stored <strong>only on this device</strong>.
-              If lost, your cloud data remains scrambled and unreadable forever.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 space-y-4">
-            <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Passphrase</Label>
-              <Input 
-                type="password" 
-                placeholder="Enter your secret key..." 
-                value={tempKey}
-                onChange={(e) => setTempKey(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && savePrivacyKey()}
-                className="h-12 text-sm font-medium rounded-xl"
-                autoFocus
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={savePrivacyKey} className="w-full h-12 font-black text-sm shadow-md rounded-xl">
-              <Unlock className="mr-2 h-4 w-4" /> Unlock My Vault
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </SidebarProvider>
   );
 }

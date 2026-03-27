@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -19,14 +18,9 @@ export default function DebtsPage() {
   const db = useFirestore();
   const { toast } = useToast();
   
-  const [privacyKey, setPrivacyKey] = useState<string | null>(null);
   const [newDebt, setNewDebt] = useState({ debtorName: '', amount: '', description: '' });
   const [decryptedDebts, setDecryptedDebts] = useState<any[]>([]);
   const [isDecrypting, setIsDecrypting] = useState(false);
-
-  useEffect(() => {
-    setPrivacyKey(localStorage.getItem('lifetrack_privacy_key'));
-  }, []);
 
   const debtsRef = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -37,34 +31,33 @@ export default function DebtsPage() {
 
   useEffect(() => {
     const decryptAll = async () => {
-      if (!rawDebts || !privacyKey) {
+      if (!rawDebts || !user) {
         setDecryptedDebts(rawDebts || []);
         return;
       }
       setIsDecrypting(true);
       const decrypted = await Promise.all(rawDebts.map(async (debt) => ({
         ...debt,
-        debtorName: await decryptData(debt.debtorName, privacyKey),
-        amount: await decryptNumber(debt.amount, privacyKey),
-        description: await decryptData(debt.description, privacyKey),
+        debtorName: debt.isEncrypted ? await decryptData(debt.debtorName, user.uid) : debt.debtorName,
+        amount: debt.isEncrypted ? await decryptNumber(debt.amount, user.uid) : debt.amount,
+        description: debt.isEncrypted ? await decryptData(debt.description, user.uid) : debt.description,
       })));
       setDecryptedDebts(decrypted);
       setIsDecrypting(false);
     };
     decryptAll();
-  }, [rawDebts, privacyKey]);
+  }, [rawDebts, user]);
 
   const addDebt = async () => {
-    if (!newDebt.debtorName || !newDebt.amount || !debtsRef || !privacyKey) {
-      if (!privacyKey) toast({ variant: 'destructive', title: 'Security Error', description: 'Master Key not found.' });
+    if (!newDebt.debtorName || !newDebt.amount || !debtsRef || !user) {
       return;
     }
     
     const encryptedPayload = {
       userId: user?.uid,
-      debtorName: await encryptData(newDebt.debtorName, privacyKey),
-      amount: await encryptData(newDebt.amount, privacyKey),
-      description: await encryptData(newDebt.description, privacyKey),
+      debtorName: await encryptData(newDebt.debtorName, user.uid),
+      amount: await encryptData(newDebt.amount, user.uid),
+      description: await encryptData(newDebt.description, user.uid),
       isPaid: false,
       isEncrypted: true,
       createdAt: new Date().toISOString()
@@ -73,7 +66,7 @@ export default function DebtsPage() {
     addDocumentNonBlocking(debtsRef, encryptedPayload);
 
     setNewDebt({ debtorName: '', amount: '', description: '' });
-    toast({ title: "Encrypted Debt Added" });
+    toast({ title: "Record Secured" });
   };
 
   const togglePaid = (id: string, currentStatus: boolean) => {
@@ -162,7 +155,7 @@ export default function DebtsPage() {
             {(isRawLoading || isDecrypting) ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <span className="ml-3 text-sm font-bold uppercase tracking-widest">Decrypting Local Data...</span>
+                <span className="ml-3 text-sm font-bold uppercase tracking-widest">Unlocking Data...</span>
               </div>
             ) : decryptedDebts?.length === 0 ? (
               <Card className="p-10 border-dashed text-center text-muted-foreground italic">

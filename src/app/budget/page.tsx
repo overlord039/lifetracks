@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -11,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
-import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, AlertTriangle, Pencil, X, Check, ShieldAlert } from 'lucide-react';
+import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, Pencil, X, ShieldAlert } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { format, getDaysInMonth } from 'date-fns';
@@ -19,7 +18,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { encryptData, decryptData, decryptNumber } from '@/lib/encryption';
 
@@ -30,7 +28,6 @@ export default function BudgetPage() {
   const [loading, setLoading] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [privacyKey, setPrivacyKey] = useState<string | null>(null);
 
   const [decryptedCategories, setDecryptedCategories] = useState<any[]>([]);
   const [decryptedBudget, setDecryptedBudget] = useState<any>(null);
@@ -40,7 +37,6 @@ export default function BudgetPage() {
 
   useEffect(() => {
     setMounted(true);
-    setPrivacyKey(localStorage.getItem('lifetrack_privacy_key'));
   }, []);
 
   const now = useMemo(() => new Date(), []);
@@ -76,13 +72,13 @@ export default function BudgetPage() {
 
   useEffect(() => {
     const decryptAll = async () => {
-      if (!privacyKey || !mounted) return;
+      if (!user || !mounted) return;
       setIsDecrypting(true);
 
       if (rawCategories) {
         const cats = await Promise.all(rawCategories.map(async c => ({
           ...c,
-          name: await decryptData(c.name, privacyKey)
+          name: c.isEncrypted ? await decryptData(c.name, user.uid) : c.name
         })));
         setDecryptedCategories(cats);
       }
@@ -90,17 +86,17 @@ export default function BudgetPage() {
       if (rawBudget) {
         setDecryptedBudget({
           ...rawBudget,
-          totalBudgetAmount: await decryptNumber(rawBudget.totalBudgetAmount, privacyKey),
-          baseBudgetAmount: await decryptNumber(rawBudget.baseBudgetAmount, privacyKey),
-          extraBudgetAmount: await decryptNumber(rawBudget.extraBudgetAmount, privacyKey),
+          totalBudgetAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.totalBudgetAmount, user.uid) : (rawBudget.totalBudgetAmount || 0),
+          baseBudgetAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.baseBudgetAmount, user.uid) : (rawBudget.baseBudgetAmount || 0),
+          extraBudgetAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.extraBudgetAmount, user.uid) : (rawBudget.extraBudgetAmount || 0),
         });
       }
 
       if (rawFixed) {
         const fixed = await Promise.all(rawFixed.map(async f => ({
           ...f,
-          name: await decryptData(f.name, privacyKey),
-          amount: await decryptNumber(f.amount, privacyKey),
+          name: f.isEncrypted ? await decryptData(f.name, user.uid) : f.name,
+          amount: f.isEncrypted ? await decryptNumber(f.amount, user.uid) : f.amount,
         })));
         setDecryptedFixed(fixed);
       }
@@ -108,15 +104,15 @@ export default function BudgetPage() {
       if (rawExpenses) {
         const exps = await Promise.all(rawExpenses.map(async e => ({
           ...e,
-          description: await decryptData(e.description, privacyKey),
-          amount: await decryptNumber(e.amount, privacyKey),
+          description: e.isEncrypted ? await decryptData(e.description, user.uid) : e.description,
+          amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : e.amount,
         })));
         setDecryptedExpenses(exps);
       }
       setIsDecrypting(false);
     };
     decryptAll();
-  }, [rawCategories, rawBudget, rawFixed, rawExpenses, privacyKey, mounted]);
+  }, [rawCategories, rawBudget, rawFixed, rawExpenses, user, mounted]);
 
   const dailyCategories = decryptedCategories?.filter(c => c.type === 'daily') || [];
   const fixedCategories = decryptedCategories?.filter(c => c.type === 'fixed') || [];
@@ -160,11 +156,11 @@ export default function BudgetPage() {
   const [newExpense, setNewExpense] = useState({ description: '', amount: '', categoryId: '' });
 
   const saveMonthlyBudget = async (updates: any) => {
-    if (!monthlyBudgetRef || !user || !privacyKey) return;
+    if (!monthlyBudgetRef || !user) return;
     const encryptedUpdates = { ...updates };
-    if (updates.totalBudgetAmount !== undefined) encryptedUpdates.totalBudgetAmount = await encryptData(updates.totalBudgetAmount, privacyKey);
-    if (updates.baseBudgetAmount !== undefined) encryptedUpdates.baseBudgetAmount = await encryptData(updates.baseBudgetAmount, privacyKey);
-    if (updates.extraBudgetAmount !== undefined) encryptedUpdates.extraBudgetAmount = await encryptData(updates.extraBudgetAmount, privacyKey);
+    if (updates.totalBudgetAmount !== undefined) encryptedUpdates.totalBudgetAmount = await encryptData(updates.totalBudgetAmount, user.uid);
+    if (updates.baseBudgetAmount !== undefined) encryptedUpdates.baseBudgetAmount = await encryptData(updates.baseBudgetAmount, user.uid);
+    if (updates.extraBudgetAmount !== undefined) encryptedUpdates.extraBudgetAmount = await encryptData(updates.extraBudgetAmount, user.uid);
     setDocumentNonBlocking(monthlyBudgetRef, {
       ...encryptedUpdates,
       userId: user.uid,
@@ -195,10 +191,10 @@ export default function BudgetPage() {
   };
 
   const addCategory = async () => {
-    if (!newCategory.name.trim() || !categoriesRef || !privacyKey) return;
+    if (!newCategory.name.trim() || !categoriesRef || !user) return;
     addDocumentNonBlocking(categoriesRef, {
       userId: user?.uid,
-      name: await encryptData(newCategory.name.trim(), privacyKey),
+      name: await encryptData(newCategory.name.trim(), user.uid),
       type: newCategory.type,
       isEncrypted: true,
       createdAt: new Date().toISOString()
@@ -207,13 +203,13 @@ export default function BudgetPage() {
   };
 
   const addFixedExpense = async () => {
-    if (!newFixed.name || !newFixed.amount || !newFixed.categoryId || !fixedExpensesRef || !privacyKey) return;
+    if (!newFixed.name || !newFixed.amount || !newFixed.categoryId || !fixedExpensesRef || !user) return;
     setLoading(true);
     addDocumentNonBlocking(fixedExpensesRef, {
       userId: user?.uid,
       monthlyBudgetId: monthId,
-      name: await encryptData(newFixed.name, privacyKey),
-      amount: await encryptData(newFixed.amount, privacyKey),
+      name: await encryptData(newFixed.name, user.uid),
+      amount: await encryptData(newFixed.amount, user.uid),
       expenseCategoryId: newFixed.categoryId,
       includeInBudget: true,
       isEncrypted: true,
@@ -225,13 +221,13 @@ export default function BudgetPage() {
   };
 
   const handleLogExpense = async () => {
-    if (!newExpense.amount || !newExpense.categoryId || !user || !expensesRef || !privacyKey) return;
+    if (!newExpense.amount || !newExpense.categoryId || !user || !expensesRef) return;
     setLoading(true);
     const expenseData = {
       userId: user.uid,
       monthlyBudgetId: monthId,
-      description: await encryptData(newExpense.description || '', privacyKey),
-      amount: await encryptData(newExpense.amount, privacyKey),
+      description: await encryptData(newExpense.description || '', user.uid),
+      amount: await encryptData(newExpense.amount, user.uid),
       expenseCategoryId: newExpense.categoryId,
       date: editingExpenseId ? (decryptedExpenses?.find(e => e.id === editingExpenseId)?.date || todayStr) : todayStr,
       isEncrypted: true,
@@ -260,16 +256,6 @@ export default function BudgetPage() {
 
   return (
     <AppShell>
-      {!privacyKey && (
-        <Alert variant="destructive" className="mb-6 border-2 rounded-2xl shadow-lg">
-          <ShieldAlert className="h-4 w-4" />
-          <AlertTitle className="font-black uppercase tracking-tighter">Security Lock Active</AlertTitle>
-          <AlertDescription className="text-xs">
-            Unlock your Master Key from the sidebar to manage your budget.
-          </AlertDescription>
-        </Alert>
-      )}
-
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-12">
         <div className="lg:col-span-8 flex flex-col gap-4">
           <div className="lg:hidden">
