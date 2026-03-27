@@ -1,13 +1,14 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import { Badge } from '@/components/ui/badge';
 import { useUser, useFirestore, useDoc, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { 
@@ -19,7 +20,6 @@ import {
   Info, 
   AlertTriangle, 
   Save, 
-  ArrowRightLeft,
   ChevronRight,
   Wallet,
   Coins,
@@ -41,6 +41,14 @@ import { format } from 'date-fns';
 const COLORS = ['#64B5F6', '#81C784', '#FFB74D', '#BA68C8', '#F06292'];
 const INV_COLORS = ['#BA68C8', '#64B5F6', '#FFD54F'];
 
+type Percents = {
+  expense: number;
+  savings: number;
+  investment: number;
+  health: number;
+  personal: number;
+};
+
 export default function SalaryPlannerPage() {
   const { user } = useUser();
   const db = useFirestore();
@@ -53,7 +61,7 @@ export default function SalaryPlannerPage() {
 
   const [salary, setSalary] = useState<string>('');
   const [age, setAge] = useState<string>('');
-  const [percents, setPercents] = useState({
+  const [percents, setPercents] = useState<Percents>({
     expense: 50,
     savings: 20,
     investment: 20,
@@ -93,6 +101,49 @@ export default function SalaryPlannerPage() {
   const numSalary = parseFloat(salary) || 0;
   const numAge = parseInt(age) || 0;
 
+  /**
+   * Smart Percentage Update:
+   * When one category changes, adjust others to maintain 100% total.
+   */
+  const updatePercent = useCallback((id: keyof Percents, newVal: number) => {
+    setPercents(prev => {
+      const oldVal = prev[id];
+      const diff = newVal - oldVal;
+      const keys = Object.keys(prev) as (keyof Percents)[];
+      const otherKeys = keys.filter(k => k !== id);
+      
+      let nextPercents = { ...prev, [id]: newVal };
+      
+      // Redistribute the difference among other categories
+      if (diff > 0) {
+        // We are increasing this value, so we must decrease others
+        let remainingToReduce = diff;
+        // Try to reduce proportionately from non-zero fields
+        const totalOthers = otherKeys.reduce((sum, k) => sum + prev[k], 0);
+        
+        if (totalOthers > 0) {
+          otherKeys.forEach(k => {
+            const share = prev[k] / totalOthers;
+            const reduction = Math.min(prev[k], remainingToReduce * share);
+            nextPercents[k] = Math.round((prev[k] - reduction) * 10) / 10;
+          });
+        }
+      } else {
+        // We are decreasing this value, increase 'savings' by default or redistribute
+        nextPercents.savings = Math.round((nextPercents.savings + Math.abs(diff)) * 10) / 10;
+      }
+
+      // Final normalization to ensure strict 100%
+      const finalTotal = Object.values(nextPercents).reduce((a, b) => a + b, 0);
+      const error = 100 - finalTotal;
+      if (Math.abs(error) > 0) {
+        nextPercents.savings = Math.round((nextPercents.savings + error) * 10) / 10;
+      }
+
+      return nextPercents;
+    });
+  }, []);
+
   const amounts = useMemo(() => {
     return {
       expense: numSalary * (percents.expense / 100),
@@ -115,28 +166,24 @@ export default function SalaryPlannerPage() {
     };
   }, [numAge, amounts.investment]);
 
-  const salaryData = [
+  const salaryData = useMemo(() => [
     { name: 'Expenses', value: amounts.expense, color: COLORS[0] },
     { name: 'Savings', value: amounts.savings, color: COLORS[1] },
     { name: 'Investments', value: amounts.investment, color: COLORS[2] },
     { name: 'Health', value: amounts.health, color: COLORS[3] },
     { name: 'Personal', value: amounts.personal, color: COLORS[4] }
-  ].filter(d => d.value > 0);
+  ].filter(d => d.value > 0), [amounts]);
 
-  const invData = [
+  const invData = useMemo(() => [
     { name: 'Equity', value: invAllocation.equityAmt, color: INV_COLORS[0] },
     { name: 'Debt', value: invAllocation.debtAmt, color: INV_COLORS[1] },
     { name: 'Gold', value: invAllocation.goldAmt, color: INV_COLORS[2] }
-  ].filter(d => d.value > 0);
+  ].filter(d => d.value > 0), [invAllocation]);
 
-  const totalPercent = Object.values(percents).reduce((a, b) => a + b, 0);
+  const totalPercent = useMemo(() => Math.round(Object.values(percents).reduce((a, b) => a + b, 0)), [percents]);
 
   const handleSave = () => {
     if (!user || !salaryRef || !investmentRef) return;
-    if (totalPercent !== 100) {
-      toast({ variant: 'destructive', title: 'Invalid Split', description: 'Total must sum to 100%.' });
-      return;
-    }
     setDocumentNonBlocking(salaryRef, {
       userId: user.uid,
       salary: numSalary,
@@ -254,7 +301,7 @@ export default function SalaryPlannerPage() {
                 </CardHeader>
                 <CardContent className="space-y-3 px-4 md:px-6 pb-5 md:pb-6">
                   <p className="text-[10px] md:text-[11px] leading-relaxed text-muted-foreground font-medium">
-                    Your planned expenses are <span className="font-black text-foreground">₹{amounts.expense.toLocaleString()}</span>. 
+                    Your planned expenses are <span className="font-black text-foreground">₹{Math.round(amounts.expense).toLocaleString()}</span>. 
                     Set this as your daily budget cap?
                   </p>
                   <div className="p-3 md:p-4 bg-white/50 dark:bg-background/20 border border-blue-200 dark:border-blue-800/50 rounded-2xl space-y-3 shadow-sm">
@@ -284,10 +331,7 @@ export default function SalaryPlannerPage() {
                         <CardTitle className="text-lg md:text-xl font-black tracking-tight">Income Allocation</CardTitle>
                         <CardDescription className="text-[9px] md:text-[10px] font-black uppercase tracking-tight opacity-70">Customizable funds split</CardDescription>
                       </div>
-                      <Badge className={cn(
-                        "h-7 md:h-8 px-3 md:px-4 rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest shadow-sm border-none",
-                        totalPercent === 100 ? "bg-secondary text-secondary-foreground" : "bg-destructive text-destructive-foreground"
-                      )}>
+                      <Badge variant={totalPercent === 100 ? "secondary" : "destructive"} className="h-7 md:h-8 px-3 md:px-4 rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest shadow-sm">
                         Total: {totalPercent}%
                       </Badge>
                     </div>
@@ -305,15 +349,15 @@ export default function SalaryPlannerPage() {
                           <div className="flex justify-between items-center">
                             <Label className="flex items-center gap-2 font-black text-[10px] md:text-[11px] uppercase tracking-tighter text-muted-foreground group-hover:text-primary transition-colors">
                               <item.icon className={cn("h-3.5 w-3.5 md:h-4 md:w-4", item.color)} />
-                              {item.label} <span className="font-bold ml-1 text-[9px] md:text-[10px]">({percents[item.id as keyof typeof percents]}%)</span>
+                              {item.label} <span className="font-bold ml-1 text-[9px] md:text-[10px]">({Math.round(percents[item.id as keyof Percents])}%)</span>
                             </Label>
-                            <span className="text-[11px] md:text-sm font-black tracking-tight">₹{amounts[item.id as keyof typeof amounts].toLocaleString()}</span>
+                            <span className="text-[11px] md:text-sm font-black tracking-tight">₹{Math.round(amounts[item.id as keyof typeof amounts]).toLocaleString()}</span>
                           </div>
                           <Slider 
-                            value={[percents[item.id as keyof typeof percents]]}
+                            value={[percents[item.id as keyof Percents]]}
                             max={100}
                             step={1}
-                            onValueChange={([val]) => setPercents({...percents, [item.id]: val})}
+                            onValueChange={([val]) => updatePercent(item.id as keyof Percents, val)}
                             className="h-1.5 md:h-2"
                           />
                         </div>
@@ -323,10 +367,21 @@ export default function SalaryPlannerPage() {
                       <div className="w-full h-[200px] md:h-[250px] relative">
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
-                            <Pie data={salaryData} innerRadius={55} outerRadius={80} paddingAngle={4} dataKey="value" stroke="none">
+                            <Pie 
+                              data={salaryData} 
+                              innerRadius={55} 
+                              outerRadius={80} 
+                              paddingAngle={4} 
+                              dataKey="value" 
+                              stroke="none"
+                              animationDuration={500}
+                            >
                               {salaryData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
                             </Pie>
-                            <RechartsTooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', fontSize: '9px', fontWeight: 'bold' }} formatter={(v: number) => `₹${v.toLocaleString()}`} />
+                            <RechartsTooltip 
+                              contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', fontSize: '9px', fontWeight: 'bold' }} 
+                              formatter={(v: number) => `₹${Math.round(v).toLocaleString()}`} 
+                            />
                             <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', paddingTop: '10px' }} />
                           </PieChart>
                         </ResponsiveContainer>
@@ -359,7 +414,7 @@ export default function SalaryPlannerPage() {
                           </PieChart>
                         </ResponsiveContainer>
                         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                          <p className="text-sm md:text-lg font-black tracking-tighter">₹{amounts.investment.toLocaleString()}</p>
+                          <p className="text-sm md:text-lg font-black tracking-tighter">₹{Math.round(amounts.investment).toLocaleString()}</p>
                         </div>
                       </div>
                       <div className="grid grid-cols-3 gap-2 pb-5">
@@ -370,7 +425,7 @@ export default function SalaryPlannerPage() {
                         ].map(item => (
                           <div key={item.label} className="p-2 md:p-3 border rounded-2xl bg-muted/5 text-center space-y-1">
                             <p className="text-[7px] md:text-[8px] font-black text-muted-foreground uppercase truncate">{item.label}</p>
-                            <p className="text-[10px] md:text-xs font-black tracking-tighter">₹{item.amt.toFixed(0)}</p>
+                            <p className="text-[10px] md:text-xs font-black tracking-tighter">₹{Math.round(item.amt).toLocaleString()}</p>
                             <span className="text-[8px] md:text-[9px] font-black text-primary">{item.p}%</span>
                           </div>
                         ))}
@@ -411,18 +466,6 @@ function StrategyDesc({ label, text }: any) {
     <div className="space-y-0.5 md:space-y-1">
       <p className="text-[9px] md:text-[10px] font-black uppercase text-foreground">{label}</p>
       <p className="text-[9px] md:text-[10px] text-muted-foreground leading-snug font-medium italic">{text}</p>
-    </div>
-  );
-}
-
-function Badge({ children, className, variant = 'default' }: any) {
-  return (
-    <div className={cn(
-      "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium",
-      variant === 'default' ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
-      className
-    )}>
-      {children}
     </div>
   );
 }
