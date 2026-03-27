@@ -11,7 +11,6 @@ import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBl
 import { collection, doc } from 'firebase/firestore';
 import { Users, Plus, Trash2, IndianRupee, Loader2, UserCircle, History, Calculator, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
 import { encryptData, decryptData, decryptNumber } from '@/lib/encryption';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -49,14 +48,30 @@ export default function SplitPayPage() {
         const pList = split.isEncrypted ? await decryptData(split.participants, user.uid) : split.participants;
         
         const participants = pList.split(',').map((p: string) => p.trim()).filter(Boolean);
-        const sharePerPerson = participants.length > 0 ? amt / participants.length : 0;
+        
+        // Accurate Split Logic: Distribute total exactly, handling remainders
+        const count = participants.length;
+        const individualShares: number[] = [];
+        if (count > 0) {
+          const baseShare = Math.floor((amt / count) * 100) / 100;
+          let remainder = Math.round((amt - (baseShare * count)) * 100) / 100;
+          
+          for (let i = 0; i < count; i++) {
+            let s = baseShare;
+            if (remainder > 0) {
+              s = Math.round((s + 0.01) * 100) / 100;
+              remainder = Math.round((remainder - 0.01) * 100) / 100;
+            }
+            individualShares.push(s);
+          }
+        }
 
         return {
           ...split,
           description: desc,
           totalAmount: amt,
           participants,
-          sharePerPerson
+          individualShares
         };
       }));
       setDecryptedSplits(decrypted);
@@ -75,7 +90,7 @@ export default function SplitPayPage() {
     const participants = peopleString.split(',').map(p => p.trim()).filter(Boolean).join(',');
 
     try {
-      await addDocumentNonBlocking(splitsRef, {
+      addDocumentNonBlocking(splitsRef, {
         userId: user.uid,
         description: await encryptData(description, user.uid),
         totalAmount: await encryptData(totalAmount, user.uid),
@@ -100,8 +115,9 @@ export default function SplitPayPage() {
     const personShares: Record<string, number> = {};
 
     decryptedSplits.forEach(split => {
-      split.participants.forEach((p: string) => {
-        personShares[p] = (personShares[p] || 0) + (split.sharePerPerson || 0);
+      split.participants.forEach((name: string, index: number) => {
+        const share = split.individualShares[index] || 0;
+        personShares[name] = (personShares[name] || 0) + share;
       });
     });
 
@@ -122,7 +138,6 @@ export default function SplitPayPage() {
   return (
     <AppShell>
       <div className="grid gap-4 md:gap-6 lg:grid-cols-12 max-w-7xl mx-auto">
-        {/* Left Column: Form and Summary */}
         <div className="lg:col-span-5 space-y-4 md:space-y-6">
           <Card className="shadow-xl rounded-2xl border-none ring-1 ring-border overflow-hidden">
             <CardHeader className="bg-primary/5 pb-4 px-5 md:px-6">
@@ -132,7 +147,7 @@ export default function SplitPayPage() {
                 </div>
                 <div>
                   <CardTitle className="text-lg font-black tracking-tight">New Shared Bill</CardTitle>
-                  <CardDescription className="text-[10px] uppercase font-bold">Automated equal splitting</CardDescription>
+                  <CardDescription className="text-[10px] uppercase font-bold">Automated exact splitting</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -167,7 +182,7 @@ export default function SplitPayPage() {
                   onChange={(e) => setPeopleString(e.target.value)}
                   className="rounded-xl h-11"
                 />
-                <p className="text-[9px] text-muted-foreground italic">You will be automatically included in the calculation.</p>
+                <p className="text-[9px] text-muted-foreground italic">Total is divided exactly among participants.</p>
               </div>
               <Button 
                 onClick={handleAddSplit} 
@@ -179,7 +194,7 @@ export default function SplitPayPage() {
               </Button>
             </CardContent>
             <CardFooter className="bg-muted/30 border-t py-3 px-5 text-[10px] font-black uppercase text-primary tracking-widest flex items-center gap-2">
-              <ShieldCheck className="h-3 w-3" /> E2EE Automated Split
+              <ShieldCheck className="h-3 w-3" /> E2EE Mathematical Precision
             </CardFooter>
           </Card>
 
@@ -203,7 +218,7 @@ export default function SplitPayPage() {
                         <UserCircle className="h-4 w-4 text-primary" />
                         <span className="text-xs font-black truncate max-w-[120px]">{name}</span>
                       </div>
-                      <span className="text-sm font-black text-primary tracking-tight">₹{Math.round(share).toLocaleString()}</span>
+                      <span className="text-sm font-black text-primary tracking-tight">₹{share.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
                     </div>
                   ))
                 ) : (
@@ -214,7 +229,6 @@ export default function SplitPayPage() {
           </Card>
         </div>
 
-        {/* Right Column: History */}
         <div className="lg:col-span-7">
           <Card className="shadow-xl rounded-2xl border-none ring-1 ring-border h-full flex flex-col overflow-hidden">
             <CardHeader className="bg-muted/30 border-b py-4 px-6 flex flex-row items-center justify-between">
@@ -247,11 +261,11 @@ export default function SplitPayPage() {
                           </Button>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {split.participants.map((p: string) => (
+                          {split.participants.map((p: string, idx: number) => (
                             <div key={p} className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 rounded-full border border-primary/20">
                               <span className="text-[9px] font-black uppercase text-primary">{p}</span>
                               <Separator orientation="vertical" className="h-2.5 bg-primary/30" />
-                              <span className="text-[10px] font-bold">₹{Math.round(split.sharePerPerson).toLocaleString()}</span>
+                              <span className="text-[10px] font-bold">₹{split.individualShares[idx].toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
                             </div>
                           ))}
                         </div>
