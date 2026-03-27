@@ -125,7 +125,7 @@ export default function SplitPayPage() {
             try {
               parsedSplits = JSON.parse(splitsStr || '{}');
             } catch (err) {
-              console.error("Failed to parse splits JSON:", err);
+              parsedSplits = {};
             }
             return {
               ...e,
@@ -166,10 +166,13 @@ export default function SplitPayPage() {
     const totalSpent = relevantExpenses.reduce((sum, e) => sum + e.amount, 0);
     const paidMap: Record<string, number> = {};
     const shareMap: Record<string, number> = {};
+    const settlementMap: Record<string, number> = {};
     
+    // Initialize for all team members
     activeGroup.members.forEach((m: string) => {
       paidMap[m] = 0;
       shareMap[m] = 0;
+      settlementMap[m] = 0;
     });
 
     relevantExpenses.forEach(exp => {
@@ -179,9 +182,6 @@ export default function SplitPayPage() {
       });
     });
 
-    const settlementMap: Record<string, number> = {}; // net settlement impact
-    activeGroup.members.forEach((m: string) => settlementMap[m] = 0);
-    
     relevantSettlements.forEach(s => {
       settlementMap[s.from] = (settlementMap[s.from] || 0) + s.amount;
       settlementMap[s.to] = (settlementMap[s.to] || 0) - s.amount;
@@ -641,7 +641,10 @@ export default function SplitPayPage() {
                         <div className="p-1.5 bg-background rounded-lg shadow-sm border">
                           <UserCircle className={cn("h-4 w-4", b.net > 0 ? "text-green-600" : b.net < 0 ? "text-red-600" : "text-primary")} />
                         </div>
-                        <span className="text-sm font-black uppercase tracking-tight">{b.name}</span>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-black uppercase tracking-tight">{b.name}</span>
+                          <span className="text-[8px] font-bold uppercase text-muted-foreground opacity-60 tracking-widest">Team Participant</span>
+                        </div>
                       </div>
                       <div className="flex flex-col items-end">
                         <span className={cn(
