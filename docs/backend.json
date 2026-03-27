@@ -261,27 +261,45 @@
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
-        "roomId": { "type": "string", "description": "Optional reference to a SplitRoom" },
+        "groupId": { "type": "string", "description": "Reference to a SplitGroup" },
         "description": { "type": "string", "description": "Encrypted description" },
-        "totalAmount": { "type": "string", "description": "Encrypted total amount" },
-        "participants": { "type": "string", "description": "Encrypted comma-separated list of names" },
+        "amount": { "type": "string", "description": "Encrypted total amount" },
+        "paidBy": { "type": "string", "description": "Encrypted name of payer" },
+        "splitType": { "type": "string", "enum": ["equal", "custom", "percentage"] },
+        "splitsJson": { "type": "string", "description": "Encrypted JSON of splits" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "userId", "description", "totalAmount", "participants", "createdAt"]
+      "required": ["id", "userId", "groupId", "description", "amount", "paidBy", "splitType", "createdAt"]
     },
-    "SplitRoom": {
+    "SplitGroup": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "SplitRoom",
+      "title": "SplitGroup",
       "type": "object",
       "description": "A group of people for recurring split expenses.",
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
-        "name": { "type": "string", "description": "Encrypted room name" },
-        "participants": { "type": "string", "description": "Encrypted comma-separated list of names" },
+        "name": { "type": "string", "description": "Encrypted group name" },
+        "members": { "type": "string", "description": "Encrypted comma-separated list of names" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "userId", "name", "participants", "createdAt"]
+      "required": ["id", "userId", "name", "members", "createdAt"]
+    },
+    "SplitSettlement": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SplitSettlement",
+      "type": "object",
+      "description": "A settlement payment between two people.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "groupId": { "type": "string" },
+        "from": { "type": "string", "description": "Encrypted name" },
+        "to": { "type": "string", "description": "Encrypted name" },
+        "amount": { "type": "string", "description": "Encrypted amount" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "groupId", "from", "to", "amount", "createdAt"]
     },
     "LearningGoal": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -400,12 +418,21 @@
         }
       },
       {
-        "path": "/users/{userId}/splitRooms/{roomId}",
+        "path": "/users/{userId}/splitGroups/{groupId}",
         "definition": {
-          "entityName": "SplitRoom",
-          "schema": { "$ref": "#/backend/entities/SplitRoom" },
+          "entityName": "SplitGroup",
+          "schema": { "$ref": "#/backend/entities/SplitGroup" },
           "description": "Groups for shared expenses.",
-          "params": [{ "name": "userId", "description": "User UID" }, { "name": "roomId", "description": "Room ID" }]
+          "params": [{ "name": "userId", "description": "User UID" }, { "name": "groupId", "description": "Group ID" }]
+        }
+      },
+      {
+        "path": "/users/{userId}/splitGroups/{groupId}/settlements/{id}",
+        "definition": {
+          "entityName": "SplitSettlement",
+          "schema": { "$ref": "#/backend/entities/SplitSettlement" },
+          "description": "Settlements within a group.",
+          "params": [{ "name": "userId", "description": "User UID" }, { "name": "groupId", "description": "Group ID" }, { "name": "id", "description": "Settlement ID" }]
         }
       },
       {

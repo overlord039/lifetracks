@@ -9,194 +9,256 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
-import { Users, Plus, Trash2, IndianRupee, Loader2, UserCircle, History, Calculator, ShieldCheck, DoorOpen, LayoutGrid, CheckCircle2 } from 'lucide-react';
+import { 
+  Users, 
+  Plus, 
+  Trash2, 
+  IndianRupee, 
+  Loader2, 
+  UserCircle, 
+  History, 
+  Calculator, 
+  ShieldCheck, 
+  DoorOpen, 
+  CheckCircle2, 
+  ChevronRight,
+  ArrowLeft,
+  PieChart as ChartIcon,
+  HandCoins,
+  ArrowRightLeft
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { encryptData, decryptData, decryptNumber } from '@/lib/encryption';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+
+type SplitType = 'equal' | 'custom' | 'percentage';
 
 export default function SplitPayPage() {
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   
-  // State for split expense
-  const [description, setDescription] = useState('');
-  const [totalAmount, setTotalAmount] = useState('');
-  const [peopleString, setPeopleString] = useState('');
-  const [selectedRoomId, setSelectedRoomId] = useState<string>('adhoc');
-  
-  // State for room creation
-  const [roomName, setRoomName] = useState('');
-  const [roomMembers, setRoomMembers] = useState('');
-  
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDecrypting, setIsDecrypting] = useState(false);
   
-  const [decryptedSplits, setDecryptedSplits] = useState<any[]>([]);
-  const [decryptedRooms, setDecryptedRooms] = useState<any[]>([]);
+  // Decrypted State
+  const [decryptedGroups, setDecryptedGroups] = useState<any[]>([]);
+  const [decryptedExpenses, setDecryptedExpenses] = useState<any[]>([]);
+  const [decryptedSettlements, setDecryptedSettlements] = useState<any[]>([]);
 
-  const splitsRef = useMemoFirebase(() => {
+  // Form State
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupMembers, setNewGroupMembers] = useState('');
+  
+  const [expenseDesc, setExpenseDesc] = useState('');
+  const [expenseAmt, setExpenseAmt] = useState('');
+  const [paidBy, setPaidBy] = useState('');
+  const [splitType, setSplitType] = useState<SplitType>('equal');
+  const [customSplits, setCustomSplits] = useState<Record<string, string>>({});
+
+  const groupsRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return collection(db, 'users', user.uid, 'splitGroups');
+  }, [db, user]);
+
+  const expensesRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return collection(db, 'users', user.uid, 'splitExpenses');
   }, [db, user]);
 
-  const roomsRef = useMemoFirebase(() => {
-    if (!db || !user) return null;
-    return collection(db, 'users', user.uid, 'splitRooms');
-  }, [db, user]);
+  const settlementsRef = useMemoFirebase(() => {
+    if (!db || !user || !selectedGroupId) return null;
+    return collection(db, 'users', user.uid, 'splitGroups', selectedGroupId, 'settlements');
+  }, [db, user, selectedGroupId]);
 
-  const { data: rawSplits, isLoading: isRawLoading } = useCollection(splitsRef);
-  const { data: rawRooms, isLoading: isRoomsLoading } = useCollection(roomsRef);
+  const { data: rawGroups, isLoading: isGroupsLoading } = useCollection(groupsRef);
+  const { data: rawExpenses, isLoading: isExpensesLoading } = useCollection(expensesRef);
+  const { data: rawSettlements } = useCollection(settlementsRef);
 
-  // Decrypt Rooms
+  const activeGroup = useMemo(() => 
+    decryptedGroups.find(g => g.id === selectedGroupId), 
+  [decryptedGroups, selectedGroupId]);
+
+  // Decrypt Data
   useEffect(() => {
-    const decryptAllRooms = async () => {
-      if (!rawRooms || !user) {
-        setDecryptedRooms(rawRooms || []);
-        return;
-      }
+    const decryptAll = async () => {
+      if (!user) return;
       setIsDecrypting(true);
-      const decrypted = await Promise.all(rawRooms.map(async (room) => ({
-        ...room,
-        name: room.isEncrypted ? await decryptData(room.name, user.uid) : room.name,
-        participants: room.isEncrypted ? await decryptData(room.participants, user.uid) : room.participants,
-      })));
-      setDecryptedRooms(decrypted);
+
+      if (rawGroups) {
+        const decoded = await Promise.all(rawGroups.map(async g => ({
+          ...g,
+          name: g.isEncrypted ? await decryptData(g.name, user.uid) : g.name,
+          members: (g.isEncrypted ? await decryptData(g.members, user.uid) : g.members).split(',').map((m: string) => m.trim()).filter(Boolean)
+        })));
+        setDecryptedGroups(decoded);
+      }
+
+      if (rawExpenses) {
+        const decoded = await Promise.all(rawExpenses.map(async e => {
+          const splitsStr = e.isEncrypted ? await decryptData(e.splitsJson, user.uid) : (e.splitsJson || '{}');
+          return {
+            ...e,
+            description: e.isEncrypted ? await decryptData(e.description, user.uid) : e.description,
+            amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : parseFloat(e.amount),
+            paidBy: e.isEncrypted ? await decryptData(e.paidBy, user.uid) : e.paidBy,
+            splits: JSON.parse(splitsStr)
+          };
+        }));
+        setDecryptedExpenses(decoded);
+      }
+
+      if (rawSettlements) {
+        const decoded = await Promise.all(rawSettlements.map(async s => ({
+          ...s,
+          from: s.isEncrypted ? await decryptData(s.from, user.uid) : s.from,
+          to: s.isEncrypted ? await decryptData(s.to, user.uid) : s.to,
+          amount: e.isEncrypted ? await decryptNumber(s.amount, user.uid) : parseFloat(s.amount),
+        })));
+        setDecryptedSettlements(decoded);
+      }
+
       setIsDecrypting(false);
     };
-    decryptAllRooms();
-  }, [rawRooms, user]);
+    decryptAll();
+  }, [rawGroups, rawExpenses, rawSettlements, user]);
 
-  // Decrypt Splits
-  useEffect(() => {
-    const decryptAllSplits = async () => {
-      if (!rawSplits || !user) {
-        setDecryptedSplits(rawSplits || []);
-        return;
-      }
-      setIsDecrypting(true);
-      const decrypted = await Promise.all(rawSplits.map(async (split) => {
-        const desc = split.isEncrypted ? await decryptData(split.description, user.uid) : split.description;
-        const amt = split.isEncrypted ? await decryptNumber(split.totalAmount, user.uid) : parseFloat(split.totalAmount || '0');
-        const pList = split.isEncrypted ? await decryptData(split.participants, user.uid) : split.participants;
-        
-        const participants = pList.split(',').map((p: string) => p.trim()).filter(Boolean);
-        
-        // Exact Split Logic
-        const count = participants.length;
-        const individualShares: number[] = [];
-        if (count > 0) {
-          const baseShare = Math.floor((amt / count) * 100) / 100;
-          let remainder = Math.round((amt - (baseShare * count)) * 100) / 100;
-          
-          for (let i = 0; i < count; i++) {
-            let s = baseShare;
-            if (remainder > 0) {
-              s = Math.round((s + 0.01) * 100) / 100;
-              remainder = Math.round((remainder - 0.01) * 100) / 100;
-            }
-            individualShares.push(s);
-          }
-        }
+  // Group Calculations
+  const groupStats = useMemo(() => {
+    if (!activeGroup) return null;
+    
+    const relevantExpenses = decryptedExpenses.filter(e => e.groupId === activeGroup.id);
+    const relevantSettlements = decryptedSettlements.filter(s => s.groupId === activeGroup.id);
+    
+    const totalSpent = relevantExpenses.reduce((sum, e) => sum + e.amount, 0);
+    const paidMap: Record<string, number> = {};
+    const shareMap: Record<string, number> = {};
+    
+    activeGroup.members.forEach((m: string) => {
+      paidMap[m] = 0;
+      shareMap[m] = 0;
+    });
 
-        return {
-          ...split,
-          description: desc,
-          totalAmount: amt,
-          participants,
-          individualShares
-        };
-      }));
-      setDecryptedSplits(decrypted);
-      setIsDecrypting(false);
-    };
-    decryptAllSplits();
-  }, [rawSplits, user]);
+    relevantExpenses.forEach(exp => {
+      paidMap[exp.paidBy] = (paidMap[exp.paidBy] || 0) + exp.amount;
+      Object.entries(exp.splits).forEach(([name, share]) => {
+        shareMap[name] = (shareMap[name] || 0) + (share as number);
+      });
+    });
 
-  const handleAddRoom = async () => {
-    if (!roomName || !roomMembers || !user || !roomsRef) {
-      toast({ variant: 'destructive', title: 'Missing Info', description: 'Please fill all fields for the room.' });
-      return;
-    }
-    const members = roomMembers.split(',').map(m => m.trim()).filter(Boolean).join(',');
-    addDocumentNonBlocking(roomsRef, {
+    const settlementMap: Record<string, number> = {}; // net settlement impact
+    activeGroup.members.forEach((m: string) => settlementMap[m] = 0);
+    
+    relevantSettlements.forEach(s => {
+      settlementMap[s.from] = (settlementMap[s.from] || 0) + s.amount;
+      settlementMap[s.to] = (settlementMap[s.to] || 0) - s.amount;
+    });
+
+    const balances = activeGroup.members.map((name: string) => {
+      const net = (paidMap[name] + settlementMap[name]) - shareMap[name];
+      return { name, paid: paidMap[name], share: shareMap[name], net };
+    });
+
+    return { totalSpent, balances };
+  }, [activeGroup, decryptedExpenses, decryptedSettlements]);
+
+  // Form Handlers
+  const handleCreateGroup = async () => {
+    if (!newGroupName || !newGroupMembers || !user || !groupsRef) return;
+    setIsSubmitting(true);
+    addDocumentNonBlocking(groupsRef, {
       userId: user.uid,
-      name: await encryptData(roomName, user.uid),
-      participants: await encryptData(members, user.uid),
+      name: await encryptData(newGroupName, user.uid),
+      members: await encryptData(newGroupMembers, user.uid),
       isEncrypted: true,
       createdAt: new Date().toISOString()
     });
-    setRoomName('');
-    setRoomMembers('');
-    toast({ title: 'Room Created', description: 'Your secure group is ready.' });
+    setNewGroupName('');
+    setNewGroupMembers('');
+    setIsSubmitting(false);
+    toast({ title: "Group Created", description: "Your encrypted circle is ready." });
   };
 
-  const handleAddSplit = async () => {
-    if (!description || !totalAmount || !user || !splitsRef) {
-      toast({ variant: 'destructive', title: 'Missing Info', description: 'Please fill bill details.' });
-      return;
-    }
+  const handleAddExpense = async () => {
+    if (!expenseAmt || !expenseDesc || !paidBy || !activeGroup || !user || !expensesRef) return;
+    
+    const amt = parseFloat(expenseAmt);
+    let splits: Record<string, number> = {};
 
-    let finalParticipants = '';
-    if (selectedRoomId === 'adhoc') {
-      if (!peopleString) {
-        toast({ variant: 'destructive', title: 'Missing Members', description: 'Please enter names for ad-hoc split.' });
+    if (splitType === 'equal') {
+      const count = activeGroup.members.length;
+      const base = Math.floor((amt / count) * 100) / 100;
+      let remainder = Math.round((amt - (base * count)) * 100) / 100;
+      activeGroup.members.forEach((name: string, i: number) => {
+        let s = base;
+        if (remainder > 0) { s = Math.round((s + 0.01) * 100) / 100; remainder = Math.round((remainder - 0.01) * 100) / 100; }
+        splits[name] = s;
+      });
+    } else if (splitType === 'custom') {
+      const totalCustom = Object.values(customSplits).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+      if (Math.abs(totalCustom - amt) > 0.01) {
+        toast({ variant: 'destructive', title: "Math Error", description: `Custom splits must total ₹${amt}. Current: ₹${totalCustom}` });
         return;
       }
-      finalParticipants = peopleString.split(',').map(p => p.trim()).filter(Boolean).join(',');
-    } else {
-      const room = decryptedRooms.find(r => r.id === selectedRoomId);
-      if (!room) return;
-      finalParticipants = room.participants;
+      activeGroup.members.forEach((m: string) => splits[m] = parseFloat(customSplits[m]) || 0);
+    } else if (splitType === 'percentage') {
+      const totalP = Object.values(customSplits).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+      if (Math.abs(totalP - 100) > 0.1) {
+        toast({ variant: 'destructive', title: "Math Error", description: "Percentages must total 100%." });
+        return;
+      }
+      activeGroup.members.forEach((m: string) => splits[m] = (amt * (parseFloat(customSplits[m]) || 0)) / 100);
     }
 
     setIsSubmitting(true);
-    try {
-      addDocumentNonBlocking(splitsRef, {
-        userId: user.uid,
-        roomId: selectedRoomId === 'adhoc' ? null : selectedRoomId,
-        description: await encryptData(description, user.uid),
-        totalAmount: await encryptData(totalAmount, user.uid),
-        participants: await encryptData(finalParticipants, user.uid),
-        isEncrypted: true,
-        createdAt: new Date().toISOString()
-      });
-
-      setDescription('');
-      setTotalAmount('');
-      setPeopleString('');
-      toast({ title: 'Split Recorded', description: 'Encrypted and stored in your vault.' });
-    } catch (e) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Could not save split.' });
-    } finally {
-      setIsSubmitting(false);
-    }
+    addDocumentNonBlocking(expensesRef, {
+      userId: user.uid,
+      groupId: activeGroup.id,
+      description: await encryptData(expenseDesc, user.uid),
+      amount: await encryptData(expenseAmt, user.uid),
+      paidBy: await encryptData(paidBy, user.uid),
+      splitType,
+      splitsJson: await encryptData(JSON.stringify(splits), user.uid),
+      isEncrypted: true,
+      createdAt: new Date().toISOString()
+    });
+    
+    setExpenseAmt('');
+    setExpenseDesc('');
+    setPaidBy('');
+    setCustomSplits({});
+    setIsSubmitting(false);
+    toast({ title: "Expense Added", description: "Successfully split and encrypted." });
   };
 
-  const totals = useMemo(() => {
-    const totalSplitted = decryptedSplits.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0);
-    const personShares: Record<string, number> = {};
-
-    decryptedSplits.forEach(split => {
-      split.participants.forEach((name: string, index: number) => {
-        const share = split.individualShares[index] || 0;
-        personShares[name] = (personShares[name] || 0) + share;
-      });
+  const handleSettle = async (from: string, to: string, amount: number) => {
+    if (!user || !settlementsRef || !selectedGroupId) return;
+    setIsSubmitting(true);
+    addDocumentNonBlocking(settlementsRef, {
+      userId: user.uid,
+      groupId: selectedGroupId,
+      from: await encryptData(from, user.uid),
+      to: await encryptData(to, user.uid),
+      amount: await encryptData(amount.toString(), user.uid),
+      isEncrypted: true,
+      createdAt: new Date().toISOString()
     });
+    setIsSubmitting(false);
+    toast({ title: "Settlement Logged", description: `Recalculated balances.` });
+  };
 
-    return { totalSplitted, personShares };
-  }, [decryptedSplits]);
-
-  if (isRawLoading || isRoomsLoading || isDecrypting) {
+  if (isGroupsLoading || isExpensesLoading || isDecrypting) {
     return (
       <AppShell>
         <div className="flex h-[60vh] w-full items-center justify-center flex-col gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Unlocking Shared Vault...</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Unlocking Vaults...</p>
         </div>
       </AppShell>
     );
@@ -204,218 +266,250 @@ export default function SplitPayPage() {
 
   return (
     <AppShell>
-      <div className="grid gap-4 md:gap-6 lg:grid-cols-12 max-w-7xl mx-auto">
-        <div className="lg:col-span-4 flex flex-col gap-4 md:gap-6">
-          {/* Room Creation Card */}
+      {!selectedGroupId ? (
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-primary/20 rounded-2xl text-primary shadow-sm border border-primary/10">
+              <Users className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black tracking-tighter">Split Pay</h2>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Group Expense Manager (E2EE)</p>
+            </div>
+          </div>
+
           <Card className="shadow-xl rounded-2xl border-none ring-1 ring-border overflow-hidden">
-            <CardHeader className="bg-muted/30 pb-4 px-5 md:px-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-secondary/20 rounded-xl text-secondary-foreground">
-                  <DoorOpen className="h-5 w-5" />
-                </div>
-                <div>
-                  <CardTitle className="text-sm font-black tracking-tight">Room Vault</CardTitle>
-                  <CardDescription className="text-[9px] uppercase font-bold">Manage persistent groups</CardDescription>
-                </div>
-              </div>
+            <CardHeader className="bg-muted/30 pb-4 px-6">
+              <CardTitle className="text-base font-black flex items-center gap-2"><DoorOpen className="h-4 w-4" /> Create Group</CardTitle>
             </CardHeader>
-            <CardContent className="pt-4 space-y-3 px-5 md:px-6">
-              <div className="space-y-1.5">
-                <Label className="text-[9px] font-black uppercase text-muted-foreground">Room Name</Label>
-                <Input placeholder="e.g. Goa Trip" value={roomName} onChange={e => setRoomName(e.target.value)} className="h-9 text-xs rounded-lg" />
+            <CardContent className="pt-6 space-y-4 px-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Group Name</Label>
+                  <Input placeholder="e.g. Roommates" value={newGroupName} onChange={e => setNewGroupName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Members (Comma separated)</Label>
+                  <Input placeholder="Alice, Bob, Charlie" value={newGroupMembers} onChange={e => setNewGroupMembers(e.target.value)} />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-[9px] font-black uppercase text-muted-foreground">Members (Comma separated)</Label>
-                <Input placeholder="Alice, Bob..." value={roomMembers} onChange={e => setRoomMembers(e.target.value)} className="h-9 text-xs rounded-lg" />
-              </div>
-              <Button onClick={handleAddRoom} className="w-full h-9 rounded-lg font-black text-[10px] uppercase tracking-wider" variant="secondary">
-                <Plus className="h-3.5 w-3.5 mr-1" /> Create Secure Room
+              <Button onClick={handleCreateGroup} disabled={isSubmitting} className="w-full h-11 font-black rounded-xl gap-2">
+                <Plus className="h-4 w-4" /> Initialize Group
               </Button>
-              
-              <Separator className="my-2" />
-              
-              <ScrollArea className="h-[120px] pr-2">
-                <div className="space-y-2">
-                  {decryptedRooms.map(room => (
-                    <div key={room.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border group">
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-black truncate">{room.name}</p>
-                        <p className="text-[8px] text-muted-foreground truncate">{room.participants}</p>
-                      </div>
-                      <Button variant="ghost" size="icon" onClick={() => deleteDocumentNonBlocking(doc(roomsRef!, room.id))} className="h-6 w-6 text-destructive opacity-0 group-hover:opacity-100">
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
-                  {decryptedRooms.length === 0 && <p className="text-[9px] text-center italic text-muted-foreground py-4">No rooms defined.</p>}
-                </div>
-              </ScrollArea>
             </CardContent>
           </Card>
 
-          {/* Aggregated Shares Card */}
-          <Card className="shadow-xl rounded-2xl border-none ring-1 ring-border bg-card">
-            <CardHeader className="pb-2 px-5 md:px-6">
-              <CardTitle className="text-sm font-black flex items-center gap-2">
-                <Users className="h-4 w-4 text-primary" /> Global Ledger
-              </CardTitle>
-              <CardDescription className="text-[9px] uppercase font-bold">Total receivables</CardDescription>
-            </CardHeader>
-            <CardContent className="px-5 md:px-6 pb-6 space-y-4">
-              <div className="bg-primary/5 rounded-2xl p-4 border border-primary/10">
-                <span className="text-[9px] font-black uppercase text-muted-foreground block mb-1">Total Splitted</span>
-                <span className="text-2xl font-black tracking-tighter">₹{totals.totalSplitted.toLocaleString()}</span>
-              </div>
-              <ScrollArea className="h-[200px] pr-2">
-                <div className="space-y-2">
-                  {Object.entries(totals.personShares).length > 0 ? (
-                    Object.entries(totals.personShares).sort((a, b) => b[1] - a[1]).map(([name, share]) => (
-                      <div key={name} className="flex items-center justify-between p-2.5 rounded-xl border bg-muted/5">
-                        <div className="flex items-center gap-2">
-                          <UserCircle className="h-3.5 w-3.5 text-primary" />
-                          <span className="text-[10px] font-black truncate max-w-[100px]">{name}</span>
-                        </div>
-                        <span className="text-xs font-black text-primary">₹{share.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-center py-6 text-muted-foreground italic text-[10px]">No shares recorded yet.</p>
-                  )}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="lg:col-span-8 flex flex-col gap-4 md:gap-6">
-          {/* New Split Form */}
-          <Card className="shadow-xl rounded-2xl border-none ring-1 ring-border overflow-hidden">
-            <CardHeader className="bg-primary/5 pb-4 px-6 flex flex-row items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/20 rounded-xl text-primary">
-                  <Calculator className="h-5 w-5" />
-                </div>
-                <div>
-                  <CardTitle className="text-base font-black tracking-tight">Post New Bill</CardTitle>
-                  <CardDescription className="text-[10px] uppercase font-bold">Automated exact splitting</CardDescription>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Label className="text-[9px] font-black uppercase text-muted-foreground">Mode</Label>
-                <Select value={selectedRoomId} onValueChange={setSelectedRoomId}>
-                  <SelectTrigger className="w-[140px] h-8 text-[10px] rounded-full font-black uppercase tracking-tighter">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="adhoc">Ad-hoc Names</SelectItem>
-                    {decryptedRooms.map(room => (
-                      <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {decryptedGroups.map(group => (
+              <Card 
+                key={group.id} 
+                className="group cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all rounded-2xl border-none ring-1 ring-border"
+                onClick={() => setSelectedGroupId(group.id)}
+              >
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg font-black tracking-tight flex items-center justify-between">
+                    {group.name}
+                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  </CardTitle>
+                  <CardDescription className="text-[10px] uppercase font-bold">{group.members.length} Members</CardDescription>
+                </CardHeader>
+                <CardContent className="pb-4">
+                  <div className="flex flex-wrap gap-1">
+                    {group.members.map((m: string) => (
+                      <Badge key={m} variant="secondary" className="text-[8px] font-black px-1.5 h-4">{m}</Badge>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-6 grid gap-4 md:grid-cols-2 px-6">
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Bill Description</Label>
-                  <Input placeholder="e.g. Dinner at Bistro" value={description} onChange={e => setDescription(e.target.value)} className="rounded-xl h-10 text-sm" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Total Bill (₹)</Label>
-                  <div className="relative">
-                    <Input type="number" placeholder="0.00" value={totalAmount} onChange={e => setTotalAmount(e.target.value)} className="rounded-xl h-10 pl-9 font-black" />
-                    <IndianRupee className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   </div>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
-                    {selectedRoomId === 'adhoc' ? 'Participants (Comma separated)' : 'Room Participants'}
-                  </Label>
-                  {selectedRoomId === 'adhoc' ? (
-                    <Input placeholder="Alice, Bob, Charlie" value={peopleString} onChange={e => setPeopleString(e.target.value)} className="rounded-xl h-10 text-sm" />
-                  ) : (
-                    <div className="p-3 bg-muted/20 rounded-xl border border-dashed flex items-center gap-2 flex-wrap min-h-[40px]">
-                      {decryptedRooms.find(r => r.id === selectedRoomId)?.participants.split(',').map((p: string) => (
-                        <Badge key={p} variant="outline" className="text-[9px] font-black px-2 py-0.5 rounded-full">{p.trim()}</Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <Button onClick={handleAddSplit} disabled={isSubmitting} className="w-full h-10 rounded-xl font-black shadow-lg gap-2 mt-auto">
-                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                  Confirm & Encrypt Split
-                </Button>
-              </div>
-            </CardContent>
-            <CardFooter className="bg-muted/30 border-t py-2.5 px-6 text-[9px] font-black uppercase text-primary tracking-widest flex items-center justify-center gap-2">
-              <ShieldCheck className="h-3 w-3" /> E2EE Mathematical Precision Guaranteed
-            </CardFooter>
-          </Card>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="max-w-6xl mx-auto space-y-4">
+          <Button variant="ghost" onClick={() => setSelectedGroupId(null)} className="h-8 px-2 text-[10px] font-black uppercase tracking-widest gap-2">
+            <ArrowLeft className="h-3 w-3" /> Back to Groups
+          </Button>
 
-          {/* Split History Card */}
-          <Card className="shadow-xl rounded-2xl border-none ring-1 ring-border h-full flex flex-col overflow-hidden">
-            <CardHeader className="bg-muted/30 border-b py-4 px-6 flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-base font-black flex items-center gap-2">
-                  <History className="h-4 w-4 text-primary" /> Chronicle
-                </CardTitle>
-                <CardDescription className="text-[10px] uppercase font-bold">Recent shared expenses</CardDescription>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-secondary/20 rounded-2xl text-secondary-foreground">
+                <Users className="w-6 h-6" />
               </div>
-              <Badge variant="outline" className="font-black text-[9px] uppercase px-3 py-1 rounded-full">{decryptedSplits.length} Records</Badge>
-            </CardHeader>
-            <CardContent className="p-0 flex-1">
-              <ScrollArea className="h-[300px] lg:h-[400px]">
-                <div className="divide-y">
-                  {decryptedSplits.length > 0 ? (
-                    [...decryptedSplits].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((split) => (
-                      <div key={split.id} className="p-4 md:p-6 hover:bg-muted/30 transition-colors group">
+              <div>
+                <h2 className="text-2xl font-black tracking-tighter">{activeGroup?.name}</h2>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Active Shared Ledger</p>
+              </div>
+            </div>
+            <div className="bg-primary/5 px-6 py-3 rounded-2xl border border-primary/10 text-center md:text-left">
+              <p className="text-[10px] font-black uppercase text-primary tracking-widest">Total Spent</p>
+              <p className="text-2xl font-black text-primary">₹{groupStats?.totalSpent.toLocaleString()}</p>
+            </div>
+          </div>
+
+          <Tabs defaultValue="balance" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 h-11 p-1 bg-muted rounded-2xl mb-4">
+              <TabsTrigger value="balance" className="rounded-xl font-black text-xs">Balances</TabsTrigger>
+              <TabsTrigger value="history" className="rounded-xl font-black text-xs">Activity</TabsTrigger>
+              <TabsTrigger value="add" className="rounded-xl font-black text-xs">Add Bill</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="balance" className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {groupStats?.balances.map(b => (
+                  <Card key={b.name} className={cn(
+                    "rounded-2xl border-none ring-1 shadow-sm",
+                    b.net > 0 ? "ring-green-500/30 bg-green-50/10" : b.net < 0 ? "ring-red-500/30 bg-red-50/10" : "ring-border"
+                  )}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-black flex items-center gap-2">
+                        <UserCircle className="h-4 w-4 opacity-70" /> {b.name}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex justify-between text-[10px] font-black uppercase opacity-60">
+                        <span>Paid: ₹{b.paid.toLocaleString()}</span>
+                        <span>Share: ₹{b.share.toLocaleString()}</span>
+                      </div>
+                      <div className="pt-2 border-t">
+                        <p className="text-[9px] font-black uppercase tracking-widest opacity-60">Status</p>
+                        <p className={cn("text-xl font-black tracking-tighter", b.net > 0 ? "text-green-600" : b.net < 0 ? "text-red-600" : "text-muted-foreground")}>
+                          {b.net > 0 ? `Owed ₹${b.net.toFixed(2)}` : b.net < 0 ? `Owes ₹${Math.abs(b.net).toFixed(2)}` : 'Settle'}
+                        </p>
+                      </div>
+                    </CardContent>
+                    {b.net < 0 && (
+                      <CardFooter className="pt-0">
+                        <Select onValueChange={(to) => handleSettle(b.name, to, Math.abs(b.net))}>
+                          <SelectTrigger className="h-8 text-[10px] font-black uppercase rounded-lg">
+                            <SelectValue placeholder="Settle with..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {activeGroup.members.filter((m: string) => m !== b.name).map((m: string) => (
+                              <SelectItem key={m} value={m} className="text-[10px] font-black">{m}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </CardFooter>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="history" className="animate-in fade-in slide-in-from-right-2">
+              <Card className="rounded-2xl border-none ring-1 ring-border overflow-hidden">
+                <ScrollArea className="h-[400px]">
+                  <div className="divide-y">
+                    {decryptedExpenses.filter(e => e.groupId === selectedGroupId).sort((a,b) => b.createdAt.localeCompare(a.createdAt)).map(exp => (
+                      <div key={exp.id} className="p-4 md:p-6 hover:bg-muted/30 transition-colors group">
                         <div className="flex justify-between items-start mb-3">
                           <div className="space-y-1">
-                            <h4 className="font-black text-sm md:text-base tracking-tight">{split.description}</h4>
-                            <div className="flex items-center gap-2">
-                              <p className="text-[10px] text-muted-foreground font-medium uppercase">{new Date(split.createdAt).toLocaleDateString()} • ₹{split.totalAmount.toLocaleString()} Total</p>
-                              {split.roomId && (
-                                <Badge variant="secondary" className="text-[8px] h-4 px-1.5 font-black uppercase">
-                                  {decryptedRooms.find(r => r.id === split.roomId)?.name || 'Room'}
-                                </Badge>
-                              )}
-                            </div>
+                            <h4 className="font-black text-sm md:text-base tracking-tight">{exp.description}</h4>
+                            <p className="text-[10px] text-muted-foreground font-black uppercase">{exp.paidBy} paid ₹{exp.amount}</p>
                           </div>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => deleteDocumentNonBlocking(doc(splitsRef!, split.id))}
-                            className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <Badge variant="outline" className="text-[8px] font-black uppercase">{exp.splitType}</Badge>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {split.participants.map((p: string, idx: number) => (
-                            <div key={p} className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 rounded-full border border-primary/20">
-                              <span className="text-[9px] font-black uppercase text-primary">{p}</span>
+                          {Object.entries(exp.splits).map(([name, share]: any) => (
+                            <div key={name} className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 rounded-full border border-primary/20">
+                              <span className="text-[9px] font-black uppercase text-primary">{name}</span>
                               <Separator orientation="vertical" className="h-2.5 bg-primary/30" />
-                              <span className="text-[10px] font-bold">₹{split.individualShares[idx]?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
+                              <span className="text-[10px] font-bold">₹{share.toFixed(2)}</span>
                             </div>
                           ))}
                         </div>
                       </div>
-                    ))
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-16 opacity-40 grayscale">
-                      <Users className="h-10 w-10 mb-2" />
-                      <p className="text-[10px] font-black uppercase tracking-widest">No history recorded</p>
+                    ))}
+                    {decryptedExpenses.filter(e => e.groupId === selectedGroupId).length === 0 && (
+                      <div className="flex flex-col items-center justify-center py-20 opacity-40 grayscale">
+                        <History className="h-10 w-10 mb-2" />
+                        <p className="text-[10px] font-black uppercase tracking-widest">No activity found</p>
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="add" className="animate-in fade-in slide-in-from-left-2">
+              <Card className="shadow-xl rounded-2xl border-none ring-1 ring-border overflow-hidden">
+                <CardHeader className="bg-primary/5 border-b pb-4 px-6">
+                  <CardTitle className="text-base font-black flex items-center gap-2"><Calculator className="h-4 w-4 text-primary" /> Post Expense</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6 space-y-6 px-6">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Bill Description</Label>
+                        <Input placeholder="Dinner, Movie, Uber..." value={expenseDesc} onChange={e => setExpenseDesc(e.target.value)} className="h-10 rounded-xl" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Total Amount (₹)</Label>
+                        <div className="relative">
+                          <Input type="number" placeholder="0.00" value={expenseAmt} onChange={e => setExpenseAmt(e.target.value)} className="h-10 pl-9 rounded-xl font-black" />
+                          <IndianRupee className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Paid By</Label>
+                        <Select value={paidBy} onValueChange={setPaidBy}>
+                          <SelectTrigger className="h-10 rounded-xl font-black">
+                            <SelectValue placeholder="Select Payer" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {activeGroup.members.map((m: string) => (
+                              <SelectItem key={m} value={m} className="font-black">{m}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                  )}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
+
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Split Type</Label>
+                        <Tabs value={splitType} onValueChange={(v: any) => setSplitType(v)} className="w-full">
+                          <TabsList className="grid w-full grid-cols-3 h-9 p-1 rounded-xl">
+                            <TabsTrigger value="equal" className="text-[9px] font-black uppercase">Equal</TabsTrigger>
+                            <TabsTrigger value="custom" className="text-[9px] font-black uppercase">Custom</TabsTrigger>
+                            <TabsTrigger value="percentage" className="text-[9px] font-black uppercase">%</TabsTrigger>
+                          </TabsList>
+                        </Tabs>
+                      </div>
+
+                      {splitType !== 'equal' && (
+                        <div className="space-y-3 p-4 bg-muted/20 rounded-2xl border border-dashed">
+                          <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest text-center mb-2">Individual Split</p>
+                          {activeGroup.members.map((m: string) => (
+                            <div key={m} className="flex items-center justify-between gap-4">
+                              <span className="text-[10px] font-black uppercase truncate">{m}</span>
+                              <div className="relative w-24">
+                                <Input 
+                                  type="number" 
+                                  placeholder={splitType === 'percentage' ? '%' : '₹'} 
+                                  className="h-8 text-right pr-6 font-bold rounded-lg text-xs"
+                                  value={customSplits[m] || ''}
+                                  onChange={(e) => setCustomSplits({...customSplits, [m]: e.target.value})}
+                                />
+                                <span className="absolute right-2 top-2 text-[10px] opacity-50">{splitType === 'percentage' ? '%' : '₹'}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <Button onClick={handleAddExpense} disabled={isSubmitting} className="w-full h-12 rounded-2xl font-black shadow-lg gap-2 mt-auto">
+                        {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                        Confirm Split
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
-      </div>
+      )}
     </AppShell>
   );
 }
