@@ -11,24 +11,28 @@ import {
   TrendingUp, 
   CheckCircle2, 
   AlertCircle, 
-  Calendar,
   BookOpen,
   DollarSign,
   TrendingDown,
   Loader2,
-  ShieldCheck,
-  Badge
+  ShieldCheck
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { decryptData, decryptNumber } from '@/lib/encryption';
 
 export default function Dashboard() {
   const { user } = useUser();
   const firestore = useFirestore();
   const [mounted, setMounted] = useState(false);
   
+  const [decryptedBudget, setDecryptedBudget] = useState<any>(null);
+  const [decryptedFixed, setDecryptedFixed] = useState<any[]>([]);
+  const [decryptedExpenses, setDecryptedExpenses] = useState<any[]>([]);
+  const [isDecrypting, setIsDecrypting] = useState(false);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -41,19 +45,19 @@ export default function Dashboard() {
     if (!firestore || !user || !monthId) return null;
     return doc(firestore, 'users', user.uid, 'monthlyBudgets', monthId);
   }, [firestore, user, monthId]);
-  const { data: monthlyBudgetDoc } = useDoc(monthlyBudgetRef);
+  const { data: rawBudget } = useDoc(monthlyBudgetRef);
 
   const fixedExpensesRef = useMemoFirebase(() => {
     if (!firestore || !user || !monthId) return null;
     return collection(firestore, 'users', user.uid, 'monthlyBudgets', monthId, 'fixedExpenses');
   }, [firestore, user, monthId]);
-  const { data: fixedExpenses } = useCollection(fixedExpensesRef);
+  const { data: rawFixed } = useCollection(fixedExpensesRef);
 
   const monthExpensesRef = useMemoFirebase(() => {
     if (!firestore || !user || !monthId) return null;
     return collection(firestore, 'users', user.uid, 'monthlyBudgets', monthId, 'expenses');
   }, [firestore, user, monthId]);
-  const { data: monthExpenses } = useCollection(monthExpensesRef);
+  const { data: rawExpenses } = useCollection(monthExpensesRef);
 
   const goalsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -67,33 +71,67 @@ export default function Dashboard() {
   }, [firestore, user, todayStr]);
   const { data: todayDiary } = useDoc(diaryRef);
 
+  useEffect(() => {
+    const decryptAll = async () => {
+      if (!user || !mounted) return;
+      setIsDecrypting(true);
+
+      if (rawBudget) {
+        setDecryptedBudget({
+          ...rawBudget,
+          totalBudgetAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.totalBudgetAmount, user.uid) : (rawBudget.totalBudgetAmount || 0),
+          saturdayExtraAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.saturdayExtraAmount, user.uid) : (rawBudget.saturdayExtraAmount || 0),
+          sundayExtraAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.sundayExtraAmount, user.uid) : (rawBudget.sundayExtraAmount || 0),
+        });
+      }
+
+      if (rawFixed) {
+        const fixed = await Promise.all(rawFixed.map(async f => ({
+          ...f,
+          amount: f.isEncrypted ? await decryptNumber(f.amount, user.uid) : (f.amount || 0),
+        })));
+        setDecryptedFixed(fixed);
+      }
+
+      if (rawExpenses) {
+        const exps = await Promise.all(rawExpenses.map(async e => ({
+          ...e,
+          amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : (e.amount || 0),
+        })));
+        setDecryptedExpenses(exps);
+      }
+      setIsDecrypting(false);
+    };
+    decryptAll();
+  }, [rawBudget, rawFixed, rawExpenses, user, mounted]);
+
   const budgetReport = useMemo(() => {
-    if (!monthlyBudgetDoc || !monthExpenses || !mounted) return null;
+    if (!decryptedBudget || !decryptedExpenses || !mounted) return null;
 
     const dailyExpensesMap: Record<string, number> = {};
-    monthExpenses.forEach(exp => {
+    decryptedExpenses.forEach(exp => {
       dailyExpensesMap[exp.date] = (dailyExpensesMap[exp.date] || 0) + exp.amount;
     });
 
     const config: MonthlyConfig = {
-      totalBudget: monthlyBudgetDoc.totalBudgetAmount || 0,
+      totalBudget: decryptedBudget.totalBudgetAmount || 0,
       month: now.getMonth(),
       year: now.getFullYear(),
-      fixedExpenses: (fixedExpenses || []).map(f => ({
+      fixedExpenses: (decryptedFixed || []).map(f => ({
         id: f.id,
         name: f.name,
         amount: f.amount,
         included: f.includeInBudget
       })),
-      saturdayExtra: monthlyBudgetDoc.saturdayExtraAmount || 0,
-      sundayExtra: monthlyBudgetDoc.sundayExtraAmount || 0,
+      saturdayExtra: decryptedBudget.saturdayExtraAmount || 0,
+      sundayExtra: decryptedBudget.sundayExtraAmount || 0,
       holidayExtra: 0,
-      isWeekendEnabled: monthlyBudgetDoc.isWeekendExtraBudgetEnabled || false,
+      isWeekendEnabled: decryptedBudget.isWeekendExtraBudgetEnabled || false,
       isHolidayEnabled: false
     };
 
     return calculateRollingBudget(config, dailyExpensesMap, []);
-  }, [monthlyBudgetDoc, monthExpenses, fixedExpenses, now, mounted]);
+  }, [decryptedBudget, decryptedExpenses, decryptedFixed, now, mounted]);
 
   const todayReport = budgetReport?.[todayStr];
   const dailyBaseAllowance = (todayReport?.baseBudget || 0) + (todayReport?.extraBudget || 0);
@@ -105,12 +143,12 @@ export default function Dashboard() {
   const isOverspent = spentToday > dailyBaseAllowance;
   const isWithinBudget = spentToday <= dailyBaseAllowance && spentToday > 0;
 
-  if (!mounted) {
+  if (!mounted || isDecrypting) {
     return (
       <AppShell>
         <div className="flex h-[60vh] w-full items-center justify-center flex-col gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Restoring Workspace...</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Syncing Vault...</p>
         </div>
       </AppShell>
     );

@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
@@ -45,22 +45,36 @@ import {
   TrendingDown,
   TrendingUp,
   Minus,
-  Activity
+  Activity,
+  Loader2
 } from 'lucide-react';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import { decryptData, decryptNumber } from '@/lib/encryption';
 
 export default function ReportsPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   
-  // State for selected month and view type
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewType, setViewType] = useState<'weekly' | 'monthly' | 'annual'>('monthly');
-  
+  const [mounted, setMounted] = useState(false);
+
+  const [decryptedBudget, setDecryptedBudget] = useState<any>(null);
+  const [decryptedPrevBudget, setDecryptedPrevBudget] = useState<any>(null);
+  const [decryptedFixed, setDecryptedFixed] = useState<any[]>([]);
+  const [decryptedExpenses, setDecryptedExpenses] = useState<any[]>([]);
+  const [decryptedPrevExpenses, setDecryptedPrevExpenses] = useState<any[]>([]);
+  const [decryptedCategories, setDecryptedCategories] = useState<any[]>([]);
+  const [isDecrypting, setIsDecrypting] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const monthId = format(selectedDate, 'yyyyMM');
   const prevDate = subMonths(selectedDate, 1);
   const prevMonthId = format(prevDate, 'yyyyMM');
@@ -70,49 +84,107 @@ export default function ReportsPage() {
     if (!firestore || !user) return null;
     return doc(firestore, 'users', user.uid, 'monthlyBudgets', monthId);
   }, [firestore, user, monthId]);
-  const { data: monthlyBudgetDoc } = useDoc(monthlyBudgetRef);
+  const { data: rawBudget } = useDoc(monthlyBudgetRef);
 
   const fixedExpensesRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return collection(firestore, 'users', user.uid, 'monthlyBudgets', monthId, 'fixedExpenses');
   }, [firestore, user, monthId]);
-  const { data: fixedExpenses } = useCollection(fixedExpensesRef);
+  const { data: rawFixed } = useCollection(fixedExpensesRef);
 
   const monthExpensesRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return collection(firestore, 'users', user.uid, 'monthlyBudgets', monthId, 'expenses');
   }, [firestore, user, monthId]);
-  const { data: monthExpenses } = useCollection(monthExpensesRef);
+  const { data: rawExpenses } = useCollection(monthExpensesRef);
 
   // --- Previous Month Data ---
   const prevMonthlyBudgetRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'users', user.uid, 'monthlyBudgets', prevMonthId);
   }, [firestore, user, prevMonthId]);
-  const { data: prevMonthlyBudgetDoc } = useDoc(prevMonthlyBudgetRef);
+  const { data: rawPrevBudget } = useDoc(prevMonthlyBudgetRef);
 
   const prevMonthExpensesRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return collection(firestore, 'users', user.uid, 'monthlyBudgets', prevMonthId, 'expenses');
   }, [firestore, user, prevMonthId]);
-  const { data: prevMonthExpenses } = useCollection(prevMonthExpensesRef);
+  const { data: rawPrevExpenses } = useCollection(prevMonthExpensesRef);
 
   const categoriesRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return collection(firestore, 'users', user.uid, 'expenseCategories');
   }, [firestore, user]);
-  const { data: categories } = useCollection(categoriesRef);
+  const { data: rawCategories } = useCollection(categoriesRef);
+
+  useEffect(() => {
+    const decryptAll = async () => {
+      if (!user || !mounted) return;
+      setIsDecrypting(true);
+
+      if (rawBudget) {
+        setDecryptedBudget({
+          ...rawBudget,
+          totalBudgetAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.totalBudgetAmount, user.uid) : (rawBudget.totalBudgetAmount || 0),
+        });
+      }
+
+      if (rawPrevBudget) {
+        setDecryptedPrevBudget({
+          ...rawPrevBudget,
+          totalBudgetAmount: rawPrevBudget.isEncrypted ? await decryptNumber(rawPrevBudget.totalBudgetAmount, user.uid) : (rawPrevBudget.totalBudgetAmount || 0),
+        });
+      }
+
+      if (rawFixed) {
+        const fixed = await Promise.all(rawFixed.map(async f => ({
+          ...f,
+          name: f.isEncrypted ? await decryptData(f.name, user.uid) : (f.name || ''),
+          amount: f.isEncrypted ? await decryptNumber(f.amount, user.uid) : (f.amount || 0),
+        })));
+        setDecryptedFixed(fixed);
+      }
+
+      if (rawExpenses) {
+        const exps = await Promise.all(rawExpenses.map(async e => ({
+          ...e,
+          description: e.isEncrypted ? await decryptData(e.description, user.uid) : (e.description || ''),
+          amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : (e.amount || 0),
+        })));
+        setDecryptedExpenses(exps);
+      }
+
+      if (rawPrevExpenses) {
+        const pExps = await Promise.all(rawPrevExpenses.map(async e => ({
+          ...e,
+          amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : (e.amount || 0),
+        })));
+        setDecryptedPrevExpenses(pExps);
+      }
+
+      if (rawCategories) {
+        const cats = await Promise.all(rawCategories.map(async c => ({
+          ...c,
+          name: c.isEncrypted ? await decryptData(c.name, user.uid) : (c.name || ''),
+        })));
+        setDecryptedCategories(cats);
+      }
+
+      setIsDecrypting(false);
+    };
+    decryptAll();
+  }, [rawBudget, rawPrevBudget, rawFixed, rawExpenses, rawPrevExpenses, rawCategories, user, mounted]);
 
   // --- Totals ---
   const totals = useMemo(() => {
-    const budget = monthlyBudgetDoc?.totalBudgetAmount || 0;
-    const fixed = fixedExpenses?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
-    const daily = monthExpenses?.reduce((s, e) => s + e.amount, 0) || 0;
+    const budget = decryptedBudget?.totalBudgetAmount || 0;
+    const fixed = decryptedFixed?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
+    const daily = decryptedExpenses?.reduce((s, e) => s + e.amount, 0) || 0;
     const spent = fixed + daily;
     const remaining = budget - spent;
 
-    const prevDaily = prevMonthExpenses?.reduce((s, e) => s + e.amount, 0) || 0;
-    const prevBudget = prevMonthlyBudgetDoc?.totalBudgetAmount || 0;
+    const prevDaily = decryptedPrevExpenses?.reduce((s, e) => s + e.amount, 0) || 0;
+    const prevBudget = decryptedPrevBudget?.totalBudgetAmount || 0;
 
     return {
       budget,
@@ -125,11 +197,11 @@ export default function ReportsPage() {
       dailyDiff: daily - prevDaily,
       budgetDiff: budget - prevBudget
     };
-  }, [monthlyBudgetDoc, fixedExpenses, monthExpenses, prevMonthExpenses, prevMonthlyBudgetDoc]);
+  }, [decryptedBudget, decryptedFixed, decryptedExpenses, decryptedPrevExpenses, decryptedPrevBudget]);
 
   // --- Weekly Analysis (Inside Month) ---
   const weeklyReport = useMemo(() => {
-    if (!monthExpenses) return { currentWeekSpent: 0, lastWeekSpent: 0, weeklyData: [] };
+    if (!decryptedExpenses) return { currentWeekSpent: 0, lastWeekSpent: 0, weeklyData: [] };
 
     const monthStart = startOfMonth(selectedDate);
     const monthEnd = endOfMonth(selectedDate);
@@ -137,7 +209,7 @@ export default function ReportsPage() {
 
     const weeklyData = weeks.map((weekStart, idx) => {
       const weekEnd = endOfWeek(weekStart);
-      const spent = monthExpenses
+      const spent = decryptedExpenses
         .filter(exp => {
           const d = new Date(exp.date);
           return d >= weekStart && d <= weekEnd;
@@ -158,11 +230,11 @@ export default function ReportsPage() {
     let lastWeekSpent = 0;
 
     if (isSelectedMonthCurrent) {
-       currentWeekSpent = monthExpenses
+       currentWeekSpent = decryptedExpenses
         .filter(exp => isSameWeek(new Date(exp.date), today))
         .reduce((sum, exp) => sum + exp.amount, 0);
        
-       lastWeekSpent = monthExpenses
+       lastWeekSpent = decryptedExpenses
         .filter(exp => isSameWeek(new Date(exp.date), subWeeks(today, 1)))
         .reduce((sum, exp) => sum + exp.amount, 0);
     } else {
@@ -173,18 +245,17 @@ export default function ReportsPage() {
     }
 
     return { currentWeekSpent, lastWeekSpent, weeklyData };
-  }, [monthExpenses, selectedDate]);
+  }, [decryptedExpenses, selectedDate]);
 
   // --- Prepare Chart Data based on View Type ---
   const chartsData = useMemo(() => {
-    if (!monthExpenses) {
+    if (!decryptedExpenses) {
       return { spendingData: [], categoryData: [] };
     }
 
-    // Category data remains mostly the same (filtered by month)
     const categoryTotals: Record<string, number> = {};
-    monthExpenses.forEach(exp => {
-      const catName = categories?.find(c => c.id === exp.expenseCategoryId)?.name || 'Misc';
+    decryptedExpenses.forEach(exp => {
+      const catName = decryptedCategories?.find(c => c.id === exp.expenseCategoryId)?.name || 'Misc';
       categoryTotals[catName] = (categoryTotals[catName] || 0) + exp.amount;
     });
 
@@ -194,10 +265,9 @@ export default function ReportsPage() {
       color: [`#64B5F6`, `#A5D6A7`, `#FFB74D`, `#BA68C8`, `#F06292`][idx % 5]
     }));
 
-    // Spending data depends on viewType
     let sData: any[] = [];
     const dailyExpensesMap: Record<string, number> = {};
-    monthExpenses.forEach(exp => {
+    decryptedExpenses.forEach(exp => {
       dailyExpensesMap[exp.date] = (dailyExpensesMap[exp.date] || 0) + exp.amount;
     });
 
@@ -231,20 +301,31 @@ export default function ReportsPage() {
         const isCurrentMonth = isSameMonth(m, selectedDate);
         return {
           name: format(m, 'MMM'),
-          spent: isCurrentMonth ? totals.daily : 0, // We only have data for the currently selected month in this context
+          spent: isCurrentMonth ? totals.daily : 0,
           fullLabel: format(m, 'MMMM yyyy')
         };
       });
     }
 
     return { spendingData: sData, categoryData: cData };
-  }, [monthExpenses, categories, selectedDate, viewType, weeklyReport, totals.daily]);
+  }, [decryptedExpenses, decryptedCategories, selectedDate, viewType, weeklyReport, totals.daily]);
 
   const changeMonth = (delta: number) => {
     setSelectedDate(prev => subMonths(prev, -delta));
   };
 
   const weekDiff = weeklyReport.currentWeekSpent - weeklyReport.lastWeekSpent;
+
+  if (!mounted || isDecrypting) {
+    return (
+      <AppShell>
+        <div className="flex h-[60vh] w-full items-center justify-center flex-col gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Syncing Vault...</p>
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
