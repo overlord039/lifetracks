@@ -83,7 +83,7 @@ export default function SplitPayPage() {
     decryptedGroups.find(g => g.id === selectedGroupId), 
   [decryptedGroups, selectedGroupId]);
 
-  // Sync participants when group or tab changes
+  // Sync participants when group changes
   useEffect(() => {
     if (activeGroup) {
       setSelectedParticipants(activeGroup.members);
@@ -183,6 +183,32 @@ export default function SplitPayPage() {
     return { totalSpent, balances };
   }, [activeGroup, decryptedExpenses, decryptedSettlements]);
 
+  // Live Split Breakdown
+  const previewSplits = useMemo(() => {
+    if (!expenseAmt || !activeGroup || selectedParticipants.length === 0) return {};
+    const amt = parseFloat(expenseAmt) || 0;
+    let splits: Record<string, number> = {};
+
+    if (splitType === 'equal') {
+      const count = selectedParticipants.length;
+      const base = Math.floor((amt / count) * 100) / 100;
+      let remainder = Math.round((amt - (base * count)) * 100) / 100;
+      selectedParticipants.forEach((name: string) => {
+        let s = base;
+        if (remainder > 0) {
+          s = Math.round((s + 0.01) * 100) / 100;
+          remainder = Math.round((remainder - 0.01) * 100) / 100;
+        }
+        splits[name] = s;
+      });
+    } else if (splitType === 'custom') {
+      selectedParticipants.forEach(m => splits[m] = parseFloat(customSplits[m]) || 0);
+    } else if (splitType === 'percentage') {
+      selectedParticipants.forEach(m => splits[m] = (amt * (parseFloat(customSplits[m]) || 0)) / 100);
+    }
+    return splits;
+  }, [expenseAmt, splitType, selectedParticipants, customSplits, activeGroup]);
+
   // Form Handlers
   const handleCreateGroup = async () => {
     if (!newGroupName || !newGroupMembers || !user || !groupsRef) return;
@@ -216,37 +242,23 @@ export default function SplitPayPage() {
     }
     
     const amt = parseFloat(expenseAmt);
-    let splits: Record<string, number> = {};
+    const finalSplits: Record<string, number> = {};
+    
+    // Ensure all group members exist in the splits map (even if 0)
+    activeGroup.members.forEach((m: string) => finalSplits[m] = previewSplits[m] || 0);
 
-    // Initialize all group members with 0
-    activeGroup.members.forEach((m: string) => splits[m] = 0);
-
-    if (splitType === 'equal') {
-      const count = selectedParticipants.length;
-      const base = Math.floor((amt / count) * 100) / 100;
-      let remainder = Math.round((amt - (base * count)) * 100) / 100;
-      selectedParticipants.forEach((name: string, i: number) => {
-        let s = base;
-        if (remainder > 0) { 
-          s = Math.round((s + 0.01) * 100) / 100; 
-          remainder = Math.round((remainder - 0.01) * 100) / 100; 
-        }
-        splits[name] = s;
-      });
-    } else if (splitType === 'custom') {
-      const totalCustom = Object.values(customSplits).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+    if (splitType === 'custom') {
+      const totalCustom = Object.values(previewSplits).reduce((s, v) => s + v, 0);
       if (Math.abs(totalCustom - amt) > 0.01) {
-        toast({ variant: 'destructive', title: "Math Error", description: `Custom splits must total ₹${amt}. Current: ₹${totalCustom}` });
+        toast({ variant: 'destructive', title: "Math Error", description: `Custom splits must total ₹${amt}. Current: ₹${totalCustom.toFixed(2)}` });
         return;
       }
-      selectedParticipants.forEach((m: string) => splits[m] = parseFloat(customSplits[m]) || 0);
     } else if (splitType === 'percentage') {
       const totalP = Object.values(customSplits).reduce((s, v) => s + (parseFloat(v) || 0), 0);
       if (Math.abs(totalP - 100) > 0.1) {
         toast({ variant: 'destructive', title: "Math Error", description: "Percentages must total 100%." });
         return;
       }
-      selectedParticipants.forEach((m: string) => splits[m] = (amt * (parseFloat(customSplits[m]) || 0)) / 100);
     }
 
     setIsSubmitting(true);
@@ -257,7 +269,7 @@ export default function SplitPayPage() {
       amount: await encryptData(expenseAmt, user.uid),
       paidBy: await encryptData(paidBy, user.uid),
       splitType,
-      splitsJson: await encryptData(JSON.stringify(splits), user.uid),
+      splitsJson: await encryptData(JSON.stringify(finalSplits), user.uid),
       isEncrypted: true,
       createdAt: new Date().toISOString()
     });
@@ -383,8 +395,8 @@ export default function SplitPayPage() {
           <Tabs defaultValue="add" className="w-full">
             <TabsList className="grid w-full grid-cols-3 h-11 p-1 bg-muted rounded-2xl mb-4">
               <TabsTrigger value="add" className="rounded-xl font-black text-xs">Add Bill</TabsTrigger>
-              <TabsTrigger value="history" className="rounded-xl font-black text-xs">Activity</TabsTrigger>
               <TabsTrigger value="balance" className="rounded-xl font-black text-xs">Balances</TabsTrigger>
+              <TabsTrigger value="history" className="rounded-xl font-black text-xs">Activity</TabsTrigger>
             </TabsList>
 
             <TabsContent value="balance" className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
@@ -534,7 +546,7 @@ export default function SplitPayPage() {
 
                       {splitType !== 'equal' && (
                         <div className="space-y-3 p-4 bg-muted/20 rounded-2xl border border-dashed">
-                          <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest text-center mb-2">Participant Portion</p>
+                          <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest text-center mb-2">Adjust Portion</p>
                           {selectedParticipants.map((m: string) => (
                             <div key={m} className="flex items-center justify-between gap-4">
                               <span className="text-[10px] font-black uppercase truncate">{m}</span>
@@ -553,12 +565,29 @@ export default function SplitPayPage() {
                         </div>
                       )}
 
+                      {/* Live Breakdown Display */}
+                      {selectedParticipants.length > 0 && parseFloat(expenseAmt) > 0 && (
+                        <div className="space-y-3 p-4 bg-primary/5 rounded-2xl border border-primary/10 animate-in fade-in zoom-in-95">
+                          <p className="text-[9px] font-black uppercase text-primary tracking-widest text-center mb-1">Live Split Preview</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {Object.entries(previewSplits).map(([name, val]) => (
+                              <div key={name} className="flex justify-between items-center bg-background/50 p-2 rounded-lg border border-primary/5 shadow-sm">
+                                <span className="text-[9px] font-bold uppercase truncate max-w-[60px] opacity-70">{name}</span>
+                                <span className="text-[10px] font-black">₹{val.toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       <div className="pt-4 mt-auto">
                         <Button onClick={handleAddExpense} disabled={isSubmitting} className="w-full h-12 rounded-2xl font-black shadow-lg gap-2">
                           {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                           Confirm Split
                         </Button>
-                        <p className="text-[8px] font-black text-center mt-2 uppercase text-muted-foreground opacity-60">Splitting exactly ₹{expenseAmt || '0'} among {selectedParticipants.length} people</p>
+                        <p className="text-[8px] font-black text-center mt-2 uppercase text-muted-foreground opacity-60">
+                          Splitting ₹{expenseAmt || '0'} among {selectedParticipants.length} people
+                        </p>
                       </div>
                     </div>
                   </div>
