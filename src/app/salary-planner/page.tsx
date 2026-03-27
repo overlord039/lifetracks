@@ -23,7 +23,8 @@ import {
   Wallet,
   Coins,
   ShieldCheck,
-  Target
+  Target,
+  Loader2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -36,6 +37,7 @@ import {
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { encryptData, decryptData, decryptNumber } from '@/lib/encryption';
 
 const COLORS = ['#64B5F6', '#81C784', '#FFB74D', '#BA68C8', '#F06292'];
 const INV_COLORS = ['#BA68C8', '#64B5F6', '#FFD54F'];
@@ -61,6 +63,7 @@ export default function SalaryPlannerPage() {
   const db = useFirestore();
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
+  const [isDecrypting, setIsDecrypting] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -69,7 +72,6 @@ export default function SalaryPlannerPage() {
   const [salary, setSalary] = useState<string>('');
   const [age, setAge] = useState<string>('');
   const [percents, setPercents] = useState<Percents>(DEFAULT_RATIOS);
-
   const [showResults, setShowResults] = useState(false);
 
   const salaryRef = useMemoFirebase(() => {
@@ -77,27 +79,30 @@ export default function SalaryPlannerPage() {
     return doc(db, 'users', user.uid, 'salaryProfiles', 'current');
   }, [db, user]);
 
-  const investmentRef = useMemoFirebase(() => {
-    if (!db || !user) return null;
-    return doc(db, 'users', user.uid, 'investmentAllocations', 'current');
-  }, [db, user]);
-
   const { data: savedProfile } = useDoc(salaryRef);
 
   useEffect(() => {
-    if (savedProfile) {
-      setSalary(savedProfile.salary.toString());
-      setAge(savedProfile.age.toString());
-      setPercents({
-        expense: savedProfile.expensePercent,
-        savings: savedProfile.savingsPercent,
-        investment: savedProfile.investmentPercent,
-        health: savedProfile.healthPercent,
-        personal: savedProfile.personalPercent
-      });
-      setShowResults(true);
-    }
-  }, [savedProfile]);
+    const decryptProfile = async () => {
+      if (savedProfile && user && mounted) {
+        setIsDecrypting(true);
+        const s = savedProfile.isEncrypted ? await decryptData(savedProfile.salary, user.uid) : savedProfile.salary.toString();
+        const a = savedProfile.isEncrypted ? await decryptData(savedProfile.age, user.uid) : savedProfile.age.toString();
+        
+        setSalary(s);
+        setAge(a);
+        setPercents({
+          expense: savedProfile.expensePercent,
+          savings: savedProfile.savingsPercent,
+          investment: savedProfile.investmentPercent,
+          health: savedProfile.healthPercent,
+          personal: savedProfile.personalPercent
+        });
+        setShowResults(true);
+        setIsDecrypting(false);
+      }
+    };
+    decryptProfile();
+  }, [savedProfile, user, mounted]);
 
   const numSalary = parseFloat(salary) || 0;
   const numAge = parseInt(age) || 0;
@@ -114,13 +119,11 @@ export default function SalaryPlannerPage() {
       const targetOthersTotal = 100 - sanitizedVal;
 
       if (totalOthers > 0) {
-        // Proportional redistribution based on CURRENT values
         const multiplier = targetOthersTotal / totalOthers;
         otherKeys.forEach(k => {
           nextPercents[k] = Math.max(0, Math.round(prev[k] * multiplier * 10) / 10);
         });
       } else {
-        // Proportional redistribution based on DEFAULT ratios if all others were 0
         const defaultTotalOthers = otherKeys.reduce((sum, k) => sum + DEFAULT_RATIOS[k], 0);
         otherKeys.forEach(k => {
           const ratio = DEFAULT_RATIOS[k] / defaultTotalOthers;
@@ -128,7 +131,6 @@ export default function SalaryPlannerPage() {
         });
       }
 
-      // Final normalization for rounding errors to ensure sum is exactly 100
       const currentSum = Object.values(nextPercents).reduce((a, b) => a + b, 0);
       const diff = 100 - currentSum;
       if (Math.abs(diff) > 0.01) {
@@ -178,32 +180,23 @@ export default function SalaryPlannerPage() {
 
   const totalPercent = useMemo(() => Math.round(Object.values(percents).reduce((a, b) => a + b, 0)), [percents]);
 
-  const handleSave = () => {
-    if (!user || !salaryRef || !investmentRef) return;
+  const handleSave = async () => {
+    if (!user || !salaryRef) return;
     setDocumentNonBlocking(salaryRef, {
       userId: user.uid,
-      salary: numSalary,
-      age: numAge,
+      salary: await encryptData(salary, user.uid),
+      age: await encryptData(age, user.uid),
       expensePercent: percents.expense,
       savingsPercent: percents.savings,
       investmentPercent: percents.investment,
       healthPercent: percents.health,
       personalPercent: percents.personal,
+      isEncrypted: true,
       createdAt: savedProfile?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }, { merge: true });
 
-    setDocumentNonBlocking(investmentRef, {
-      userId: user.uid,
-      equityPercent: invAllocation.equityP,
-      debtPercent: invAllocation.debtP,
-      goldPercent: invAllocation.goldP,
-      equityAmount: invAllocation.equityAmt,
-      debtAmount: invAllocation.debtAmt,
-      goldAmount: invAllocation.goldAmt,
-      createdAt: new Date().toISOString()
-    }, { merge: true });
-    toast({ title: 'Plan Saved', description: 'Your salary profile has been stored successfully.' });
+    toast({ title: 'Plan Secured', description: 'Strategy encrypted and saved to vault.' });
   };
 
   const handleGenerate = () => {
@@ -215,7 +208,7 @@ export default function SalaryPlannerPage() {
     handleSave();
   };
 
-  const syncWithBudget = () => {
+  const syncWithBudget = async () => {
     if (!user || !db) return;
     const monthId = format(new Date(), 'yyyyMM');
     const budgetRef = doc(db, 'users', user.uid, 'monthlyBudgets', monthId);
@@ -223,15 +216,25 @@ export default function SalaryPlannerPage() {
       userId: user.uid,
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
-      totalBudgetAmount: amounts.expense,
-      baseBudgetAmount: amounts.expense,
+      totalBudgetAmount: await encryptData(amounts.expense.toString(), user.uid),
+      baseBudgetAmount: await encryptData(amounts.expense.toString(), user.uid),
+      isEncrypted: true,
       updatedAt: new Date().toISOString(),
       createdAt: new Date().toISOString()
     }, { merge: true });
     toast({ title: 'Budget Synced', description: `₹${Math.round(amounts.expense).toLocaleString()} set as monthly target.` });
   };
 
-  if (!mounted) return null;
+  if (!mounted || isDecrypting) {
+    return (
+      <AppShell>
+        <div className="flex h-[60vh] w-full items-center justify-center flex-col gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Unlocking Planner...</p>
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
@@ -392,7 +395,7 @@ export default function SalaryPlannerPage() {
                             </Pie>
                             <RechartsTooltip 
                               contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', fontSize: '9px', fontWeight: 'bold' }} 
-                              formatter={(v: number) => `₹{Math.round(v).toLocaleString()}`} 
+                              formatter={(v: number) => `₹${Math.round(v).toLocaleString()}`} 
                             />
                             <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', paddingTop: '10px' }} />
                           </PieChart>

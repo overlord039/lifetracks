@@ -82,6 +82,7 @@ export default function Dashboard() {
           totalBudgetAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.totalBudgetAmount, user.uid) : (rawBudget.totalBudgetAmount || 0),
           saturdayExtraAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.saturdayExtraAmount, user.uid) : (rawBudget.saturdayExtraAmount || 0),
           sundayExtraAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.sundayExtraAmount, user.uid) : (rawBudget.sundayExtraAmount || 0),
+          isWeekendExtraBudgetEnabled: rawBudget.isWeekendExtraBudgetEnabled ?? false,
         });
       }
 
@@ -89,6 +90,7 @@ export default function Dashboard() {
         const fixed = await Promise.all(rawFixed.map(async f => ({
           ...f,
           amount: f.isEncrypted ? await decryptNumber(f.amount, user.uid) : (f.amount || 0),
+          includeInBudget: f.includeInBudget ?? true,
         })));
         setDecryptedFixed(fixed);
       }
@@ -106,10 +108,10 @@ export default function Dashboard() {
   }, [rawBudget, rawFixed, rawExpenses, user, mounted]);
 
   const budgetReport = useMemo(() => {
-    if (!decryptedBudget || !decryptedExpenses || !mounted) return null;
+    if (!decryptedBudget || !mounted) return null;
 
     const dailyExpensesMap: Record<string, number> = {};
-    decryptedExpenses.forEach(exp => {
+    (decryptedExpenses || []).forEach(exp => {
       dailyExpensesMap[exp.date] = (dailyExpensesMap[exp.date] || 0) + exp.amount;
     });
 
@@ -134,7 +136,7 @@ export default function Dashboard() {
   }, [decryptedBudget, decryptedExpenses, decryptedFixed, now, mounted]);
 
   const todayReport = budgetReport?.[todayStr];
-  const dailyBaseAllowance = (todayReport?.baseBudget || 0) + (todayReport?.extraBudget || 0);
+  const dailyBaseAllowance = (todayReport?.baseBudget || 0) + (todayReport?.extraBudget || 0) + (todayReport?.carryForwardFromYesterday || 0);
   const spentToday = todayReport?.spent || 0;
   const remaining = Math.max(0, dailyBaseAllowance - spentToday);
 

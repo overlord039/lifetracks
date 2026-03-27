@@ -79,7 +79,6 @@ export default function ReportsPage() {
   const prevDate = subMonths(selectedDate, 1);
   const prevMonthId = format(prevDate, 'yyyyMM');
 
-  // --- Current Month Data ---
   const monthlyBudgetRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'users', user.uid, 'monthlyBudgets', monthId);
@@ -98,7 +97,6 @@ export default function ReportsPage() {
   }, [firestore, user, monthId]);
   const { data: rawExpenses } = useCollection(monthExpensesRef);
 
-  // --- Previous Month Data ---
   const prevMonthlyBudgetRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'users', user.uid, 'monthlyBudgets', prevMonthId);
@@ -141,6 +139,7 @@ export default function ReportsPage() {
           ...f,
           name: f.isEncrypted ? await decryptData(f.name, user.uid) : (f.name || ''),
           amount: f.isEncrypted ? await decryptNumber(f.amount, user.uid) : (f.amount || 0),
+          includeInBudget: f.includeInBudget ?? true,
         })));
         setDecryptedFixed(fixed);
       }
@@ -175,15 +174,14 @@ export default function ReportsPage() {
     decryptAll();
   }, [rawBudget, rawPrevBudget, rawFixed, rawExpenses, rawPrevExpenses, rawCategories, user, mounted]);
 
-  // --- Totals ---
   const totals = useMemo(() => {
     const budget = decryptedBudget?.totalBudgetAmount || 0;
-    const fixed = decryptedFixed?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
-    const daily = decryptedExpenses?.reduce((s, e) => s + e.amount, 0) || 0;
+    const fixed = (decryptedFixed || []).filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0);
+    const daily = (decryptedExpenses || []).reduce((s, e) => s + e.amount, 0);
     const spent = fixed + daily;
     const remaining = budget - spent;
 
-    const prevDaily = decryptedPrevExpenses?.reduce((s, e) => s + e.amount, 0) || 0;
+    const prevDaily = (decryptedPrevExpenses || []).reduce((s, e) => s + e.amount, 0);
     const prevBudget = decryptedPrevBudget?.totalBudgetAmount || 0;
 
     return {
@@ -199,7 +197,6 @@ export default function ReportsPage() {
     };
   }, [decryptedBudget, decryptedFixed, decryptedExpenses, decryptedPrevExpenses, decryptedPrevBudget]);
 
-  // --- Weekly Analysis (Inside Month) ---
   const weeklyReport = useMemo(() => {
     if (!decryptedExpenses) return { currentWeekSpent: 0, lastWeekSpent: 0, weeklyData: [] };
 
@@ -247,7 +244,6 @@ export default function ReportsPage() {
     return { currentWeekSpent, lastWeekSpent, weeklyData };
   }, [decryptedExpenses, selectedDate]);
 
-  // --- Prepare Chart Data based on View Type ---
   const chartsData = useMemo(() => {
     if (!decryptedExpenses) {
       return { spendingData: [], categoryData: [] };
