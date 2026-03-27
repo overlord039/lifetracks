@@ -18,7 +18,6 @@ import {
   Smile, 
   PiggyBank, 
   Info, 
-  AlertTriangle, 
   Save, 
   ChevronRight,
   Wallet,
@@ -115,29 +114,26 @@ export default function SalaryPlannerPage() {
       let nextPercents = { ...prev, [id]: newVal };
       
       // Redistribute the difference among other categories
-      if (diff > 0) {
-        // We are increasing this value, so we must decrease others
-        let remainingToReduce = diff;
-        // Try to reduce proportionately from non-zero fields
+      if (diff !== 0) {
+        let remainingToAdjust = -diff;
         const totalOthers = otherKeys.reduce((sum, k) => sum + prev[k], 0);
         
-        if (totalOthers > 0) {
+        if (totalOthers > 0 || diff < 0) {
           otherKeys.forEach(k => {
-            const share = prev[k] / totalOthers;
-            const reduction = Math.min(prev[k], remainingToReduce * share);
-            nextPercents[k] = Math.round((prev[k] - reduction) * 10) / 10;
+            const share = totalOthers > 0 ? prev[k] / totalOthers : 1 / otherKeys.length;
+            const adjustment = remainingToAdjust * share;
+            nextPercents[k] = Math.max(0, Math.round((prev[k] + adjustment) * 10) / 10);
           });
         }
-      } else {
-        // We are decreasing this value, increase 'savings' by default or redistribute
-        nextPercents.savings = Math.round((nextPercents.savings + Math.abs(diff)) * 10) / 10;
       }
 
       // Final normalization to ensure strict 100%
       const finalTotal = Object.values(nextPercents).reduce((a, b) => a + b, 0);
       const error = 100 - finalTotal;
       if (Math.abs(error) > 0) {
-        nextPercents.savings = Math.round((nextPercents.savings + error) * 10) / 10;
+        // Find a key to apply the rounding error to
+        const keyToAdjust = otherKeys.find(k => nextPercents[k] > 0) || 'savings';
+        nextPercents[keyToAdjust as keyof Percents] = Math.round((nextPercents[keyToAdjust as keyof Percents] + error) * 10) / 10;
       }
 
       return nextPercents;
@@ -211,7 +207,10 @@ export default function SalaryPlannerPage() {
   };
 
   const handleGenerate = () => {
-    if (numSalary <= 0) return;
+    if (numSalary <= 0) {
+      toast({ variant: 'destructive', title: 'Invalid Salary', description: 'Please enter a valid monthly income.' });
+      return;
+    }
     setShowResults(true);
     handleSave();
   };
@@ -229,7 +228,7 @@ export default function SalaryPlannerPage() {
       updatedAt: new Date().toISOString(),
       createdAt: new Date().toISOString()
     }, { merge: true });
-    toast({ title: 'Budget Synced', description: `₹${amounts.expense.toLocaleString()} set as monthly target.` });
+    toast({ title: 'Budget Synced', description: `₹${Math.round(amounts.expense).toLocaleString()} set as monthly target.` });
   };
 
   if (!mounted) return null;
@@ -339,11 +338,11 @@ export default function SalaryPlannerPage() {
                   <CardContent className="grid gap-6 md:gap-8 md:grid-cols-5 p-5 md:p-8">
                     <div className="md:col-span-3 space-y-5 md:space-y-6">
                       {[
-                        { id: 'expense', label: 'Expenses', icon: Wallet, color: 'text-blue-500', track: COLORS[0] },
-                        { id: 'savings', label: 'Savings', icon: PiggyBank, color: 'text-green-500', track: COLORS[1] },
-                        { id: 'investment', label: 'Investments', icon: TrendingUp, color: 'text-orange-500', track: COLORS[2] },
-                        { id: 'health', label: 'Health', icon: HeartPulse, color: 'text-purple-500', track: COLORS[3] },
-                        { id: 'personal', label: 'Personal', icon: Smile, color: 'text-pink-500', track: COLORS[4] }
+                        { id: 'expense', label: 'Expenses', icon: Wallet, color: 'text-blue-500' },
+                        { id: 'savings', label: 'Savings', icon: PiggyBank, color: 'text-green-500' },
+                        { id: 'investment', label: 'Investments', icon: TrendingUp, color: 'text-orange-500' },
+                        { id: 'health', label: 'Health', icon: HeartPulse, color: 'text-purple-500' },
+                        { id: 'personal', label: 'Personal', icon: Smile, color: 'text-pink-500' }
                       ].map((item) => (
                         <div key={item.id} className="space-y-2.5 md:space-y-3 group">
                           <div className="flex justify-between items-center">
@@ -356,7 +355,7 @@ export default function SalaryPlannerPage() {
                           <Slider 
                             value={[percents[item.id as keyof Percents]]}
                             max={100}
-                            step={1}
+                            step={0.5}
                             onValueChange={([val]) => updatePercent(item.id as keyof Percents, val)}
                             className="h-1.5 md:h-2"
                           />
