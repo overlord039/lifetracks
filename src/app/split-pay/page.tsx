@@ -22,7 +22,8 @@ import {
   CheckCircle2, 
   ChevronRight,
   ArrowLeft,
-  Check
+  Check,
+  Eye
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { encryptData, decryptData, decryptNumber } from '@/lib/encryption';
@@ -31,6 +32,13 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription
+} from "@/components/ui/dialog";
 import { cn } from '@/lib/utils';
 
 type SplitType = 'equal' | 'custom' | 'percentage';
@@ -43,6 +51,7 @@ export default function SplitPayPage() {
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDecrypting, setIsDecrypting] = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState(false);
   
   // Decrypted State
   const [decryptedGroups, setDecryptedGroups] = useState<any[]>([]);
@@ -386,7 +395,13 @@ export default function SplitPayPage() {
                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Active Shared Ledger</p>
               </div>
             </div>
-            <div className="bg-primary/5 px-6 py-3 rounded-2xl border border-primary/10 text-center md:text-left">
+            <div 
+              onClick={() => setShowBreakdown(true)}
+              className="bg-primary/5 px-6 py-3 rounded-2xl border border-primary/10 text-center md:text-left cursor-pointer hover:bg-primary/10 transition-all group relative overflow-hidden"
+            >
+              <div className="absolute top-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Eye className="h-3 w-3 text-primary/40" />
+              </div>
               <p className="text-[10px] font-black uppercase text-primary tracking-widest">Total Spent</p>
               <p className="text-2xl font-black text-primary">₹{groupStats?.totalSpent.toLocaleString()}</p>
             </div>
@@ -597,6 +612,45 @@ export default function SplitPayPage() {
           </Tabs>
         </div>
       )}
+
+      <Dialog open={showBreakdown} onOpenChange={setShowBreakdown}>
+        <DialogContent className="max-w-md rounded-3xl border-none shadow-2xl overflow-hidden p-0">
+          <div className="bg-primary p-6 text-primary-foreground">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-black tracking-tight flex items-center gap-2">
+                <Calculator className="h-5 w-5" /> Contribution Ledger
+              </DialogTitle>
+              <DialogDescription className="text-primary-foreground/70 text-[10px] font-bold uppercase tracking-widest">
+                {activeGroup?.name} • Total: ₹{groupStats?.totalSpent.toLocaleString()}
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <div className="p-6 space-y-4">
+            <ScrollArea className="max-h-[300px] pr-4">
+              <div className="space-y-3">
+                {groupStats?.balances.map(b => (
+                  <div key={b.name} className="flex items-center justify-between p-3 rounded-2xl bg-muted/30 border border-border/50">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-background rounded-xl shadow-sm">
+                        <UserCircle className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-tight">{b.name}</p>
+                        <p className="text-[9px] text-muted-foreground font-bold">Group Participant</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[9px] font-black text-muted-foreground uppercase tracking-tighter">Total Paid</p>
+                      <p className="text-sm font-black text-primary">₹{b.paid.toLocaleString()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+            <Button onClick={() => setShowBreakdown(false)} className="w-full h-11 rounded-xl font-black uppercase text-xs tracking-widest">Close Record</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }
