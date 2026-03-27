@@ -103,14 +103,15 @@ export default function SalaryPlannerPage() {
   const numAge = parseInt(age) || 0;
 
   const updatePercent = useCallback((id: keyof Percents, newVal: number) => {
+    const sanitizedVal = Math.min(100, Math.max(0, newVal));
     setPercents(prev => {
       const oldVal = prev[id];
-      if (oldVal === newVal) return prev;
+      if (oldVal === sanitizedVal) return prev;
       
-      const nextPercents = { ...prev, [id]: newVal };
+      const nextPercents = { ...prev, [id]: sanitizedVal };
       const otherKeys = (Object.keys(prev) as (keyof Percents)[]).filter(k => k !== id);
       const totalOthers = otherKeys.reduce((sum, k) => sum + prev[k], 0);
-      const targetOthersTotal = 100 - newVal;
+      const targetOthersTotal = 100 - sanitizedVal;
 
       if (totalOthers > 0) {
         // Proportional redistribution based on CURRENT values
@@ -345,11 +346,24 @@ export default function SalaryPlannerPage() {
                       ].map((item) => (
                         <div key={item.id} className="space-y-2.5 md:space-y-3 group">
                           <div className="flex justify-between items-center">
-                            <Label className="flex items-center gap-2 font-black text-[10px] md:text-[11px] uppercase tracking-tighter text-muted-foreground group-hover:text-primary transition-colors">
+                            <div className="flex items-center gap-2">
                               <item.icon className={cn("h-3.5 w-3.5 md:h-4 md:w-4", item.color)} />
-                              {item.label} <span className="font-bold ml-1 text-[9px] md:text-[10px]">({Math.round(percents[item.id as keyof Percents])}%)</span>
-                            </Label>
-                            <span className="text-[11px] md:text-sm font-black tracking-tight">₹{Math.round(amounts[item.id as keyof typeof amounts]).toLocaleString()}</span>
+                              <Label className="font-black text-[10px] md:text-[11px] uppercase tracking-tighter text-muted-foreground group-hover:text-primary transition-colors">
+                                {item.label}
+                              </Label>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-1 bg-muted/30 px-2 py-0.5 rounded-lg border border-transparent focus-within:border-primary/30 transition-all">
+                                <Input 
+                                  type="number"
+                                  value={Math.round(percents[item.id as keyof Percents] * 10) / 10}
+                                  onChange={(e) => updatePercent(item.id as keyof Percents, parseFloat(e.target.value) || 0)}
+                                  className="w-10 h-6 border-none bg-transparent p-0 text-[10px] md:text-xs font-black text-right focus-visible:ring-0 shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                />
+                                <span className="text-[10px] md:text-xs font-black text-muted-foreground">%</span>
+                              </div>
+                              <span className="text-[10px] md:text-xs font-black tracking-tight min-w-[60px] text-right">₹{Math.round(amounts[item.id as keyof typeof amounts]).toLocaleString()}</span>
+                            </div>
                           </div>
                           <Slider 
                             value={[percents[item.id as keyof Percents]]}
@@ -378,7 +392,7 @@ export default function SalaryPlannerPage() {
                             </Pie>
                             <RechartsTooltip 
                               contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', fontSize: '9px', fontWeight: 'bold' }} 
-                              formatter={(v: number) => `₹${Math.round(v).toLocaleString()}`} 
+                              formatter={(v: number) => `₹{Math.round(v).toLocaleString()}`} 
                             />
                             <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', paddingTop: '10px' }} />
                           </PieChart>
