@@ -13,7 +13,8 @@ import {
   Calculator,
   ShieldCheck,
   Info,
-  Users
+  Users,
+  UserCircle
 } from 'lucide-react';
 import { 
   Sidebar, 
@@ -39,6 +40,7 @@ import { cn } from '@/lib/utils';
 
 const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
+  { title: 'Profile', url: '/profile', icon: UserCircle },
   { title: 'Salary Planner', url: '/salary-planner', icon: Calculator },
   { title: 'Learning', url: '/learning', icon: GraduationCap },
   { title: 'Budget', url: '/budget', icon: Wallet },
@@ -98,7 +100,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Avatar>
                 <div className="flex flex-col min-w-0">
                   <span className="text-sm font-bold truncate">{user?.email?.split('@')[0] || 'User'}</span>
-                  <span className="text-[10px] text-muted-foreground truncate font-medium">{user?.email}</span>
+                  <span className="text-[10px] text-muted-foreground truncate font-medium">ID: {user?.uid.slice(0, 8)}...</span>
                 </div>
               </div>
             </div>

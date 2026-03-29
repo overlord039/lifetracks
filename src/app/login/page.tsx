@@ -8,7 +8,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup
 } from 'firebase/auth';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth, useUser, useFirestore, setDocumentNonBlocking } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { doc } from 'firebase/firestore';
 
 export default function LoginPage(props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   // Unwrap searchParams to satisfy Next.js 15 requirements
@@ -28,6 +29,7 @@ export default function LoginPage(props: { searchParams: Promise<{ [key: string]
   const router = useRouter();
   const { toast } = useToast();
   const auth = useAuth();
+  const db = useFirestore();
   const { user, isUserLoading } = useUser();
 
   useEffect(() => {
@@ -36,11 +38,23 @@ export default function LoginPage(props: { searchParams: Promise<{ [key: string]
     }
   }, [user, isUserLoading, router]);
 
+  const syncUserDoc = (user: any) => {
+    if (!db) return;
+    const userRef = doc(db, 'users', user.uid);
+    setDocumentNonBlocking(userRef, {
+      id: user.uid,
+      email: user.email,
+      updatedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(), // This will be merged if it exists
+    }, { merge: true });
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      syncUserDoc(userCredential.user);
       router.push('/dashboard');
     } catch (error: any) {
       toast({
@@ -57,7 +71,8 @@ export default function LoginPage(props: { searchParams: Promise<{ [key: string]
     e.preventDefault();
     setLoading(true);
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      syncUserDoc(userCredential.user);
       router.push('/dashboard');
     } catch (error: any) {
       toast({
@@ -74,7 +89,8 @@ export default function LoginPage(props: { searchParams: Promise<{ [key: string]
     setLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const userCredential = await signInWithPopup(auth, provider);
+      syncUserDoc(userCredential.user);
       router.push('/dashboard');
     } catch (error: any) {
       toast({
