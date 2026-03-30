@@ -16,6 +16,10 @@
           "description": "The email address of the user.",
           "format": "email"
         },
+        "displayName": {
+          "type": "string",
+          "description": "The chosen public name of the user."
+        },
         "createdAt": {
           "type": "string",
           "description": "Timestamp when the user account was created.",
@@ -33,367 +37,85 @@
         "createdAt"
       ]
     },
+    "SharedGroup": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SharedGroup",
+      "type": "object",
+      "description": "A collaborative room for shared expenses.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "creatorName": { "type": "string" },
+        "memberUids": { "type": "array", "items": { "type": "string" } },
+        "members": { 
+          "type": "array", 
+          "items": { 
+            "type": "object",
+            "properties": {
+              "userId": { "type": "string" },
+              "userName": { "type": "string" }
+            }
+          } 
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "createdBy", "memberUids", "members", "createdAt"]
+    },
+    "RoomExpense": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "RoomExpense",
+      "type": "object",
+      "description": "An expense within a shared room.",
+      "properties": {
+        "id": { "type": "string" },
+        "roomId": { "type": "string" },
+        "amount": { "type": "number" },
+        "paidBy": { "type": "string", "description": "UserId of payer" },
+        "paidByName": { "type": "string" },
+        "participants": { "type": "array", "items": { "type": "string" }, "description": "UserIds involved" },
+        "splitType": { "type": "string", "enum": ["equal", "custom", "percentage"] },
+        "splits": { "type": "object", "description": "Map of userId to amount" },
+        "note": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "roomId", "amount", "paidBy", "participants", "splitType", "splits", "createdAt"]
+    },
+    "RoomSettlement": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "RoomSettlement",
+      "type": "object",
+      "description": "A settlement payment within a room.",
+      "properties": {
+        "id": { "type": "string" },
+        "roomId": { "type": "string" },
+        "paidBy": { "type": "string", "description": "UserId of sender" },
+        "paidByName": { "type": "string" },
+        "paidTo": { "type": "string", "description": "UserId of receiver" },
+        "paidToName": { "type": "string" },
+        "amount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "roomId", "paidBy", "paidTo", "amount", "createdAt"]
+    },
     "MonthlyBudget": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "MonthlyBudget",
       "type": "object",
-      "description": "Stores the user's overall budget settings and calculations for a specific month and year.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the MonthlyBudget entity."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who owns this monthly budget."
-        },
-        "month": {
-          "type": "number",
-          "description": "The month number (1-12) for this budget."
-        },
-        "year": {
-          "type": "number",
-          "description": "The year for this budget."
-        },
-        "totalBudgetAmount": {
-          "type": "number",
-          "description": "The total budget amount set by the user for the month."
-        },
-        "baseBudgetAmount": {
-          "type": "number",
-          "description": "The initial base budget for the month."
-        },
-        "extraBudgetAmount": {
-          "type": "number",
-          "description": "Total extra funds added during the month."
-        },
-        "isWeekendExtraBudgetEnabled": {
-          "type": "boolean",
-          "description": "Toggle to enable or disable extra budget for weekend days."
-        },
-        "saturdayExtraAmount": {
-          "type": "number",
-          "description": "Extra budget for Saturdays."
-        },
-        "sundayExtraAmount": {
-          "type": "number",
-          "description": "Extra budget for Sundays."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the monthly budget was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the monthly budget was last updated.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "userId",
-        "month",
-        "year",
-        "totalBudgetAmount",
-        "createdAt"
-      ]
-    },
-    "FixedExpense": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "FixedExpense",
-      "type": "object",
-      "description": "Represents a recurring fixed monthly expense defined by the user.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the FixedExpense entity."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who owns this fixed expense."
-        },
-        "monthlyBudgetId": {
-          "type": "string",
-          "description": "Reference to the MonthlyBudget this fixed expense is associated with."
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the fixed expense."
-        },
-        "amount": {
-          "type": "number",
-          "description": "The fixed amount of the expense."
-        },
-        "includeInBudget": {
-          "type": "boolean",
-          "description": "A toggle indicating whether this fixed expense should be deducted from the monthly budget calculation."
-        },
-        "expenseCategoryId": {
-          "type": "string",
-          "description": "Reference to the ExpenseCategory this fixed expense belongs to."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the fixed expense was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the fixed expense was last updated.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "userId",
-        "monthlyBudgetId",
-        "name",
-        "amount",
-        "includeInBudget",
-        "expenseCategoryId",
-        "createdAt"
-      ]
-    },
-    "ExpenseCategory": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "ExpenseCategory",
-      "type": "object",
-      "description": "Defines a user-created category for organizing expenses.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the ExpenseCategory entity."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who owns this expense category."
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the expense category."
-        },
-        "type": {
-          "type": "string",
-          "enum": ["daily", "fixed"],
-          "description": "The type of the category."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the expense category was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the expense category was last updated.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "userId",
-        "name",
-        "type",
-        "createdAt"
-      ]
-    },
-    "Expense": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Expense",
-      "type": "object",
-      "description": "Records an individual expense transaction made by the user.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Expense entity."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who made this expense."
-        },
-        "monthlyBudgetId": {
-          "type": "string",
-          "description": "Reference to the MonthlyBudget this expense falls under."
-        },
-        "expenseCategoryId": {
-          "type": "string",
-          "description": "Reference to the ExpenseCategory this expense belongs to."
-        },
-        "amount": {
-          "type": "number",
-          "description": "The monetary amount of the expense."
-        },
-        "description": {
-          "type": "string",
-          "description": "A brief description of the expense."
-        },
-        "date": {
-          "type": "string",
-          "description": "The date when the expense occurred.",
-          "format": "date"
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the expense record was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the expense record was last updated.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "userId",
-        "monthlyBudgetId",
-        "expenseCategoryId",
-        "amount",
-        "date",
-        "createdAt"
-      ]
-    },
-    "SplitExpense": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "SplitExpense",
-      "type": "object",
-      "description": "Represents a shared expense to be split between people.",
+      "description": "Stores user's budget settings.",
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
-        "groupId": { "type": "string", "description": "Reference to a SplitGroup" },
-        "description": { "type": "string", "description": "Encrypted description" },
-        "amount": { "type": "string", "description": "Encrypted total amount" },
-        "paidBy": { "type": "string", "description": "Encrypted name of payer" },
-        "splitType": { "type": "string", "enum": ["equal", "custom", "percentage"] },
-        "splitsJson": { "type": "string", "description": "Encrypted JSON of splits" },
+        "month": { "type": "number" },
+        "year": { "type": "number" },
+        "totalBudgetAmount": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "userId", "groupId", "description", "amount", "paidBy", "splitType", "createdAt"]
-    },
-    "SplitGroup": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "SplitGroup",
-      "type": "object",
-      "description": "A group of people for recurring split expenses.",
-      "properties": {
-        "id": { "type": "string" },
-        "userId": { "type": "string" },
-        "name": { "type": "string", "description": "Encrypted group name" },
-        "members": { "type": "string", "description": "Encrypted comma-separated list of names" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "userId", "name", "members", "createdAt"]
-    },
-    "SplitSettlement": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "SplitSettlement",
-      "type": "object",
-      "description": "A settlement payment between two people.",
-      "properties": {
-        "id": { "type": "string" },
-        "userId": { "type": "string" },
-        "groupId": { "type": "string" },
-        "from": { "type": "string", "description": "Encrypted name" },
-        "to": { "type": "string", "description": "Encrypted name" },
-        "amount": { "type": "string", "description": "Encrypted amount" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "userId", "groupId", "from", "to", "amount", "createdAt"]
-    },
-    "LearningGoal": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "LearningGoal",
-      "type": "object",
-      "description": "Defines a user's specific learning goal.",
-      "properties": {
-        "id": { "type": "string" },
-        "userId": { "type": "string" },
-        "skill": { "type": "string" },
-        "difficulty": { "type": "string" },
-        "target": { "type": "number" },
-        "completedCount": { "type": "number" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "userId", "skill", "difficulty", "target", "createdAt"]
-    },
-    "DailyDiary": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "DailyDiary",
-      "type": "object",
-      "description": "Stores a user's personal diary entry for a specific day.",
-      "properties": {
-        "id": { "type": "string" },
-        "userId": { "type": "string" },
-        "date": { "type": "string", "format": "date" },
-        "whatIDidToday": { "type": "string" },
-        "whatILearned": { "type": "string" },
-        "challengesBlockers": { "type": "string" },
-        "tomorrowsPlan": { "type": "string" },
-        "mood": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "userId", "date", "createdAt"]
-    },
-    "Debt": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Debt",
-      "type": "object",
-      "description": "Represents money owed to the user by others.",
-      "properties": {
-        "id": { "type": "string" },
-        "userId": { "type": "string" },
-        "debtorName": { "type": "string", "description": "Who owes the money." },
-        "amount": { "type": "number" },
-        "description": { "type": "string" },
-        "isPaid": { "type": "boolean" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "userId", "debtorName", "amount", "isPaid", "createdAt"]
-    },
-    "SalaryProfile": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "SalaryProfile",
-      "type": "object",
-      "description": "Stores user's salary and overall split preferences.",
-      "properties": {
-        "userId": { "type": "string" },
-        "salary": { "type": "number" },
-        "age": { "type": "number" },
-        "expensePercent": { "type": "number" },
-        "savingsPercent": { "type": "number" },
-        "investmentPercent": { "type": "number" },
-        "healthPercent": { "type": "number" },
-        "personalPercent": { "type": "number" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["userId", "salary", "age", "expensePercent", "savingsPercent", "investmentPercent", "healthPercent", "personalPercent", "createdAt"]
-    },
-    "InvestmentAllocation": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "InvestmentAllocation",
-      "type": "object",
-      "description": "Stores age-based investment splits.",
-      "properties": {
-        "userId": { "type": "string" },
-        "equityPercent": { "type": "number" },
-        "debtPercent": { "type": "number" },
-        "goldPercent": { "type": "number" },
-        "equityAmount": { "type": "number" },
-        "debtAmount": { "type": "number" },
-        "goldAmount": { "type": "number" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["userId", "equityPercent", "debtPercent", "goldPercent", "equityAmount", "debtAmount", "goldAmount", "createdAt"]
+      }
     }
   },
   "auth": {
     "providers": [
       "password",
-      "anonymous",
       "google.com"
     ]
   },
@@ -404,116 +126,35 @@
         "definition": {
           "entityName": "User",
           "schema": { "$ref": "#/backend/entities/User" },
-          "description": "Stores user profile information.",
+          "description": "User profile.",
           "params": [{ "name": "userId", "description": "User UID" }]
         }
       },
       {
-        "path": "/users/{userId}/splitExpenses/{expenseId}",
+        "path": "/sharedGroups/{groupId}",
         "definition": {
-          "entityName": "SplitExpense",
-          "schema": { "$ref": "#/backend/entities/SplitExpense" },
-          "description": "Track shared expenses.",
-          "params": [{ "name": "userId", "description": "User UID" }, { "name": "expenseId", "description": "Expense ID" }]
+          "entityName": "SharedGroup",
+          "schema": { "$ref": "#/backend/entities/SharedGroup" },
+          "description": "Collaborative split rooms.",
+          "params": [{ "name": "groupId", "description": "Short code or ID" }]
         }
       },
       {
-        "path": "/users/{userId}/splitGroups/{groupId}",
+        "path": "/sharedGroups/{groupId}/expenses/{expenseId}",
         "definition": {
-          "entityName": "SplitGroup",
-          "schema": { "$ref": "#/backend/entities/SplitGroup" },
-          "description": "Groups for shared expenses.",
-          "params": [{ "name": "userId", "description": "User UID" }, { "name": "groupId", "description": "Group ID" }]
+          "entityName": "RoomExpense",
+          "schema": { "$ref": "#/backend/entities/RoomExpense" },
+          "description": "Expenses in room.",
+          "params": [{ "name": "groupId", "description": "Room ID" }, { "name": "expenseId", "description": "Expense ID" }]
         }
       },
       {
-        "path": "/users/{userId}/splitGroups/{groupId}/settlements/{id}",
+        "path": "/sharedGroups/{groupId}/settlements/{id}",
         "definition": {
-          "entityName": "SplitSettlement",
-          "schema": { "$ref": "#/backend/entities/SplitSettlement" },
-          "description": "Settlements within a group.",
-          "params": [{ "name": "userId", "description": "User UID" }, { "name": "groupId", "description": "Group ID" }, { "name": "id", "description": "Settlement ID" }]
-        }
-      },
-      {
-        "path": "/users/{userId}/learningGoals/{goalId}",
-        "definition": {
-          "entityName": "LearningGoal",
-          "schema": { "$ref": "#/backend/entities/LearningGoal" },
-          "description": "Learning goals.",
-          "params": [{ "name": "userId", "description": "User UID" }, { "name": "goalId", "description": "Goal ID" }]
-        }
-      },
-      {
-        "path": "/users/{userId}/expenseCategories/{categoryId}",
-        "definition": {
-          "entityName": "ExpenseCategory",
-          "schema": { "$ref": "#/backend/entities/ExpenseCategory" },
-          "description": "Expense categories.",
-          "params": [{ "name": "userId", "description": "User UID" }, { "name": "categoryId", "description": "Category ID" }]
-        }
-      },
-      {
-        "path": "/users/{userId}/monthlyBudgets/{monthlyBudgetId}",
-        "definition": {
-          "entityName": "MonthlyBudget",
-          "schema": { "$ref": "#/backend/entities/MonthlyBudget" },
-          "description": "Monthly budget settings.",
-          "params": [{ "name": "userId", "description": "User UID" }, { "name": "monthlyBudgetId", "description": "YYYYMM" }]
-        }
-      },
-      {
-        "path": "/users/{userId}/monthlyBudgets/{monthlyBudgetId}/fixedExpenses/{id}",
-        "definition": {
-          "entityName": "FixedExpense",
-          "schema": { "$ref": "#/backend/entities/FixedExpense" },
-          "description": "Fixed expenses.",
-          "params": [{ "name": "userId", "description": "User UID" }, { "name": "monthlyBudgetId", "description": "YYYYMM" }, { "name": "id", "description": "Fixed ID" }]
-        }
-      },
-      {
-        "path": "/users/{userId}/monthlyBudgets/{monthlyBudgetId}/expenses/{id}",
-        "definition": {
-          "entityName": "Expense",
-          "schema": { "$ref": "#/backend/entities/Expense" },
-          "description": "Individual expenses.",
-          "params": [{ "name": "userId", "description": "User UID" }, { "name": "monthlyBudgetId", "description": "YYYYMM" }, { "name": "id", "description": "Expense ID" }]
-        }
-      },
-      {
-        "path": "/users/{userId}/dailyDiaries/{date}",
-        "definition": {
-          "entityName": "DailyDiary",
-          "schema": { "$ref": "#/backend/entities/DailyDiary" },
-          "description": "Daily diary entries.",
-          "params": [{ "name": "userId", "description": "User UID" }, { "name": "date", "description": "YYYY-MM-DD" }]
-        }
-      },
-      {
-        "path": "/users/{userId}/debts/{debtId}",
-        "definition": {
-          "entityName": "Debt",
-          "schema": { "$ref": "#/backend/entities/Debt" },
-          "description": "Track money owed by others.",
-          "params": [{ "name": "userId", "description": "User UID" }, { "name": "debtId", "description": "Debt ID" }]
-        }
-      },
-      {
-        "path": "/users/{userId}/salaryProfiles/{profileId}",
-        "definition": {
-          "entityName": "SalaryProfile",
-          "schema": { "$ref": "#/backend/entities/SalaryProfile" },
-          "description": "User's salary profiles.",
-          "params": [{ "name": "userId", "description": "User UID" }, { "name": "profileId", "description": "Profile ID" }]
-        }
-      },
-      {
-        "path": "/users/{userId}/investmentAllocations/{allocationId}",
-        "definition": {
-          "entityName": "InvestmentAllocation",
-          "schema": { "$ref": "#/backend/entities/InvestmentAllocation" },
-          "description": "User's investment allocations.",
-          "params": [{ "name": "userId", "description": "User UID" }, { "name": "allocationId", "description": "Allocation ID" }]
+          "entityName": "RoomSettlement",
+          "schema": { "$ref": "#/backend/entities/RoomSettlement" },
+          "description": "Settlements in room.",
+          "params": [{ "name": "groupId", "description": "Room ID" }, { "name": "id", "description": "Settlement ID" }]
         }
       }
     ]

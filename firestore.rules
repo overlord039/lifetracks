@@ -3,8 +3,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Global Helper Functions ---
-
     function isSignedIn() {
       return request.auth != null;
     }
@@ -13,109 +11,34 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isExistingOwner(userId) {
-      return resource != null && isOwner(userId);
+    // --- Shared Group Rules ---
+    match /sharedGroups/{groupId} {
+      allow create: if isSignedIn();
+      allow get: if isSignedIn(); // Allow get for joining by ID
+      allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+      allow update: if isSignedIn() && (
+        request.auth.uid in resource.data.memberUids || // Existing member updating
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids', 'members'])) // New user joining
+      );
+      allow delete: if isSignedIn() && resource.data.createdBy == request.auth.uid;
+
+      match /expenses/{expenseId} {
+        allow read, write: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/sharedGroups/$(groupId)).data.memberUids;
+      }
+
+      match /settlements/{settlementId} {
+        allow read, write: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/sharedGroups/$(groupId)).data.memberUids;
+      }
     }
 
-    function matchesPath(dataField, pathId) {
-      return dataField == pathId;
-    }
-
-    function isImmutable(fieldName) {
-      return !(fieldName in request.resource.data) || request.resource.data[fieldName] == resource.data[fieldName];
-    }
-
-    // --- Collection Rules ---
-
+    // --- User Rules ---
     match /users/{userId} {
-      allow get: if isOwner(userId);
+      allow get: if isSignedIn();
       allow list: if false;
-      allow create: if isOwner(userId) && matchesPath(request.resource.data.id, userId);
-      allow update: if isExistingOwner(userId) && isImmutable('id');
-      allow delete: if isExistingOwner(userId);
-
-      match /splitExpenses/{expenseId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId);
-        allow update: if isExistingOwner(userId) && isImmutable('userId');
-        allow delete: if isExistingOwner(userId);
-      }
-
-      match /splitGroups/{groupId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId);
-        allow update: if isExistingOwner(userId) && isImmutable('userId');
-        allow delete: if isExistingOwner(userId);
-
-        match /settlements/{id} {
-          allow get, list: if isOwner(userId);
-          allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId) && matchesPath(request.resource.data.groupId, groupId);
-          allow update: if isExistingOwner(userId) && isImmutable('userId') && isImmutable('groupId');
-          allow delete: if isExistingOwner(userId);
-        }
-      }
-
-      match /learningGoals/{goalId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId);
-        allow update: if isExistingOwner(userId) && isImmutable('userId');
-        allow delete: if isExistingOwner(userId);
-      }
-
-      match /expenseCategories/{categoryId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId);
-        allow update: if isExistingOwner(userId) && isImmutable('userId');
-        allow delete: if isExistingOwner(userId);
-      }
-
-      match /dailyDiaries/{date} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId);
-        allow update: if isExistingOwner(userId) && isImmutable('userId');
-        allow delete: if isExistingOwner(userId);
-      }
-
-      match /debts/{debtId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId);
-        allow update: if isExistingOwner(userId) && isImmutable('userId');
-        allow delete: if isExistingOwner(userId);
-      }
-
-      match /salaryProfiles/{profileId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId);
-        allow update: if isExistingOwner(userId) && isImmutable('userId');
-        allow delete: if isExistingOwner(userId);
-      }
-
-      match /investmentAllocations/{allocationId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId);
-        allow update: if isExistingOwner(userId) && isImmutable('userId');
-        allow delete: if isExistingOwner(userId);
-      }
-
-      match /monthlyBudgets/{monthlyBudgetId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId);
-        allow update: if isExistingOwner(userId) && isImmutable('userId');
-        allow delete: if isExistingOwner(userId);
-
-        match /fixedExpenses/{id} {
-          allow get, list: if isOwner(userId);
-          allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId) && matchesPath(request.resource.data.monthlyBudgetId, monthlyBudgetId);
-          allow update: if isExistingOwner(userId) && isImmutable('userId') && isImmutable('monthlyBudgetId');
-          allow delete: if isExistingOwner(userId);
-        }
-
-        match /expenses/{id} {
-          allow get, list: if isOwner(userId);
-          allow create: if isOwner(userId) && matchesPath(request.resource.data.userId, userId) && matchesPath(request.resource.data.monthlyBudgetId, monthlyBudgetId);
-          allow update: if isExistingOwner(userId) && isImmutable('userId') && isImmutable('monthlyBudgetId');
-          allow delete: if isExistingOwner(userId);
-        }
+      allow create, update: if isOwner(userId);
+      
+      match /{allSubcollections=**} {
+        allow read, write: if isOwner(userId);
       }
     }
   }
