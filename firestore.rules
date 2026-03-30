@@ -20,12 +20,18 @@ service cloud.firestore {
         return isSignedIn() && exists(groupPath) && (request.auth.uid in get(groupPath).data.memberUids);
       }
 
+      function isGroupCreator() {
+        let groupPath = /databases/$(database)/documents/sharedGroups/$(groupId);
+        return isSignedIn() && exists(groupPath) && (get(groupPath).data.createdBy == request.auth.uid);
+      }
+
       allow create: if isSignedIn();
       allow get: if isSignedIn(); // Allow get for joining by ID
       allow list: if isSignedIn() && (request.auth.uid in resource.data.memberUids);
       allow update: if isSignedIn() && (
         (request.auth.uid in resource.data.memberUids) || // Existing member
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids', 'members'])) // New member joining
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids', 'members'])) || // New member joining
+        (resource.data.createdBy == request.auth.uid) // Creator managing members
       );
       allow delete: if isSignedIn() && (resource.data.createdBy == request.auth.uid);
 

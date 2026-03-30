@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, arrayUnion } from 'firebase/firestore';
 import { 
   Users, 
@@ -25,9 +25,9 @@ import {
   TrendingUp,
   TrendingDown,
   Scale,
-  LogOut,
-  UserPlus,
-  AlertTriangle
+  UserMinus,
+  AlertTriangle,
+  UserPlus
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -57,11 +57,9 @@ export default function SplitPayPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   
-  // Room State
   const [roomName, setRoomName] = useState('');
   const [joinCode, setJoinCode] = useState('');
 
-  // Expense State
   const [expenseDesc, setExpenseDesc] = useState('');
   const [expenseAmt, setExpenseAmt] = useState('');
   const [paidBy, setPaidBy] = useState('');
@@ -69,7 +67,6 @@ export default function SplitPayPage() {
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [customSplits, setCustomSplits] = useState<Record<string, string>>({});
 
-  // Data Fetching
   const userProfileRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return doc(db, 'users', user.uid);
@@ -87,8 +84,6 @@ export default function SplitPayPage() {
     myGroups?.find(g => g.id === selectedGroupId), 
   [myGroups, selectedGroupId]);
 
-  // CRITICAL: Gate sub-collection fetching by activeGroup presence
-  // This prevents permission errors before the join operation is synced to the server
   const expensesRef = useMemoFirebase(() => {
     if (!db || !selectedGroupId || !activeGroup) return null;
     return collection(db, 'sharedGroups', selectedGroupId, 'expenses');
@@ -101,7 +96,6 @@ export default function SplitPayPage() {
   }, [db, selectedGroupId, activeGroup]);
   const { data: settlements, error: settlementsError } = useCollection(settlementsRef);
 
-  // Auto-fill participants when room is opened
   useEffect(() => {
     if (activeGroup) {
       setSelectedParticipants(activeGroup.memberUids || []);
@@ -109,7 +103,6 @@ export default function SplitPayPage() {
     }
   }, [activeGroup, paidBy, user?.uid]);
 
-  // Handle permission errors gracefully
   useEffect(() => {
     if (expensesError || settlementsError) {
       toast({ 
@@ -121,7 +114,6 @@ export default function SplitPayPage() {
     }
   }, [expensesError, settlementsError, toast]);
 
-  // Real-Time Calculations
   const stats = useMemo(() => {
     if (!activeGroup || !expenses) return null;
     
@@ -162,7 +154,6 @@ export default function SplitPayPage() {
     return { totalSpent, balances };
   }, [activeGroup, expenses, settlements]);
 
-  // Split Logic Preview
   const previewSplits = useMemo(() => {
     if (!expenseAmt || !activeGroup || selectedParticipants.length === 0) return {};
     const amt = parseFloat(expenseAmt) || 0;
@@ -188,7 +179,6 @@ export default function SplitPayPage() {
     return splits;
   }, [expenseAmt, splitType, selectedParticipants, customSplits, activeGroup]);
 
-  // Actions
   const handleCreateRoom = async () => {
     if (!roomName.trim() || !user || !db) return;
     setIsProcessing(true);
@@ -219,16 +209,30 @@ export default function SplitPayPage() {
     setIsProcessing(true);
     
     const roomRef = doc(db, 'sharedGroups', code);
-    setDocumentNonBlocking(roomRef, {
+    updateDocumentNonBlocking(roomRef, {
       memberUids: arrayUnion(user.uid),
       members: arrayUnion({ userId: user.uid, userName })
-    }, { merge: true });
+    });
     
     setJoinCode('');
     setIsJoiningModalOpen(false);
     setSelectedGroupId(code);
     setIsProcessing(false);
     toast({ title: "Syncing Membership", description: "Verifying credentials with ledger..." });
+  };
+
+  const handleKickMember = (targetUserId: string) => {
+    if (!activeGroup || !db || user?.uid !== activeGroup.createdBy) return;
+    
+    const updatedMemberUids = activeGroup.memberUids.filter((id: string) => id !== targetUserId);
+    const updatedMembers = activeGroup.members.filter((m: any) => m.userId !== targetUserId);
+    
+    updateDocumentNonBlocking(doc(db, 'sharedGroups', activeGroup.id), {
+      memberUids: updatedMemberUids,
+      members: updatedMembers
+    });
+    
+    toast({ title: "Member Removed", description: "Ledger updated." });
   };
 
   const handleAddExpense = async () => {
@@ -362,7 +366,7 @@ export default function SplitPayPage() {
                   <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none font-black text-[8px] uppercase tracking-widest">Live Ledger</Badge>
                 </h2>
                 <div className="flex items-center gap-2 group">
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Group Code: {selectedGroupId}</p>
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Room ID: {selectedGroupId}</p>
                   <button onClick={() => copyToClipboard(selectedGroupId || '')} className="opacity-0 group-hover:opacity-100 transition-opacity">
                     <Copy className="h-3 w-3 text-muted-foreground hover:text-primary" />
                   </button>
@@ -502,16 +506,40 @@ export default function SplitPayPage() {
                       </CardHeader>
                       <CardContent className="pt-4 space-y-3">
                         {(Array.isArray(activeGroup?.members) ? activeGroup.members : []).map((m: any) => (
-                          <div key={m.userId} className="flex items-center justify-between p-3 rounded-2xl bg-muted/10 border border-dashed">
+                          <div key={m.userId} className="flex items-center justify-between p-3 rounded-2xl bg-muted/10 border border-dashed group">
                             <div className="flex items-center gap-3">
                               <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-xs">
                                 {(m.userName || 'U')[0].toUpperCase()}
                               </div>
-                              <span className="text-sm font-black uppercase tracking-tight">{m.userName}</span>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-black uppercase tracking-tight">{m.userName}</span>
+                                {m.userId === activeGroup?.createdBy && <span className="text-[8px] font-black uppercase text-orange-600">Room Admin</span>}
+                              </div>
                             </div>
-                            {m.userId === activeGroup?.createdBy && <Badge className="text-[8px] font-black uppercase bg-orange-100 text-orange-700">Admin</Badge>}
+                            <div className="flex items-center gap-2">
+                              {user?.uid === activeGroup?.createdBy && m.userId !== user?.uid && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  onClick={() => handleKickMember(m.userId)} 
+                                  className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <UserMinus className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         ))}
+                        <div className="pt-4 mt-2 border-t border-dashed">
+                          <p className="text-[10px] font-black uppercase text-muted-foreground mb-3 tracking-widest text-center">Admin Controls</p>
+                          <Button 
+                            variant="outline" 
+                            className="w-full h-10 rounded-xl font-black gap-2 text-[10px] uppercase"
+                            onClick={() => copyToClipboard(activeGroup?.id || '')}
+                          >
+                            <UserPlus className="h-4 w-4" /> Invite via Code
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   </div>
@@ -626,7 +654,6 @@ export default function SplitPayPage() {
         </div>
       )}
 
-      {/* Modals */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
         <DialogContent className="rounded-3xl max-w-md">
           <DialogHeader>
@@ -638,7 +665,10 @@ export default function SplitPayPage() {
               <Label className="text-[10px] font-black uppercase tracking-widest">Room Name</Label>
               <Input placeholder="e.g. Trip to Ladakh" value={roomName} onChange={e => setRoomName(e.target.value)} className="h-12 rounded-2xl" />
             </div>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase bg-muted/20 p-3 rounded-xl border border-dashed">You are automatically included as '{userName}'.</p>
+            <div className="p-4 bg-muted/20 rounded-xl border border-dashed space-y-2">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase">Identity Context</p>
+              <p className="text-xs font-black">You are automatically included as <span className="text-primary">{userName}</span> (Room Admin).</p>
+            </div>
           </div>
           <DialogFooter>
             <Button onClick={handleCreateRoom} disabled={isProcessing} className="w-full h-12 rounded-2xl font-black">
