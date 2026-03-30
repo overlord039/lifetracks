@@ -7,28 +7,26 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, arrayUnion } from 'firebase/firestore';
 import { 
   Users, 
   Plus, 
-  Trash2, 
   IndianRupee, 
   Loader2, 
-  UserCircle, 
   History, 
   Calculator, 
-  DoorOpen, 
   CheckCircle2, 
   ChevronRight,
   ArrowLeft,
   Check,
   Share2,
   Copy,
-  LogOut,
   TrendingUp,
   TrendingDown,
-  Scale
+  Scale,
+  LogOut,
+  UserPlus
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -54,9 +52,9 @@ export default function SplitPayPage() {
   const { toast } = useToast();
   
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [isJoining, setIsJoining] = useState(false);
-  const [isCreating, setIsJoiningModalOpen] = useState(false);
+  const [isJoiningModalOpen, setIsJoiningModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   // Room State
   const [roomName, setRoomName] = useState('');
@@ -76,7 +74,7 @@ export default function SplitPayPage() {
     return doc(db, 'users', user.uid);
   }, [db, user]);
   const { data: userProfile } = useDoc(userProfileRef);
-  const userName = userProfile?.displayName || user?.email?.split('@')[0] || 'User';
+  const userName = userProfile?.displayName || user?.email?.split('@')[0] || 'Anonymous';
 
   const myGroupsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -103,21 +101,22 @@ export default function SplitPayPage() {
   // Auto-fill participants
   useEffect(() => {
     if (activeGroup) {
-      setSelectedParticipants(activeGroup.memberUids);
+      setSelectedParticipants(activeGroup.memberUids || []);
       if (!paidBy) setPaidBy(user?.uid || '');
     }
   }, [activeGroup, paidBy, user?.uid]);
 
-  // Calculations
+  // Real-Time Calculations
   const stats = useMemo(() => {
     if (!activeGroup || !expenses) return null;
     
-    const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);
+    const members = Array.isArray(activeGroup.members) ? activeGroup.members : [];
+    const totalSpent = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
     const paidMap: Record<string, number> = {};
     const shareMap: Record<string, number> = {};
     const settlementMap: Record<string, number> = {};
     
-    activeGroup.memberUids.forEach((uid: string) => {
+    activeGroup.memberUids?.forEach((uid: string) => {
       paidMap[uid] = 0;
       shareMap[uid] = 0;
       settlementMap[uid] = 0;
@@ -125,7 +124,7 @@ export default function SplitPayPage() {
 
     expenses.forEach(exp => {
       paidMap[exp.paidBy] = (paidMap[exp.paidBy] || 0) + exp.amount;
-      Object.entries(exp.splits).forEach(([uid, share]) => {
+      Object.entries(exp.splits || {}).forEach(([uid, share]) => {
         shareMap[uid] = (shareMap[uid] || 0) + (share as number);
       });
     });
@@ -135,10 +134,15 @@ export default function SplitPayPage() {
       settlementMap[s.paidTo] = (settlementMap[s.paidTo] || 0) - s.amount;
     });
 
-    const balances = activeGroup.members.map((m: any) => {
-      const net = (paidMap[m.userId] + settlementMap[m.userId]) - shareMap[m.userId];
-      return { ...m, paid: paidMap[m.userId], share: shareMap[m.userId], net };
-    }).sort((a: any, b: any) => a.userName.localeCompare(b.userName));
+    const balances = members.map((m: any) => {
+      const net = (paidMap[m.userId] || 0) + (settlementMap[m.userId] || 0) - (shareMap[m.userId] || 0);
+      return { 
+        ...m, 
+        paid: paidMap[m.userId] || 0, 
+        share: shareMap[m.userId] || 0, 
+        net 
+      };
+    }).sort((a: any, b: any) => (a.userName || '').localeCompare(b.userName || ''));
 
     return { totalSpent, balances };
   }, [activeGroup, expenses, settlements]);
@@ -172,6 +176,7 @@ export default function SplitPayPage() {
   // Actions
   const handleCreateRoom = async () => {
     if (!roomName.trim() || !user || !db) return;
+    setIsProcessing(true);
     const roomId = Math.random().toString(36).substring(2, 10).toUpperCase();
     const groupRef = doc(db, 'sharedGroups', roomId);
     
@@ -189,47 +194,34 @@ export default function SplitPayPage() {
     setRoomName('');
     setIsCreateModalOpen(false);
     setSelectedGroupId(roomId);
-    toast({ title: "Room Created", description: `Code: ${roomId}` });
+    setIsProcessing(false);
+    toast({ title: "Room Initialized", description: `Join Code: ${roomId}` });
   };
 
   const handleJoinRoom = async () => {
     const code = joinCode.trim().toUpperCase();
     if (!code || !user || !db) return;
-    setIsJoining(true);
+    setIsProcessing(true);
     
-    try {
-      const roomRef = doc(db, 'sharedGroups', code);
-      // We use set with merge or update to add ourselves
-      setDocumentNonBlocking(roomRef, {
-        memberUids: arrayUnion(user.uid),
-        members: arrayUnion({ userId: user.uid, userName })
-      }, { merge: true });
-      
-      setJoinCode('');
-      setIsJoiningModalOpen(false);
-      setSelectedGroupId(code);
-      toast({ title: "Welcome!", description: "Joined the room successfully." });
-    } catch (err) {
-      toast({ variant: 'destructive', title: "Error Joining", description: "Could not join the room." });
-    } finally {
-      setIsJoining(false);
-    }
+    const roomRef = doc(db, 'sharedGroups', code);
+    setDocumentNonBlocking(roomRef, {
+      memberUids: arrayUnion(user.uid),
+      members: arrayUnion({ userId: user.uid, userName })
+    }, { merge: true });
+    
+    setJoinCode('');
+    setIsJoiningModalOpen(false);
+    setSelectedGroupId(code);
+    setIsProcessing(false);
+    toast({ title: "Joined Room", description: "Identity synced with ledger." });
   };
 
   const handleAddExpense = async () => {
     if (!expenseAmt || !expenseDesc || !paidBy || !activeGroup || !user || !expensesRef) return;
     const amt = parseFloat(expenseAmt);
     
-    // Validation
-    if (splitType === 'custom') {
-      const total = Object.values(previewSplits).reduce((s, v) => s + v, 0);
-      if (Math.abs(total - amt) > 0.01) {
-        toast({ variant: 'destructive', title: "Math Error", description: "Custom splits don't match total." });
-        return;
-      }
-    }
-
-    const paidByName = activeGroup.members.find((m: any) => m.userId === paidBy)?.userName || 'Unknown';
+    const members = Array.isArray(activeGroup.members) ? activeGroup.members : [];
+    const paidByName = members.find((m: any) => m.userId === paidBy)?.userName || 'Unknown';
 
     addDocumentNonBlocking(expensesRef, {
       roomId: activeGroup.id,
@@ -246,12 +238,13 @@ export default function SplitPayPage() {
     setExpenseAmt('');
     setExpenseDesc('');
     setCustomSplits({});
-    toast({ title: "Expense Added" });
+    toast({ title: "Ledger Updated", description: "Expense added to shared pool." });
   };
 
   const handleSettle = (fromId: string, fromName: string, toId: string, amount: number) => {
     if (!settlementsRef || !activeGroup) return;
-    const toName = activeGroup.members.find((m: any) => m.userId === toId)?.userName || 'Unknown';
+    const members = Array.isArray(activeGroup.members) ? activeGroup.members : [];
+    const toName = members.find((m: any) => m.userId === toId)?.userName || 'Unknown';
     
     addDocumentNonBlocking(settlementsRef, {
       roomId: activeGroup.id,
@@ -275,7 +268,7 @@ export default function SplitPayPage() {
       <AppShell>
         <div className="flex h-[60vh] w-full items-center justify-center flex-col gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Connecting to Rooms...</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Opening Ledgers...</p>
         </div>
       </AppShell>
     );
@@ -290,8 +283,8 @@ export default function SplitPayPage() {
               <Users className="w-10 h-10" />
             </div>
             <div>
-              <h2 className="text-3xl font-black tracking-tighter">Collaborative Ledger</h2>
-              <p className="text-muted-foreground font-medium">Split expenses with friends in real-time rooms.</p>
+              <h2 className="text-3xl font-black tracking-tighter">Real-Time Split Pay</h2>
+              <p className="text-muted-foreground font-medium">Collaborative expense rooms with zero-knowledge encryption.</p>
             </div>
             <div className="flex gap-3 w-full max-w-sm pt-4">
               <Button onClick={() => setIsCreateModalOpen(true)} className="flex-1 h-12 rounded-2xl font-black gap-2 shadow-lg">
@@ -304,38 +297,41 @@ export default function SplitPayPage() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            {myGroups?.map(group => (
-              <Card 
-                key={group.id} 
-                className="group cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all rounded-3xl border-none ring-1 ring-border overflow-hidden"
-                onClick={() => setSelectedGroupId(group.id)}
-              >
-                <CardHeader className="bg-muted/30 pb-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-xl font-black tracking-tight">{group.name}</CardTitle>
-                      <CardDescription className="text-[10px] uppercase font-black tracking-widest text-primary">Room: {group.id}</CardDescription>
+            {myGroups?.map(group => {
+              const members = Array.isArray(group.members) ? group.members : [];
+              return (
+                <Card 
+                  key={group.id} 
+                  className="group cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all rounded-3xl border-none ring-1 ring-border overflow-hidden"
+                  onClick={() => setSelectedGroupId(group.id)}
+                >
+                  <CardHeader className="bg-muted/30 pb-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-xl font-black tracking-tight">{group.name}</CardTitle>
+                        <CardDescription className="text-[10px] uppercase font-black tracking-widest text-primary">Code: {group.id}</CardDescription>
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors mt-1" />
                     </div>
-                    <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors mt-1" />
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-4 flex items-center justify-between">
-                  <div className="flex -space-x-2">
-                    {group.members.slice(0, 4).map((m: any) => (
-                      <div key={m.userId} title={m.userName} className="h-8 w-8 rounded-full bg-primary border-2 border-background flex items-center justify-center text-[10px] font-black text-white">
-                        {m.userName[0].toUpperCase()}
-                      </div>
-                    ))}
-                    {group.members.length > 4 && (
-                      <div className="h-8 w-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[8px] font-black">
-                        +{group.members.length - 4}
-                      </div>
-                    )}
-                  </div>
-                  <Badge variant="secondary" className="font-black text-[10px] uppercase">{group.members.length} Members</Badge>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardHeader>
+                  <CardContent className="pt-4 flex items-center justify-between">
+                    <div className="flex -space-x-2">
+                      {members.slice(0, 4).map((m: any) => (
+                        <div key={m.userId} title={m.userName} className="h-8 w-8 rounded-full bg-primary border-2 border-background flex items-center justify-center text-[10px] font-black text-white">
+                          {(m.userName || 'U')[0].toUpperCase()}
+                        </div>
+                      ))}
+                      {members.length > 4 && (
+                        <div className="h-8 w-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[8px] font-black">
+                          +{members.length - 4}
+                        </div>
+                      )}
+                    </div>
+                    <Badge variant="secondary" className="font-black text-[10px] uppercase">{members.length} Members</Badge>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
       ) : (
@@ -348,7 +344,7 @@ export default function SplitPayPage() {
               <div>
                 <h2 className="text-2xl font-black tracking-tighter flex items-center gap-2">
                   {activeGroup?.name}
-                  <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none font-black text-[8px] uppercase tracking-widest">Live</Badge>
+                  <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none font-black text-[8px] uppercase tracking-widest">Collaborative</Badge>
                 </h2>
                 <div className="flex items-center gap-2 group">
                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Room ID: {activeGroup?.id}</p>
@@ -366,7 +362,7 @@ export default function SplitPayPage() {
               <Separator orientation="vertical" className="hidden md:block h-8" />
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-muted-foreground" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{activeGroup?.members.length} Active</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{(Array.isArray(activeGroup?.members) ? activeGroup.members.length : 0)} Active</span>
               </div>
             </div>
           </header>
@@ -388,8 +384,8 @@ export default function SplitPayPage() {
                     <div className="grid gap-6 md:grid-cols-2">
                       <div className="space-y-4">
                         <div className="space-y-2">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">What's this for?</Label>
-                          <Input placeholder="e.g. Lunch at Cafe" value={expenseDesc} onChange={e => setExpenseDesc(e.target.value)} className="h-11 rounded-xl" />
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Description</Label>
+                          <Input placeholder="What was this for?" value={expenseDesc} onChange={e => setExpenseDesc(e.target.value)} className="h-11 rounded-xl" />
                         </div>
                         <div className="space-y-2">
                           <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Amount (₹)</Label>
@@ -405,7 +401,7 @@ export default function SplitPayPage() {
                               <SelectValue placeholder="Select Payer" />
                             </SelectTrigger>
                             <SelectContent>
-                              {activeGroup?.members.map((m: any) => (
+                              {(Array.isArray(activeGroup?.members) ? activeGroup.members : []).map((m: any) => (
                                 <SelectItem key={m.userId} value={m.userId} className="font-black">{m.userName}</SelectItem>
                               ))}
                             </SelectContent>
@@ -417,7 +413,7 @@ export default function SplitPayPage() {
                         <div className="space-y-2">
                           <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Split among members</Label>
                           <div className="flex flex-wrap gap-2 p-3 bg-muted/20 rounded-2xl border border-dashed">
-                            {activeGroup?.members.map((m: any) => (
+                            {(Array.isArray(activeGroup?.members) ? activeGroup.members : []).map((m: any) => (
                               <button
                                 key={m.userId}
                                 type="button"
@@ -458,7 +454,8 @@ export default function SplitPayPage() {
                         <p className="text-[10px] font-black uppercase text-primary tracking-widest text-center">Live Distribution Preview</p>
                         <div className="grid gap-2 sm:grid-cols-2">
                           {Object.entries(previewSplits).map(([uid, val]) => {
-                            const name = activeGroup?.members.find((m: any) => m.userId === uid)?.userName || 'User';
+                            const members = Array.isArray(activeGroup?.members) ? activeGroup.members : [];
+                            const name = members.find((m: any) => m.userId === uid)?.userName || 'User';
                             return (
                               <div key={uid} className="flex justify-between items-center bg-background/50 p-2.5 rounded-xl border shadow-sm">
                                 <span className="text-[10px] font-bold uppercase truncate max-w-[80px] opacity-70">{name}</span>
@@ -472,7 +469,7 @@ export default function SplitPayPage() {
                   </CardContent>
                   <CardFooter className="bg-muted/10 border-t py-4">
                     <Button onClick={handleAddExpense} className="w-full h-12 rounded-2xl font-black shadow-lg gap-2 text-base">
-                      <CheckCircle2 className="h-5 w-5" /> Confirm and Sync
+                      <CheckCircle2 className="h-5 w-5" /> Sync to Ledger
                     </Button>
                   </CardFooter>
                 </Card>
@@ -480,18 +477,18 @@ export default function SplitPayPage() {
                 <div className="lg:col-span-5 space-y-6">
                   <Card className="shadow-lg rounded-3xl border-none ring-1 ring-border overflow-hidden">
                     <CardHeader className="bg-muted/30 pb-3">
-                      <CardTitle className="text-sm font-black flex items-center gap-2"><Users className="h-4 w-4" /> Active Members</CardTitle>
+                      <CardTitle className="text-sm font-black flex items-center gap-2"><Users className="h-4 w-4" /> Room Members</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-4 space-y-3">
-                      {activeGroup?.members.map((m: any) => (
+                      {(Array.isArray(activeGroup?.members) ? activeGroup.members : []).map((m: any) => (
                         <div key={m.userId} className="flex items-center justify-between p-3 rounded-2xl bg-muted/10 border border-dashed">
                           <div className="flex items-center gap-3">
                             <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-xs">
-                              {m.userName[0].toUpperCase()}
+                              {(m.userName || 'U')[0].toUpperCase()}
                             </div>
                             <span className="text-sm font-black uppercase tracking-tight">{m.userName}</span>
                           </div>
-                          {m.userId === activeGroup.createdBy && <Badge className="text-[8px] font-black uppercase bg-orange-100 text-orange-700">Admin</Badge>}
+                          {m.userId === activeGroup?.createdBy && <Badge className="text-[8px] font-black uppercase bg-orange-100 text-orange-700">Admin</Badge>}
                         </div>
                       ))}
                     </CardContent>
@@ -510,7 +507,7 @@ export default function SplitPayPage() {
                     <CardHeader className="pb-2">
                       <CardTitle className="text-base font-black flex items-center gap-3">
                         <div className="h-8 w-8 rounded-xl bg-background border flex items-center justify-center text-primary font-black">
-                          {b.userName[0].toUpperCase()}
+                          {(b.userName || 'U')[0].toUpperCase()}
                         </div>
                         {b.userName}
                       </CardTitle>
@@ -521,7 +518,7 @@ export default function SplitPayPage() {
                         <div className="p-2 bg-background rounded-xl border">Share: ₹{b.share.toLocaleString()}</div>
                       </div>
                       <div className="pt-3 border-t">
-                        <p className="text-[9px] font-black uppercase tracking-widest opacity-60">Net Balance</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest opacity-60">Net Ledger Balance</p>
                         <div className="flex items-center justify-between">
                           <p className={cn("text-2xl font-black tracking-tighter", b.net > 0 ? "text-green-600" : b.net < 0 ? "text-red-600" : "text-muted-foreground")}>
                             {b.net > 0 ? `+₹${b.net.toFixed(0)}` : b.net < 0 ? `-₹${Math.abs(b.net).toFixed(0)}` : 'Settled'}
@@ -534,10 +531,10 @@ export default function SplitPayPage() {
                       <CardFooter className="pt-0">
                         <Select onValueChange={(toUid) => handleSettle(b.userId, b.userName, toUid, Math.abs(b.net))}>
                           <SelectTrigger className="h-10 text-[10px] font-black uppercase rounded-xl">
-                            <SelectValue placeholder="Settle Debt To..." />
+                            <SelectValue placeholder="Settle Bill To..." />
                           </SelectTrigger>
                           <SelectContent>
-                            {activeGroup.members.filter((m: any) => m.userId !== b.userId).map((m: any) => (
+                            {(Array.isArray(activeGroup?.members) ? activeGroup.members : []).filter((m: any) => m.userId !== b.userId).map((m: any) => (
                               <SelectItem key={m.userId} value={m.userId} className="text-[10px] font-black">{m.userName}</SelectItem>
                             ))}
                           </SelectContent>
@@ -565,8 +562,9 @@ export default function SplitPayPage() {
                           <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest">{exp.splitType} split</Badge>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {Object.entries(exp.splits).map(([uid, share]: any) => {
-                            const name = activeGroup.members.find((m: any) => m.userId === uid)?.userName || 'User';
+                          {Object.entries(exp.splits || {}).map(([uid, share]: any) => {
+                            const members = Array.isArray(activeGroup?.members) ? activeGroup.members : [];
+                            const name = members.find((m: any) => m.userId === uid)?.userName || 'User';
                             return share > 0 ? (
                               <div key={uid} className="flex items-center gap-2 px-3 py-1.5 bg-muted/20 rounded-full border border-dashed">
                                 <span className="text-[9px] font-black uppercase opacity-60">{name}</span>
@@ -595,7 +593,7 @@ export default function SplitPayPage() {
                     {expenses?.length === 0 && settlements?.length === 0 && (
                       <div className="flex flex-col items-center justify-center py-32 opacity-30 grayscale space-y-4">
                         <History className="h-16 w-16" />
-                        <p className="text-xs font-black uppercase tracking-widest text-center">The shared ledger is empty.<br/>Sync some memories.</p>
+                        <p className="text-xs font-black uppercase tracking-widest text-center">Room ledger is currently empty.</p>
                       </div>
                     )}
                   </div>
@@ -610,27 +608,29 @@ export default function SplitPayPage() {
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
         <DialogContent className="rounded-3xl max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black tracking-tighter">Initialize Room</DialogTitle>
-            <DialogDescription className="text-sm font-medium">Setup a private collaborative workspace.</DialogDescription>
+            <DialogTitle className="text-2xl font-black tracking-tighter">New Room</DialogTitle>
+            <DialogDescription className="text-sm font-medium">Initialize a private collaborative pool.</DialogDescription>
           </DialogHeader>
           <div className="py-6 space-y-4">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest">Room Name</Label>
-              <Input placeholder="e.g. Europe Trip 2024" value={roomName} onChange={e => setRoomName(e.target.value)} className="h-12 rounded-2xl" />
+              <Input placeholder="e.g. Trip to Ladakh" value={roomName} onChange={e => setRoomName(e.target.value)} className="h-12 rounded-2xl" />
             </div>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase bg-muted/20 p-3 rounded-xl border border-dashed">You are automatically included as '{userName}'.</p>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase bg-muted/20 p-3 rounded-xl border border-dashed">Identity anchor: {userName}</p>
           </div>
           <DialogFooter>
-            <Button onClick={handleCreateRoom} className="w-full h-12 rounded-2xl font-black">Launch Room</Button>
+            <Button onClick={handleCreateRoom} disabled={isProcessing} className="w-full h-12 rounded-2xl font-black">
+              {isProcessing ? <Loader2 className="animate-spin h-5 w-5" /> : "Launch Room"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isJoining} onOpenChange={setIsJoiningModalOpen}>
+      <Dialog open={isJoiningModalOpen} onOpenChange={setIsJoiningModalOpen}>
         <DialogContent className="rounded-3xl max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black tracking-tighter">Join Existing Room</DialogTitle>
-            <DialogDescription className="text-sm font-medium">Enter the Room Code shared with you.</DialogDescription>
+            <DialogTitle className="text-2xl font-black tracking-tighter">Join Group</DialogTitle>
+            <DialogDescription className="text-sm font-medium">Enter the 8-character Room Code.</DialogDescription>
           </DialogHeader>
           <div className="py-6 space-y-4">
             <div className="space-y-2">
@@ -639,8 +639,8 @@ export default function SplitPayPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleJoinRoom} disabled={isJoining} className="w-full h-12 rounded-2xl font-black">
-              {isJoining ? <Loader2 className="h-5 w-5 animate-spin" /> : "Join Room"}
+            <Button onClick={handleJoinRoom} disabled={isProcessing} className="w-full h-12 rounded-2xl font-black">
+              {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : "Join Ledger"}
             </Button>
           </DialogFooter>
         </DialogContent>
