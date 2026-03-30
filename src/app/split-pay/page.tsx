@@ -844,6 +844,10 @@ export default function SplitPayPage() {
 
       <Dialog open={isStatsModalOpen} onOpenChange={setIsStatsModalOpen}>
         <DialogContent className="max-w-2xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Room Analytics</DialogTitle>
+            <DialogDescription>Detailed breakdown of contributions and consumption for {activeGroup?.name}.</DialogDescription>
+          </DialogHeader>
           <div className="bg-primary p-8 text-primary-foreground">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-3">
