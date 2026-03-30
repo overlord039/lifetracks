@@ -26,7 +26,8 @@ import {
   TrendingDown,
   Scale,
   LogOut,
-  UserPlus
+  UserPlus,
+  AlertTriangle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -80,31 +81,45 @@ export default function SplitPayPage() {
     if (!db || !user) return null;
     return query(collection(db, 'sharedGroups'), where('memberUids', 'array-contains', user.uid));
   }, [db, user]);
-  const { data: myGroups, isLoading: isGroupsLoading } = useCollection(myGroupsQuery);
+  const { data: myGroups, isLoading: isGroupsLoading, error: groupsError } = useCollection(myGroupsQuery);
 
   const activeGroup = useMemo(() => 
     myGroups?.find(g => g.id === selectedGroupId), 
   [myGroups, selectedGroupId]);
 
+  // CRITICAL: Gate sub-collection fetching by activeGroup presence
+  // This prevents permission errors before the join operation is synced to the server
   const expensesRef = useMemoFirebase(() => {
-    if (!db || !selectedGroupId) return null;
+    if (!db || !selectedGroupId || !activeGroup) return null;
     return collection(db, 'sharedGroups', selectedGroupId, 'expenses');
-  }, [db, selectedGroupId]);
-  const { data: expenses } = useCollection(expensesRef);
+  }, [db, selectedGroupId, activeGroup]);
+  const { data: expenses, error: expensesError } = useCollection(expensesRef);
 
   const settlementsRef = useMemoFirebase(() => {
-    if (!db || !selectedGroupId) return null;
+    if (!db || !selectedGroupId || !activeGroup) return null;
     return collection(db, 'sharedGroups', selectedGroupId, 'settlements');
-  }, [db, selectedGroupId]);
-  const { data: settlements } = useCollection(settlementsRef);
+  }, [db, selectedGroupId, activeGroup]);
+  const { data: settlements, error: settlementsError } = useCollection(settlementsRef);
 
-  // Auto-fill participants
+  // Auto-fill participants when room is opened
   useEffect(() => {
     if (activeGroup) {
       setSelectedParticipants(activeGroup.memberUids || []);
       if (!paidBy) setPaidBy(user?.uid || '');
     }
   }, [activeGroup, paidBy, user?.uid]);
+
+  // Handle permission errors gracefully
+  useEffect(() => {
+    if (expensesError || settlementsError) {
+      toast({ 
+        variant: "destructive", 
+        title: "Access Restricted", 
+        description: "Membership not confirmed. Returning to lobby." 
+      });
+      setSelectedGroupId(null);
+    }
+  }, [expensesError, settlementsError, toast]);
 
   // Real-Time Calculations
   const stats = useMemo(() => {
@@ -213,7 +228,7 @@ export default function SplitPayPage() {
     setIsJoiningModalOpen(false);
     setSelectedGroupId(code);
     setIsProcessing(false);
-    toast({ title: "Joined Room", description: "Identity synced with ledger." });
+    toast({ title: "Syncing Membership", description: "Verifying credentials with ledger..." });
   };
 
   const handleAddExpense = async () => {
@@ -260,7 +275,7 @@ export default function SplitPayPage() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast({ title: "Copied!", description: "Room code ready to share." });
+    toast({ title: "Code Copied", description: "Ready to share with friends." });
   };
 
   if (isGroupsLoading) {
@@ -283,8 +298,8 @@ export default function SplitPayPage() {
               <Users className="w-10 h-10" />
             </div>
             <div>
-              <h2 className="text-3xl font-black tracking-tighter">Real-Time Split Pay</h2>
-              <p className="text-muted-foreground font-medium">Collaborative expense rooms with zero-knowledge encryption.</p>
+              <h2 className="text-3xl font-black tracking-tighter">Collaborative Split</h2>
+              <p className="text-muted-foreground font-medium">Create or join rooms for shared expenses with real-time updates.</p>
             </div>
             <div className="flex gap-3 w-full max-w-sm pt-4">
               <Button onClick={() => setIsCreateModalOpen(true)} className="flex-1 h-12 rounded-2xl font-black gap-2 shadow-lg">
@@ -309,7 +324,7 @@ export default function SplitPayPage() {
                     <div className="flex justify-between items-start">
                       <div>
                         <CardTitle className="text-xl font-black tracking-tight">{group.name}</CardTitle>
-                        <CardDescription className="text-[10px] uppercase font-black tracking-widest text-primary">Code: {group.id}</CardDescription>
+                        <CardDescription className="text-[10px] uppercase font-black tracking-widest text-primary">ID: {group.id}</CardDescription>
                       </div>
                       <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors mt-1" />
                     </div>
@@ -343,12 +358,12 @@ export default function SplitPayPage() {
               </Button>
               <div>
                 <h2 className="text-2xl font-black tracking-tighter flex items-center gap-2">
-                  {activeGroup?.name}
-                  <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none font-black text-[8px] uppercase tracking-widest">Collaborative</Badge>
+                  {activeGroup ? activeGroup.name : "Verifying Access..."}
+                  <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none font-black text-[8px] uppercase tracking-widest">Live Ledger</Badge>
                 </h2>
                 <div className="flex items-center gap-2 group">
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Room ID: {activeGroup?.id}</p>
-                  <button onClick={() => copyToClipboard(activeGroup?.id || '')} className="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Group Code: {selectedGroupId}</p>
+                  <button onClick={() => copyToClipboard(selectedGroupId || '')} className="opacity-0 group-hover:opacity-100 transition-opacity">
                     <Copy className="h-3 w-3 text-muted-foreground hover:text-primary" />
                   </button>
                 </div>
@@ -357,7 +372,7 @@ export default function SplitPayPage() {
             <div className="bg-primary/5 px-6 py-3 rounded-2xl border border-primary/10 flex flex-col md:flex-row items-center gap-4 md:gap-8">
               <div className="text-center md:text-left">
                 <p className="text-[9px] font-black uppercase text-primary/60 tracking-widest">Shared Pool</p>
-                <p className="text-2xl font-black text-primary">₹{stats?.totalSpent.toLocaleString()}</p>
+                <p className="text-2xl font-black text-primary">₹{stats?.totalSpent.toLocaleString() || '0'}</p>
               </div>
               <Separator orientation="vertical" className="hidden md:block h-8" />
               <div className="flex items-center gap-2">
@@ -367,240 +382,247 @@ export default function SplitPayPage() {
             </div>
           </header>
 
-          <Tabs defaultValue="add" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 h-12 p-1 bg-muted rounded-2xl mb-6">
-              <TabsTrigger value="add" className="rounded-xl font-black text-xs gap-2"><Calculator className="h-4 w-4" /> Add Bill</TabsTrigger>
-              <TabsTrigger value="balance" className="rounded-xl font-black text-xs gap-2"><Scale className="h-4 w-4" /> Balances</TabsTrigger>
-              <TabsTrigger value="history" className="rounded-xl font-black text-xs gap-2"><History className="h-4 w-4" /> Activity</TabsTrigger>
-            </TabsList>
+          {!activeGroup ? (
+            <Card className="p-20 flex flex-col items-center justify-center border-dashed border-2 animate-pulse space-y-4">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              <p className="font-black uppercase text-xs tracking-widest text-muted-foreground">Authenticating Membership...</p>
+            </Card>
+          ) : (
+            <Tabs defaultValue="add" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 h-12 p-1 bg-muted rounded-2xl mb-6">
+                <TabsTrigger value="add" className="rounded-xl font-black text-xs gap-2"><Calculator className="h-4 w-4" /> Add Bill</TabsTrigger>
+                <TabsTrigger value="balance" className="rounded-xl font-black text-xs gap-2"><Scale className="h-4 w-4" /> Balances</TabsTrigger>
+                <TabsTrigger value="history" className="rounded-xl font-black text-xs gap-2"><History className="h-4 w-4" /> Activity</TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="add" className="animate-in fade-in slide-in-from-bottom-2">
-              <div className="grid gap-6 lg:grid-cols-12">
-                <Card className="lg:col-span-7 shadow-xl rounded-3xl border-none ring-1 ring-border overflow-hidden">
-                  <CardHeader className="bg-primary/5 border-b py-4">
-                    <CardTitle className="text-base font-black flex items-center gap-2">Post Collaborative Expense</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-6 space-y-6">
-                    <div className="grid gap-6 md:grid-cols-2">
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Description</Label>
-                          <Input placeholder="What was this for?" value={expenseDesc} onChange={e => setExpenseDesc(e.target.value)} className="h-11 rounded-xl" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Amount (₹)</Label>
-                          <div className="relative">
-                            <Input type="number" placeholder="0.00" value={expenseAmt} onChange={e => setExpenseAmt(e.target.value)} className="h-11 pl-9 rounded-xl font-black text-lg" />
-                            <IndianRupee className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+              <TabsContent value="add" className="animate-in fade-in slide-in-from-bottom-2">
+                <div className="grid gap-6 lg:grid-cols-12">
+                  <Card className="lg:col-span-7 shadow-xl rounded-3xl border-none ring-1 ring-border overflow-hidden">
+                    <CardHeader className="bg-primary/5 border-b py-4">
+                      <CardTitle className="text-base font-black flex items-center gap-2">Sync New Expense</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6 space-y-6">
+                      <div className="grid gap-6 md:grid-cols-2">
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Description</Label>
+                            <Input placeholder="What was this for?" value={expenseDesc} onChange={e => setExpenseDesc(e.target.value)} className="h-11 rounded-xl" />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Amount (₹)</Label>
+                            <div className="relative">
+                              <Input type="number" placeholder="0.00" value={expenseAmt} onChange={e => setExpenseAmt(e.target.value)} className="h-11 pl-9 rounded-xl font-black text-lg" />
+                              <IndianRupee className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Paid By</Label>
+                            <Select value={paidBy} onValueChange={setPaidBy}>
+                              <SelectTrigger className="h-11 rounded-xl font-black">
+                                <SelectValue placeholder="Select Payer" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(Array.isArray(activeGroup?.members) ? activeGroup.members : []).map((m: any) => (
+                                  <SelectItem key={m.userId} value={m.userId} className="font-black">{m.userName}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Paid By</Label>
-                          <Select value={paidBy} onValueChange={setPaidBy}>
-                            <SelectTrigger className="h-11 rounded-xl font-black">
-                              <SelectValue placeholder="Select Payer" />
+
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Select Participants</Label>
+                            <div className="flex flex-wrap gap-2 p-3 bg-muted/20 rounded-2xl border border-dashed">
+                              {(Array.isArray(activeGroup?.members) ? activeGroup.members : []).map((m: any) => (
+                                <button
+                                  key={m.userId}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedParticipants(prev => 
+                                      prev.includes(m.userId) ? prev.filter(uid => uid !== m.userId) : [...prev, m.userId]
+                                    );
+                                  }}
+                                  className={cn(
+                                    "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-1.5 border",
+                                    selectedParticipants.includes(m.userId) 
+                                      ? "bg-primary text-primary-foreground border-primary shadow-sm" 
+                                      : "bg-background text-muted-foreground border-border opacity-60"
+                                  )}
+                                >
+                                  {selectedParticipants.includes(m.userId) && <Check className="h-3 w-3" />}
+                                  {m.userName}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Split Calculation</Label>
+                            <Tabs value={splitType} onValueChange={(v: any) => setSplitType(v)} className="w-full">
+                              <TabsList className="grid w-full grid-cols-3 h-9 p-1 rounded-xl">
+                                <TabsTrigger value="equal" className="text-[9px] font-black uppercase">Equal</TabsTrigger>
+                                <TabsTrigger value="custom" className="text-[9px] font-black uppercase">₹</TabsTrigger>
+                                <TabsTrigger value="percentage" className="text-[9px] font-black uppercase">%</TabsTrigger>
+                              </TabsList>
+                            </Tabs>
+                          </div>
+                        </div>
+                      </div>
+
+                      {selectedParticipants.length > 0 && parseFloat(expenseAmt) > 0 && (
+                        <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 space-y-3">
+                          <p className="text-[10px] font-black uppercase text-primary tracking-widest text-center">Live Preview</p>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {Object.entries(previewSplits).map(([uid, val]) => {
+                              const members = Array.isArray(activeGroup?.members) ? activeGroup.members : [];
+                              const name = members.find((m: any) => m.userId === uid)?.userName || 'User';
+                              return (
+                                <div key={uid} className="flex justify-between items-center bg-background/50 p-2.5 rounded-xl border shadow-sm">
+                                  <span className="text-[10px] font-bold uppercase truncate max-w-[80px] opacity-70">{name}</span>
+                                  <span className="text-xs font-black">₹{val.toFixed(2)}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                    <CardFooter className="bg-muted/10 border-t py-4">
+                      <Button onClick={handleAddExpense} className="w-full h-12 rounded-2xl font-black shadow-lg gap-2 text-base">
+                        <CheckCircle2 className="h-5 w-5" /> Sync to Shared Ledger
+                      </Button>
+                    </CardFooter>
+                  </Card>
+
+                  <div className="lg:col-span-5 space-y-6">
+                    <Card className="shadow-lg rounded-3xl border-none ring-1 ring-border overflow-hidden">
+                      <CardHeader className="bg-muted/30 pb-3">
+                        <CardTitle className="text-sm font-black flex items-center gap-2"><Users className="h-4 w-4" /> Room Members</CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-4 space-y-3">
+                        {(Array.isArray(activeGroup?.members) ? activeGroup.members : []).map((m: any) => (
+                          <div key={m.userId} className="flex items-center justify-between p-3 rounded-2xl bg-muted/10 border border-dashed">
+                            <div className="flex items-center gap-3">
+                              <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-xs">
+                                {(m.userName || 'U')[0].toUpperCase()}
+                              </div>
+                              <span className="text-sm font-black uppercase tracking-tight">{m.userName}</span>
+                            </div>
+                            {m.userId === activeGroup?.createdBy && <Badge className="text-[8px] font-black uppercase bg-orange-100 text-orange-700">Admin</Badge>}
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="balance" className="animate-in fade-in slide-in-from-right-2">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {stats?.balances.map(b => (
+                    <Card key={b.userId} className={cn(
+                      "rounded-3xl border-none ring-1 shadow-md transition-all",
+                      b.net > 0 ? "ring-green-500/30 bg-green-50/10" : b.net < 0 ? "ring-red-500/30 bg-red-50/10" : "ring-border"
+                    )}>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base font-black flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-xl bg-background border flex items-center justify-center text-primary font-black">
+                            {(b.userName || 'U')[0].toUpperCase()}
+                          </div>
+                          {b.userName}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-2 text-[10px] font-black uppercase opacity-60">
+                          <div className="p-2 bg-background rounded-xl border">Paid: ₹{b.paid.toLocaleString()}</div>
+                          <div className="p-2 bg-background rounded-xl border">Share: ₹{b.share.toLocaleString()}</div>
+                        </div>
+                        <div className="pt-3 border-t">
+                          <p className="text-[9px] font-black uppercase tracking-widest opacity-60">Net Ledger Balance</p>
+                          <div className="flex items-center justify-between">
+                            <p className={cn("text-2xl font-black tracking-tighter", b.net > 0 ? "text-green-600" : b.net < 0 ? "text-red-600" : "text-muted-foreground")}>
+                              {b.net > 0 ? `+₹${b.net.toFixed(0)}` : b.net < 0 ? `-₹${Math.abs(b.net).toFixed(0)}` : 'Settled'}
+                            </p>
+                            {b.net > 0 ? <TrendingUp className="h-6 w-6 text-green-600 opacity-20" /> : <TrendingDown className="h-6 w-6 text-red-600 opacity-20" />}
+                          </div>
+                        </div>
+                      </CardContent>
+                      {b.net < 0 && b.userId === user?.uid && (
+                        <CardFooter className="pt-0">
+                          <Select onValueChange={(toUid) => handleSettle(b.userId, b.userName, toUid, Math.abs(b.net))}>
+                            <SelectTrigger className="h-10 text-[10px] font-black uppercase rounded-xl">
+                              <SelectValue placeholder="Settle Bill To..." />
                             </SelectTrigger>
                             <SelectContent>
-                              {(Array.isArray(activeGroup?.members) ? activeGroup.members : []).map((m: any) => (
-                                <SelectItem key={m.userId} value={m.userId} className="font-black">{m.userName}</SelectItem>
+                              {(Array.isArray(activeGroup?.members) ? activeGroup.members : []).filter((m: any) => m.userId !== b.userId).map((m: any) => (
+                                <SelectItem key={m.userId} value={m.userId} className="text-[10px] font-black">{m.userName}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
-                        </div>
-                      </div>
+                        </CardFooter>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              </TabsContent>
 
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Split among members</Label>
-                          <div className="flex flex-wrap gap-2 p-3 bg-muted/20 rounded-2xl border border-dashed">
-                            {(Array.isArray(activeGroup?.members) ? activeGroup.members : []).map((m: any) => (
-                              <button
-                                key={m.userId}
-                                type="button"
-                                onClick={() => {
-                                  setSelectedParticipants(prev => 
-                                    prev.includes(m.userId) ? prev.filter(uid => uid !== m.userId) : [...prev, m.userId]
-                                  );
-                                }}
-                                className={cn(
-                                  "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-1.5 border",
-                                  selectedParticipants.includes(m.userId) 
-                                    ? "bg-primary text-primary-foreground border-primary shadow-sm" 
-                                    : "bg-background text-muted-foreground border-border opacity-60"
-                                )}
-                              >
-                                {selectedParticipants.includes(m.userId) && <Check className="h-3 w-3" />}
-                                {m.userName}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Split Type</Label>
-                          <Tabs value={splitType} onValueChange={(v: any) => setSplitType(v)} className="w-full">
-                            <TabsList className="grid w-full grid-cols-3 h-9 p-1 rounded-xl">
-                              <TabsTrigger value="equal" className="text-[9px] font-black uppercase">Equal</TabsTrigger>
-                              <TabsTrigger value="custom" className="text-[9px] font-black uppercase">₹</TabsTrigger>
-                              <TabsTrigger value="percentage" className="text-[9px] font-black uppercase">%</TabsTrigger>
-                            </TabsList>
-                          </Tabs>
-                        </div>
-                      </div>
-                    </div>
-
-                    {selectedParticipants.length > 0 && parseFloat(expenseAmt) > 0 && (
-                      <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 space-y-3">
-                        <p className="text-[10px] font-black uppercase text-primary tracking-widest text-center">Live Distribution Preview</p>
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          {Object.entries(previewSplits).map(([uid, val]) => {
-                            const members = Array.isArray(activeGroup?.members) ? activeGroup.members : [];
-                            const name = members.find((m: any) => m.userId === uid)?.userName || 'User';
-                            return (
-                              <div key={uid} className="flex justify-between items-center bg-background/50 p-2.5 rounded-xl border shadow-sm">
-                                <span className="text-[10px] font-bold uppercase truncate max-w-[80px] opacity-70">{name}</span>
-                                <span className="text-xs font-black">₹{val.toFixed(2)}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                  <CardFooter className="bg-muted/10 border-t py-4">
-                    <Button onClick={handleAddExpense} className="w-full h-12 rounded-2xl font-black shadow-lg gap-2 text-base">
-                      <CheckCircle2 className="h-5 w-5" /> Sync to Ledger
-                    </Button>
-                  </CardFooter>
-                </Card>
-
-                <div className="lg:col-span-5 space-y-6">
-                  <Card className="shadow-lg rounded-3xl border-none ring-1 ring-border overflow-hidden">
-                    <CardHeader className="bg-muted/30 pb-3">
-                      <CardTitle className="text-sm font-black flex items-center gap-2"><Users className="h-4 w-4" /> Room Members</CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-4 space-y-3">
-                      {(Array.isArray(activeGroup?.members) ? activeGroup.members : []).map((m: any) => (
-                        <div key={m.userId} className="flex items-center justify-between p-3 rounded-2xl bg-muted/10 border border-dashed">
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-xs">
-                              {(m.userName || 'U')[0].toUpperCase()}
+              <TabsContent value="history" className="animate-in fade-in slide-in-from-left-2">
+                <Card className="rounded-3xl border-none ring-1 ring-border overflow-hidden">
+                  <ScrollArea className="h-[500px]">
+                    <div className="divide-y">
+                      {expenses?.sort((a,b) => b.createdAt.localeCompare(a.createdAt)).map(exp => (
+                        <div key={exp.id} className="p-6 hover:bg-muted/30 transition-colors">
+                          <div className="flex justify-between items-start mb-4">
+                            <div className="space-y-1">
+                              <h4 className="font-black text-lg tracking-tight">{exp.description}</h4>
+                              <p className="text-[10px] text-muted-foreground font-black uppercase">
+                                <span className="text-primary">{exp.paidByName}</span> paid ₹{exp.amount}
+                              </p>
                             </div>
-                            <span className="text-sm font-black uppercase tracking-tight">{m.userName}</span>
+                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest">{exp.splitType} split</Badge>
                           </div>
-                          {m.userId === activeGroup?.createdBy && <Badge className="text-[8px] font-black uppercase bg-orange-100 text-orange-700">Admin</Badge>}
+                          <div className="flex flex-wrap gap-2">
+                            {Object.entries(exp.splits || {}).map(([uid, share]: any) => {
+                              const members = Array.isArray(activeGroup?.members) ? activeGroup.members : [];
+                              const name = members.find((m: any) => m.userId === uid)?.userName || 'User';
+                              return share > 0 ? (
+                                <div key={uid} className="flex items-center gap-2 px-3 py-1.5 bg-muted/20 rounded-full border border-dashed">
+                                  <span className="text-[9px] font-black uppercase opacity-60">{name}</span>
+                                  <span className="text-[10px] font-black">₹{share.toFixed(0)}</span>
+                                </div>
+                              ) : null;
+                            })}
+                          </div>
                         </div>
                       ))}
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="balance" className="animate-in fade-in slide-in-from-right-2">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {stats?.balances.map(b => (
-                  <Card key={b.userId} className={cn(
-                    "rounded-3xl border-none ring-1 shadow-md transition-all",
-                    b.net > 0 ? "ring-green-500/30 bg-green-50/10" : b.net < 0 ? "ring-red-500/30 bg-red-50/10" : "ring-border"
-                  )}>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base font-black flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-xl bg-background border flex items-center justify-center text-primary font-black">
-                          {(b.userName || 'U')[0].toUpperCase()}
-                        </div>
-                        {b.userName}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 gap-2 text-[10px] font-black uppercase opacity-60">
-                        <div className="p-2 bg-background rounded-xl border">Paid: ₹{b.paid.toLocaleString()}</div>
-                        <div className="p-2 bg-background rounded-xl border">Share: ₹{b.share.toLocaleString()}</div>
-                      </div>
-                      <div className="pt-3 border-t">
-                        <p className="text-[9px] font-black uppercase tracking-widest opacity-60">Net Ledger Balance</p>
-                        <div className="flex items-center justify-between">
-                          <p className={cn("text-2xl font-black tracking-tighter", b.net > 0 ? "text-green-600" : b.net < 0 ? "text-red-600" : "text-muted-foreground")}>
-                            {b.net > 0 ? `+₹${b.net.toFixed(0)}` : b.net < 0 ? `-₹${Math.abs(b.net).toFixed(0)}` : 'Settled'}
-                          </p>
-                          {b.net > 0 ? <TrendingUp className="h-6 w-6 text-green-600 opacity-20" /> : <TrendingDown className="h-6 w-6 text-red-600 opacity-20" />}
-                        </div>
-                      </div>
-                    </CardContent>
-                    {b.net < 0 && b.userId === user?.uid && (
-                      <CardFooter className="pt-0">
-                        <Select onValueChange={(toUid) => handleSettle(b.userId, b.userName, toUid, Math.abs(b.net))}>
-                          <SelectTrigger className="h-10 text-[10px] font-black uppercase rounded-xl">
-                            <SelectValue placeholder="Settle Bill To..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(Array.isArray(activeGroup?.members) ? activeGroup.members : []).filter((m: any) => m.userId !== b.userId).map((m: any) => (
-                              <SelectItem key={m.userId} value={m.userId} className="text-[10px] font-black">{m.userName}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </CardFooter>
-                    )}
-                  </Card>
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="history" className="animate-in fade-in slide-in-from-left-2">
-              <Card className="rounded-3xl border-none ring-1 ring-border overflow-hidden">
-                <ScrollArea className="h-[500px]">
-                  <div className="divide-y">
-                    {expenses?.sort((a,b) => b.createdAt.localeCompare(a.createdAt)).map(exp => (
-                      <div key={exp.id} className="p-6 hover:bg-muted/30 transition-colors">
-                        <div className="flex justify-between items-start mb-4">
-                          <div className="space-y-1">
-                            <h4 className="font-black text-lg tracking-tight">{exp.description}</h4>
-                            <p className="text-[10px] text-muted-foreground font-black uppercase">
-                              <span className="text-primary">{exp.paidByName}</span> paid ₹{exp.amount}
-                            </p>
-                          </div>
-                          <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest">{exp.splitType} split</Badge>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {Object.entries(exp.splits || {}).map(([uid, share]: any) => {
-                            const members = Array.isArray(activeGroup?.members) ? activeGroup.members : [];
-                            const name = members.find((m: any) => m.userId === uid)?.userName || 'User';
-                            return share > 0 ? (
-                              <div key={uid} className="flex items-center gap-2 px-3 py-1.5 bg-muted/20 rounded-full border border-dashed">
-                                <span className="text-[9px] font-black uppercase opacity-60">{name}</span>
-                                <span className="text-[10px] font-black">₹{share.toFixed(0)}</span>
+                      {settlements?.sort((a,b) => b.createdAt.localeCompare(a.createdAt)).map(s => (
+                        <div key={s.id} className="p-6 bg-green-50/20 border-l-4 border-l-green-500">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-green-100 rounded-lg text-green-600"><Check className="h-4 w-4" /></div>
+                              <div>
+                                <p className="text-xs font-black uppercase tracking-tight">
+                                  <span className="text-green-700">{s.paidByName}</span> settled <span className="text-green-700">₹{s.amount}</span> to {s.paidToName}
+                                </p>
+                                <p className="text-[8px] font-bold text-muted-foreground uppercase">{new Date(s.createdAt).toLocaleDateString()}</p>
                               </div>
-                            ) : null;
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                    {settlements?.sort((a,b) => b.createdAt.localeCompare(a.createdAt)).map(s => (
-                      <div key={s.id} className="p-6 bg-green-50/20 border-l-4 border-l-green-500">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 bg-green-100 rounded-lg text-green-600"><Check className="h-4 w-4" /></div>
-                            <div>
-                              <p className="text-xs font-black uppercase tracking-tight">
-                                <span className="text-green-700">{s.paidByName}</span> settled <span className="text-green-700">₹{s.amount}</span> to {s.paidToName}
-                              </p>
-                              <p className="text-[8px] font-bold text-muted-foreground uppercase">{new Date(s.createdAt).toLocaleDateString()}</p>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                    {expenses?.length === 0 && settlements?.length === 0 && (
-                      <div className="flex flex-col items-center justify-center py-32 opacity-30 grayscale space-y-4">
-                        <History className="h-16 w-16" />
-                        <p className="text-xs font-black uppercase tracking-widest text-center">Room ledger is currently empty.</p>
-                      </div>
-                    )}
-                  </div>
-                </ScrollArea>
-              </Card>
-            </TabsContent>
-          </Tabs>
+                      ))}
+                      {(!expenses || expenses.length === 0) && (!settlements || settlements.length === 0) && (
+                        <div className="flex flex-col items-center justify-center py-32 opacity-30 grayscale space-y-4">
+                          <History className="h-16 w-16" />
+                          <p className="text-xs font-black uppercase tracking-widest text-center">Room ledger is currently empty.</p>
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          )}
         </div>
       )}
 
@@ -608,15 +630,15 @@ export default function SplitPayPage() {
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
         <DialogContent className="rounded-3xl max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black tracking-tighter">New Room</DialogTitle>
-            <DialogDescription className="text-sm font-medium">Initialize a private collaborative pool.</DialogDescription>
+            <DialogTitle className="text-2xl font-black tracking-tighter">Initialize Room</DialogTitle>
+            <DialogDescription className="text-sm font-medium">Setup a private collaborative workspace.</DialogDescription>
           </DialogHeader>
           <div className="py-6 space-y-4">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest">Room Name</Label>
               <Input placeholder="e.g. Trip to Ladakh" value={roomName} onChange={e => setRoomName(e.target.value)} className="h-12 rounded-2xl" />
             </div>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase bg-muted/20 p-3 rounded-xl border border-dashed">Identity anchor: {userName}</p>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase bg-muted/20 p-3 rounded-xl border border-dashed">You are automatically included as '{userName}'.</p>
           </div>
           <DialogFooter>
             <Button onClick={handleCreateRoom} disabled={isProcessing} className="w-full h-12 rounded-2xl font-black">
@@ -629,8 +651,8 @@ export default function SplitPayPage() {
       <Dialog open={isJoiningModalOpen} onOpenChange={setIsJoiningModalOpen}>
         <DialogContent className="rounded-3xl max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black tracking-tighter">Join Group</DialogTitle>
-            <DialogDescription className="text-sm font-medium">Enter the 8-character Room Code.</DialogDescription>
+            <DialogTitle className="text-2xl font-black tracking-tighter">Join Existing Room</DialogTitle>
+            <DialogDescription className="text-sm font-medium">Enter the Room Code shared with you.</DialogDescription>
           </DialogHeader>
           <div className="py-6 space-y-4">
             <div className="space-y-2">
@@ -640,7 +662,7 @@ export default function SplitPayPage() {
           </div>
           <DialogFooter>
             <Button onClick={handleJoinRoom} disabled={isProcessing} className="w-full h-12 rounded-2xl font-black">
-              {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : "Join Ledger"}
+              {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : "Join Room"}
             </Button>
           </DialogFooter>
         </DialogContent>
