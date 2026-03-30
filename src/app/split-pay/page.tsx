@@ -100,11 +100,31 @@ export default function SplitPayPage() {
 
   useEffect(() => {
     if (activeGroup) {
-      // By default mark all people
       setSelectedParticipants(activeGroup.memberUids || []);
       if (!paidBy) setPaidBy(user?.uid || '');
     }
   }, [activeGroup, user?.uid]);
+
+  // Sync customSplits with equal logic when amount or participants change in equal mode
+  useEffect(() => {
+    if (splitType === 'equal' && expenseAmt && selectedParticipants.length > 0) {
+      const amt = parseFloat(expenseAmt) || 0;
+      const count = selectedParticipants.length;
+      const base = Math.floor((amt / count) * 100) / 100;
+      let remainder = Math.round((amt - (base * count)) * 100) / 100;
+      
+      const newSplits: Record<string, string> = {};
+      selectedParticipants.forEach((uid) => {
+        let s = base;
+        if (remainder > 0) {
+          s = Math.round((s + 0.01) * 100) / 100;
+          remainder = Math.round((remainder - 0.01) * 100) / 100;
+        }
+        newSplits[uid] = s.toFixed(2);
+      });
+      setCustomSplits(newSplits);
+    }
+  }, [expenseAmt, selectedParticipants, splitType]);
 
   useEffect(() => {
     if (expensesError || settlementsError) {
@@ -116,6 +136,45 @@ export default function SplitPayPage() {
       setSelectedGroupId(null);
     }
   }, [expensesError, settlementsError, toast]);
+
+  const handleSplitAdjustment = (uid: string, newValue: string) => {
+    const total = parseFloat(expenseAmt) || 0;
+    if (total <= 0) {
+      setCustomSplits({ ...customSplits, [uid]: newValue });
+      return;
+    }
+
+    const val = parseFloat(newValue) || 0;
+    const others = selectedParticipants.filter(id => id !== uid);
+    
+    if (others.length === 0) {
+      setCustomSplits({ [uid]: newValue });
+      return;
+    }
+
+    const remaining = total - val;
+    const count = others.length;
+    const base = Math.floor((remaining / count) * 100) / 100;
+    let remainder = Math.round((remaining - (base * count)) * 100) / 100;
+
+    const newSplits = { ...customSplits };
+    newSplits[uid] = newValue;
+    
+    others.forEach(otherId => {
+      let s = base;
+      if (remainder > 0) {
+        s = Math.round((s + 0.01) * 100) / 100;
+        remainder = Math.round((remainder - 0.01) * 100) / 100;
+      } else if (remainder < 0) {
+        s = Math.round((s - 0.01) * 100) / 100;
+        remainder = Math.round((remainder + 0.01) * 100) / 100;
+      }
+      newSplits[otherId] = s.toFixed(2);
+    });
+
+    setCustomSplits(newSplits);
+    if (splitType === 'equal') setSplitType('custom');
+  };
 
   const stats = useMemo(() => {
     if (!activeGroup || !expenses) return null;
@@ -510,39 +569,33 @@ export default function SplitPayPage() {
                                 <div key={uid} className="flex flex-col gap-1.5 bg-background/50 p-3 rounded-xl border shadow-sm">
                                   <div className="flex justify-between items-center">
                                     <span className="text-[10px] font-black uppercase truncate max-w-[100px] opacity-70">{name}</span>
-                                    {splitType === 'equal' ? (
-                                      <span className="text-xs font-black">₹{previewSplits[uid]?.toFixed(2)}</span>
-                                    ) : null}
                                   </div>
                                   
-                                  {splitType === 'custom' && (
-                                    <div className="relative">
-                                      <Input 
-                                        type="number" 
-                                        placeholder="0.00" 
-                                        value={customSplits[uid] || ''} 
-                                        onChange={(e) => setCustomSplits({...customSplits, [uid]: e.target.value})}
-                                        className="h-8 pl-7 text-xs font-bold rounded-lg"
-                                      />
+                                  <div className="relative">
+                                    <Input 
+                                      type="number" 
+                                      placeholder="0.00" 
+                                      value={customSplits[uid] || ''} 
+                                      onChange={(e) => {
+                                        if (splitType === 'percentage') {
+                                          setCustomSplits({...customSplits, [uid]: e.target.value});
+                                        } else {
+                                          handleSplitAdjustment(uid, e.target.value);
+                                        }
+                                      }}
+                                      className="h-8 pl-7 text-xs font-bold rounded-lg"
+                                    />
+                                    {splitType === 'percentage' ? (
+                                      <>
+                                        <Percent className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" />
+                                        <span className="absolute right-2 top-2 text-[10px] font-black text-muted-foreground">
+                                          ≈ ₹{previewSplits[uid]?.toFixed(2)}
+                                        </span>
+                                      </>
+                                    ) : (
                                       <IndianRupee className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" />
-                                    </div>
-                                  )}
-
-                                  {splitType === 'percentage' && (
-                                    <div className="relative">
-                                      <Input 
-                                        type="number" 
-                                        placeholder="0" 
-                                        value={customSplits[uid] || ''} 
-                                        onChange={(e) => setCustomSplits({...customSplits, [uid]: e.target.value})}
-                                        className="h-8 pl-7 text-xs font-bold rounded-lg"
-                                      />
-                                      <Percent className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" />
-                                      <span className="absolute right-2 top-2 text-[10px] font-black text-muted-foreground">
-                                        ≈ ₹{previewSplits[uid]?.toFixed(2)}
-                                      </span>
-                                    </div>
-                                  )}
+                                    )}
+                                  </div>
                                 </div>
                               );
                             })}
