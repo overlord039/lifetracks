@@ -27,7 +27,9 @@ import {
   Scale,
   UserMinus,
   AlertTriangle,
-  UserPlus
+  UserPlus,
+  Percent,
+  Coins
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -78,7 +80,7 @@ export default function SplitPayPage() {
     if (!db || !user) return null;
     return query(collection(db, 'sharedGroups'), where('memberUids', 'array-contains', user.uid));
   }, [db, user]);
-  const { data: myGroups, isLoading: isGroupsLoading, error: groupsError } = useCollection(myGroupsQuery);
+  const { data: myGroups, isLoading: isGroupsLoading } = useCollection(myGroupsQuery);
 
   const activeGroup = useMemo(() => 
     myGroups?.find(g => g.id === selectedGroupId), 
@@ -98,10 +100,11 @@ export default function SplitPayPage() {
 
   useEffect(() => {
     if (activeGroup) {
+      // By default mark all people
       setSelectedParticipants(activeGroup.memberUids || []);
       if (!paidBy) setPaidBy(user?.uid || '');
     }
-  }, [activeGroup, paidBy, user?.uid]);
+  }, [activeGroup, user?.uid]);
 
   useEffect(() => {
     if (expensesError || settlementsError) {
@@ -179,6 +182,20 @@ export default function SplitPayPage() {
     return splits;
   }, [expenseAmt, splitType, selectedParticipants, customSplits, activeGroup]);
 
+  const splitValidation = useMemo(() => {
+    if (!expenseAmt || parseFloat(expenseAmt) <= 0) return { isValid: false, message: 'Enter total amount' };
+    const amt = parseFloat(expenseAmt);
+    const sum = Object.values(previewSplits).reduce((a, b) => a + b, 0);
+    const diff = Math.abs(amt - sum);
+
+    if (splitType === 'equal') return { isValid: selectedParticipants.length > 0, message: selectedParticipants.length === 0 ? 'Select participants' : 'Equal redistribution active' };
+    
+    if (diff > 0.05) {
+      return { isValid: false, message: `Difference: ₹${(amt - sum).toFixed(2)}` };
+    }
+    return { isValid: true, message: 'All funds allocated correctly' };
+  }, [expenseAmt, previewSplits, splitType, selectedParticipants]);
+
   const handleCreateRoom = async () => {
     if (!roomName.trim() || !user || !db) return;
     setIsProcessing(true);
@@ -236,7 +253,7 @@ export default function SplitPayPage() {
   };
 
   const handleAddExpense = async () => {
-    if (!expenseAmt || !expenseDesc || !paidBy || !activeGroup || !user || !expensesRef) return;
+    if (!expenseAmt || !expenseDesc || !paidBy || !activeGroup || !user || !expensesRef || !splitValidation.isValid) return;
     const amt = parseFloat(expenseAmt);
     
     const members = Array.isArray(activeGroup.members) ? activeGroup.members : [];
@@ -436,7 +453,7 @@ export default function SplitPayPage() {
 
                         <div className="space-y-4">
                           <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Select Participants</Label>
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Mark Participants</Label>
                             <div className="flex flex-wrap gap-2 p-3 bg-muted/20 rounded-2xl border border-dashed">
                               {(Array.isArray(activeGroup?.members) ? activeGroup.members : []).map((m: any) => (
                                 <button
@@ -459,6 +476,7 @@ export default function SplitPayPage() {
                                 </button>
                               ))}
                             </div>
+                            <p className="text-[8px] font-black uppercase text-muted-foreground px-1">Unmark members to exclude them from this bill.</p>
                           </div>
                           
                           <div className="space-y-2">
@@ -475,16 +493,56 @@ export default function SplitPayPage() {
                       </div>
 
                       {selectedParticipants.length > 0 && parseFloat(expenseAmt) > 0 && (
-                        <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 space-y-3">
-                          <p className="text-[10px] font-black uppercase text-primary tracking-widest text-center">Live Preview</p>
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            {Object.entries(previewSplits).map(([uid, val]) => {
+                        <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <p className="text-[10px] font-black uppercase text-primary tracking-widest">Allocation Ledger</p>
+                            <Badge variant={splitValidation.isValid ? "secondary" : "destructive"} className="text-[8px] font-black uppercase">
+                              {splitValidation.message}
+                            </Badge>
+                          </div>
+                          
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            {selectedParticipants.map((uid) => {
                               const members = Array.isArray(activeGroup?.members) ? activeGroup.members : [];
                               const name = members.find((m: any) => m.userId === uid)?.userName || 'User';
+                              
                               return (
-                                <div key={uid} className="flex justify-between items-center bg-background/50 p-2.5 rounded-xl border shadow-sm">
-                                  <span className="text-[10px] font-bold uppercase truncate max-w-[80px] opacity-70">{name}</span>
-                                  <span className="text-xs font-black">₹{val.toFixed(2)}</span>
+                                <div key={uid} className="flex flex-col gap-1.5 bg-background/50 p-3 rounded-xl border shadow-sm">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-[10px] font-black uppercase truncate max-w-[100px] opacity-70">{name}</span>
+                                    {splitType === 'equal' ? (
+                                      <span className="text-xs font-black">₹{previewSplits[uid]?.toFixed(2)}</span>
+                                    ) : null}
+                                  </div>
+                                  
+                                  {splitType === 'custom' && (
+                                    <div className="relative">
+                                      <Input 
+                                        type="number" 
+                                        placeholder="0.00" 
+                                        value={customSplits[uid] || ''} 
+                                        onChange={(e) => setCustomSplits({...customSplits, [uid]: e.target.value})}
+                                        className="h-8 pl-7 text-xs font-bold rounded-lg"
+                                      />
+                                      <IndianRupee className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" />
+                                    </div>
+                                  )}
+
+                                  {splitType === 'percentage' && (
+                                    <div className="relative">
+                                      <Input 
+                                        type="number" 
+                                        placeholder="0" 
+                                        value={customSplits[uid] || ''} 
+                                        onChange={(e) => setCustomSplits({...customSplits, [uid]: e.target.value})}
+                                        className="h-8 pl-7 text-xs font-bold rounded-lg"
+                                      />
+                                      <Percent className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" />
+                                      <span className="absolute right-2 top-2 text-[10px] font-black text-muted-foreground">
+                                        ≈ ₹{previewSplits[uid]?.toFixed(2)}
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })}
@@ -493,7 +551,11 @@ export default function SplitPayPage() {
                       )}
                     </CardContent>
                     <CardFooter className="bg-muted/10 border-t py-4">
-                      <Button onClick={handleAddExpense} className="w-full h-12 rounded-2xl font-black shadow-lg gap-2 text-base">
+                      <Button 
+                        onClick={handleAddExpense} 
+                        disabled={!splitValidation.isValid}
+                        className="w-full h-12 rounded-2xl font-black shadow-lg gap-2 text-base"
+                      >
                         <CheckCircle2 className="h-5 w-5" /> Sync to Shared Ledger
                       </Button>
                     </CardFooter>
