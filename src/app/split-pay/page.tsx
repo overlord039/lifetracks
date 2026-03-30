@@ -29,7 +29,9 @@ import {
   AlertTriangle,
   UserPlus,
   Percent,
-  Coins
+  Coins,
+  PieChart as PieChartIcon,
+  BarChart3
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -46,8 +48,18 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { cn } from '@/lib/utils';
+import { 
+  PieChart, 
+  Pie, 
+  Cell, 
+  ResponsiveContainer, 
+  Tooltip, 
+  Legend 
+} from 'recharts';
 
 type SplitType = 'equal' | 'custom' | 'percentage';
+
+const CHART_COLORS = ['#64B5F6', '#81C784', '#FFB74D', '#BA68C8', '#F06292', '#4DB6AC', '#FF8A65'];
 
 export default function SplitPayPage() {
   const { user } = useUser();
@@ -57,6 +69,7 @@ export default function SplitPayPage() {
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [isJoiningModalOpen, setIsJoiningModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   
   const [roomName, setRoomName] = useState('');
@@ -105,7 +118,6 @@ export default function SplitPayPage() {
     }
   }, [activeGroup, user?.uid]);
 
-  // Sync customSplits with equal logic when amount or participants change in equal mode
   useEffect(() => {
     if (splitType === 'equal' && expenseAmt && selectedParticipants.length > 0) {
       const amt = parseFloat(expenseAmt) || 0;
@@ -213,7 +225,19 @@ export default function SplitPayPage() {
       };
     }).sort((a: any, b: any) => (a.userName || '').localeCompare(b.userName || ''));
 
-    return { totalSpent, balances };
+    const contributionData = balances.map((b, idx) => ({
+      name: b.userName,
+      value: b.paid,
+      color: CHART_COLORS[idx % CHART_COLORS.length]
+    })).filter(d => d.value > 0);
+
+    const consumptionData = balances.map((b, idx) => ({
+      name: b.userName,
+      value: b.share,
+      color: CHART_COLORS[idx % CHART_COLORS.length]
+    })).filter(d => d.value > 0);
+
+    return { totalSpent, balances, contributionData, consumptionData };
   }, [activeGroup, expenses, settlements]);
 
   const previewSplits = useMemo(() => {
@@ -449,17 +473,22 @@ export default function SplitPayPage() {
                 </div>
               </div>
             </div>
-            <div className="bg-primary/5 px-6 py-3 rounded-2xl border border-primary/10 flex flex-col md:flex-row items-center gap-4 md:gap-8">
+            
+            <button 
+              onClick={() => setIsStatsModalOpen(true)}
+              className="bg-primary/5 px-6 py-3 rounded-2xl border border-primary/10 flex flex-col md:flex-row items-center gap-4 md:gap-8 hover:bg-primary/10 transition-all group cursor-pointer"
+            >
               <div className="text-center md:text-left">
-                <p className="text-[9px] font-black uppercase text-primary/60 tracking-widest">Shared Pool</p>
+                <p className="text-[9px] font-black uppercase text-primary/60 tracking-widest group-hover:text-primary transition-colors">Shared Pool</p>
                 <p className="text-2xl font-black text-primary">₹{stats?.totalSpent.toLocaleString() || '0'}</p>
               </div>
               <Separator orientation="vertical" className="hidden md:block h-8" />
               <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{(Array.isArray(activeGroup?.members) ? activeGroup.members.length : 0)} Active</span>
+                <Users className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground group-hover:text-primary transition-colors">{(Array.isArray(activeGroup?.members) ? activeGroup.members.length : 0)} Active</span>
               </div>
-            </div>
+              <BarChart3 className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0" />
+            </button>
           </header>
 
           {!activeGroup ? (
@@ -810,6 +839,143 @@ export default function SplitPayPage() {
               {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : "Join Room"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isStatsModalOpen} onOpenChange={setIsStatsModalOpen}>
+        <DialogContent className="max-w-2xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
+          <div className="bg-primary p-8 text-primary-foreground">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/20 rounded-xl">
+                  <BarChart3 className="h-6 w-6" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black tracking-tighter">Room Analytics</h2>
+                  <p className="text-[10px] font-black uppercase tracking-widest opacity-80">{activeGroup?.name}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-[9px] font-black uppercase opacity-70 tracking-widest">Total Spent</p>
+                <p className="text-3xl font-black tracking-tighter">₹{stats?.totalSpent.toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-8 space-y-8 bg-background">
+            <div className="grid gap-8 md:grid-cols-2">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none font-black text-[8px] uppercase px-2">Contributions</Badge>
+                  <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Who funded the room?</span>
+                </div>
+                <div className="h-[200px] w-full relative">
+                  {stats?.contributionData.length ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie 
+                          data={stats.contributionData} 
+                          innerRadius={50} 
+                          outerRadius={80} 
+                          paddingAngle={5} 
+                          dataKey="value"
+                          stroke="none"
+                        >
+                          {stats.contributionData.map((entry, index) => (
+                            <Cell key={index} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', fontSize: '10px', fontWeight: '900' }}
+                          formatter={(v: number) => `₹${v.toLocaleString()}`}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full opacity-30 grayscale space-y-2">
+                      <PieChartIcon className="h-10 w-10" />
+                      <p className="text-[9px] font-black uppercase tracking-widest">No contributions yet</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-none font-black text-[8px] uppercase px-2">Consumption</Badge>
+                  <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Who consumed the funds?</span>
+                </div>
+                <div className="h-[200px] w-full relative">
+                  {stats?.consumptionData.length ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie 
+                          data={stats.consumptionData} 
+                          innerRadius={50} 
+                          outerRadius={80} 
+                          paddingAngle={5} 
+                          dataKey="value"
+                          stroke="none"
+                        >
+                          {stats.consumptionData.map((entry, index) => (
+                            <Cell key={index} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', fontSize: '10px', fontWeight: '900' }}
+                          formatter={(v: number) => `₹${v.toLocaleString()}`}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full opacity-30 grayscale space-y-2">
+                      <PieChartIcon className="h-10 w-10" />
+                      <p className="text-[9px] font-black uppercase tracking-widest">No consumption yet</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground border-b pb-2">Individual Share Breakdown</h3>
+              <ScrollArea className="max-h-[200px]">
+                <div className="space-y-2 pr-4">
+                  {stats?.balances.map((b, idx) => (
+                    <div key={b.userId} className="flex items-center justify-between p-3 rounded-2xl bg-muted/10 border border-dashed">
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="h-8 w-8 rounded-xl flex items-center justify-center text-white font-black text-xs"
+                          style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+                        >
+                          {b.userName[0].toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-tight">{b.userName}</p>
+                          <p className="text-[8px] font-bold text-muted-foreground uppercase">Member Ledger</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-6">
+                        <div className="text-right">
+                          <p className="text-[8px] font-black uppercase opacity-60">Funded</p>
+                          <p className="text-sm font-black tracking-tight">₹{b.paid.toLocaleString()}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[8px] font-black uppercase opacity-60">Share</p>
+                          <p className="text-sm font-black tracking-tight">₹{b.share.toLocaleString()}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          </div>
+
+          <div className="p-4 bg-muted/20 border-t flex justify-between items-center">
+            <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Analytics generated in real-time</p>
+            <Button onClick={() => setIsStatsModalOpen(false)} variant="outline" className="rounded-xl font-black h-9 text-[10px] uppercase px-6">Close Dashboard</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </AppShell>
