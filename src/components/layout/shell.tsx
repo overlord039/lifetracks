@@ -40,10 +40,10 @@ import { cn } from '@/lib/utils';
 const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
   { title: 'Salary Planner', url: '/salary-planner', icon: Calculator },
-  { title: 'Learning', url: '/learning', icon: GraduationCap },
   { title: 'Budget', url: '/budget', icon: Wallet },
   { title: 'Split Pay', url: '/split-pay', icon: Users },
   { title: 'Debts', url: '/debts', icon: HandCoins },
+  { title: 'Learning', url: '/learning', icon: GraduationCap },
   { title: 'Diary', url: '/diary', icon: BookText },
   { title: 'Reports', url: '/reports', icon: BarChart3 },
   { title: 'About', url: '/about', icon: Info },
@@ -108,7 +108,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-sm font-bold truncate">{user?.email?.split('@')[0] || 'User'}</span>
+                  <span className="text-sm font-bold truncate">{user?.displayName || user?.email?.split('@')[0] || 'User'}</span>
                   <span className="text-[10px] text-muted-foreground truncate font-medium">ID: {user?.uid.slice(0, 8)}...</span>
                 </div>
               </div>
