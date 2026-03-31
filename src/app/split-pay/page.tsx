@@ -983,7 +983,10 @@ export default function SplitPayPage() {
             <div className="p-8 space-y-8 bg-background">
               <div className="grid gap-8 md:grid-cols-2">
                 <div className="space-y-4">
-                  <Badge className="bg-blue-100 text-blue-700 font-black text-[8px] uppercase">Member Contributions</Badge>
+                  <div className="space-y-1">
+                    <Badge className="bg-blue-100 text-blue-700 font-black text-[8px] uppercase">Member Contributions</Badge>
+                    <p className="text-[10px] text-muted-foreground font-medium leading-tight">Total funds paid out of pocket by each member to cover group bills.</p>
+                  </div>
                   <div className="h-[200px] w-full">
                     {stats?.contributionData.length ? (
                       <ResponsiveContainer width="100%" height="100%">
@@ -998,7 +1001,10 @@ export default function SplitPayPage() {
                   </div>
                 </div>
                 <div className="space-y-4">
-                  <Badge className="bg-orange-100 text-orange-700 font-black text-[8px] uppercase">Member Consumption</Badge>
+                  <div className="space-y-1">
+                    <Badge className="bg-orange-100 text-orange-700 font-black text-[8px] uppercase">Member Consumption</Badge>
+                    <p className="text-[10px] text-muted-foreground font-medium leading-tight">The cumulative value of shares consumed by each member (what they owe the room).</p>
+                  </div>
                   <div className="h-[200px] w-full">
                     {stats?.consumptionData.length ? (
                       <ResponsiveContainer width="100%" height="100%">
@@ -1017,7 +1023,10 @@ export default function SplitPayPage() {
               <Separator />
 
               <div className="space-y-4">
-                <Badge className="bg-purple-100 text-purple-700 font-black text-[8px] uppercase">Spending by Label</Badge>
+                <div className="space-y-1">
+                  <Badge className="bg-purple-100 text-purple-700 font-black text-[8px] uppercase">Spending by Label</Badge>
+                  <p className="text-[10px] text-muted-foreground font-medium">A categorical breakdown of group spending to identify top expenditure areas like food or stay.</p>
+                </div>
                 <div className="grid gap-8 md:grid-cols-2 items-center">
                   <div className="h-[200px] w-full">
                     {stats?.categorySpendData.length ? (
@@ -1036,7 +1045,10 @@ export default function SplitPayPage() {
                       <div key={idx} className="flex items-center justify-between p-3 rounded-2xl bg-muted/30 border border-dashed hover:bg-muted/50 transition-colors">
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full" style={{ backgroundColor: cat.color }} />
-                          <span className="text-[10px] font-black uppercase truncate max-w-[120px]">{cat.name}</span>
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-black uppercase truncate max-w-[120px]">{cat.name}</span>
+                            <span className="text-[8px] text-muted-foreground font-bold uppercase">Room Expense Label</span>
+                          </div>
                         </div>
                         <span className="text-xs font-black">₹{cat.value.toLocaleString()}</span>
                       </div>
@@ -1047,7 +1059,7 @@ export default function SplitPayPage() {
               </div>
             </div>
           </ScrollArea>
-          <div className="p-4 bg-muted/20 border-t flex justify-end"><Button onClick={() => setIsStatsModalOpen(false)} variant="outline" className="rounded-xl font-black h-9 text-[10px] uppercase px-6">Close Dashboard</Button></div>
+          <div className="p-4 bg-muted/20 border-t flex justify-end"><Button onClick={() => setIsStatsModalOpen(false)} variant="outline" className="rounded-xl font-black h-9 text-[10px] uppercase px-6">Close Analytics</Button></div>
         </DialogContent>
       </Dialog>
 
