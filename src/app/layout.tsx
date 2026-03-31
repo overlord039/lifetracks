@@ -27,6 +27,7 @@ export default function RootLayout({
           attribute="class"
           defaultTheme="system"
           enableSystem
+          themes={['light', 'dark', 'midnight', 'forest', 'sunset']}
           disableTransitionOnChange
         >
           <FirebaseClientProvider>
