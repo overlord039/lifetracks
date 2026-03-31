@@ -32,7 +32,9 @@ import {
   Coins,
   PieChart as PieChartIcon,
   BarChart3,
-  Trash2
+  Trash2,
+  BrainCircuit,
+  LayoutGrid
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -68,6 +70,7 @@ import {
   Legend 
 } from 'recharts';
 import { decryptData } from '@/lib/encryption';
+import { categorizeExpense } from '@/ai/flows/categorize-expense-flow';
 
 type SplitType = 'equal' | 'custom' | 'percentage';
 
@@ -91,9 +94,12 @@ export default function SplitPayPage() {
   const [expenseDesc, setExpenseDesc] = useState('');
   const [expenseAmt, setExpenseAmt] = useState('');
   const [paidBy, setPaidBy] = useState('');
+  const [expenseCategoryId, setExpenseCategoryId] = useState('');
   const [splitType, setSplitType] = useState<SplitType>('equal');
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [customSplits, setCustomSplits] = useState<Record<string, string>>({});
+  const [isAIThinking, setIsAIThinking] = useState(false);
+  const [newRoomCategoryName, setNewRoomCategoryName] = useState('');
 
   const [decryptedGroups, setDecryptedGroups] = useState<any[]>([]);
   const [isDecryptingGroups, setIsDecryptingGroups] = useState(false);
@@ -134,7 +140,6 @@ export default function SplitPayPage() {
 
   const expensesRef = useMemoFirebase(() => {
     if (!db || !selectedGroupId || !activeGroup) return null;
-    // Strict membership check: only listen if UID is in memberUids
     if (!activeGroup.memberUids?.includes(user?.uid)) return null;
     return collection(db, 'sharedGroups', selectedGroupId, 'expenses');
   }, [db, selectedGroupId, activeGroup, user?.uid]);
@@ -146,6 +151,13 @@ export default function SplitPayPage() {
     return collection(db, 'sharedGroups', selectedGroupId, 'settlements');
   }, [db, selectedGroupId, activeGroup, user?.uid]);
   const { data: settlements, error: settlementsError } = useCollection(settlementsRef);
+
+  const roomCategoriesRef = useMemoFirebase(() => {
+    if (!db || !selectedGroupId || !activeGroup) return null;
+    if (!activeGroup.memberUids?.includes(user?.uid)) return null;
+    return collection(db, 'sharedGroups', selectedGroupId, 'categories');
+  }, [db, selectedGroupId, activeGroup, user?.uid]);
+  const { data: roomCategories } = useCollection(roomCategoriesRef);
 
   useEffect(() => {
     if (activeGroup) {
@@ -222,6 +234,33 @@ export default function SplitPayPage() {
 
     setCustomSplits(newSplits);
     if (splitType === 'equal') setSplitType('custom');
+  };
+
+  const handleAICategorize = async () => {
+    if (!expenseDesc || !roomCategoriesRef || !roomCategories) return;
+    setIsAIThinking(true);
+    try {
+      const result = await categorizeExpense({
+        expenseDescription: expenseDesc,
+        existingCategories: roomCategories.map(c => c.name)
+      });
+      
+      if (result.isNewCategorySuggested) {
+        const docRef = await addDocumentNonBlocking(roomCategoriesRef, {
+          name: result.suggestedCategoryName,
+          createdAt: new Date().toISOString()
+        });
+        if (docRef) setExpenseCategoryId(docRef.id);
+      } else {
+        const existing = roomCategories.find(c => c.name === result.suggestedCategoryName);
+        if (existing) setExpenseCategoryId(existing.id);
+      }
+      toast({ title: "Classified", description: result.reasoning });
+    } catch (e) {
+      toast({ variant: "destructive", title: "AI Classification failed" });
+    } finally {
+      setIsAIThinking(false);
+    }
   };
 
   const stats = useMemo(() => {
@@ -357,31 +396,36 @@ export default function SplitPayPage() {
     toast({ title: "Syncing Membership", description: "Verifying credentials with ledger..." });
   };
 
+  const addRoomCategory = async () => {
+    if (!newRoomCategoryName.trim() || !roomCategoriesRef) return;
+    addDocumentNonBlocking(roomCategoriesRef, {
+      name: newRoomCategoryName.trim(),
+      createdAt: new Date().toISOString()
+    });
+    setNewRoomCategoryName('');
+  };
+
   const handleDeleteRoom = () => {
     if (!roomToDelete || !db) return;
     deleteDocumentNonBlocking(doc(db, 'sharedGroups', roomToDelete));
     setRoomToDelete(null);
-    toast({ title: "Room Decommissioned", description: "All ledger data wiped from existence." });
+    toast({ title: "Room Decommissioned" });
   };
 
   const handleKickMember = (targetUserId: string) => {
     if (!activeGroup || !db || user?.uid !== activeGroup.createdBy) return;
-    
     const updatedMemberUids = activeGroup.memberUids.filter((id: string) => id !== targetUserId);
     const updatedMembers = activeGroup.members.filter((m: any) => m.userId !== targetUserId);
-    
     updateDocumentNonBlocking(doc(db, 'sharedGroups', activeGroup.id), {
       memberUids: updatedMemberUids,
       members: updatedMembers
     });
-    
-    toast({ title: "Member Removed", description: "Ledger updated." });
+    toast({ title: "Member Removed" });
   };
 
   const handleAddExpense = async () => {
     if (!expenseAmt || !expenseDesc || !paidBy || !activeGroup || !user || !expensesRef || !splitValidation.isValid) return;
     const amt = parseFloat(expenseAmt);
-    
     const members = Array.isArray(activeGroup.members) ? activeGroup.members : [];
     const paidByName = members.find((m: any) => m.userId === paidBy)?.userName || 'Unknown';
 
@@ -391,6 +435,7 @@ export default function SplitPayPage() {
       description: expenseDesc,
       paidBy,
       paidByName,
+      expenseCategoryId,
       participants: selectedParticipants,
       splitType,
       splits: previewSplits,
@@ -399,8 +444,9 @@ export default function SplitPayPage() {
 
     setExpenseAmt('');
     setExpenseDesc('');
+    setExpenseCategoryId('');
     setCustomSplits({});
-    toast({ title: "Ledger Updated", description: "Expense added to shared pool." });
+    toast({ title: "Ledger Updated" });
   };
 
   const handleSettle = (fromId: string, fromName: string, toId: string, amount: number) => {
@@ -422,7 +468,7 @@ export default function SplitPayPage() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast({ title: "Code Copied", description: "Ready to share with friends." });
+    toast({ title: "Code Copied" });
   };
 
   if (isGroupsLoading || isDecryptingGroups) {
@@ -571,7 +617,25 @@ export default function SplitPayPage() {
                         <div className="space-y-4">
                           <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Description</Label>
-                            <Input placeholder="What was this for?" value={expenseDesc} onChange={e => setExpenseDesc(e.target.value)} className="h-11 rounded-xl" />
+                            <div className="flex gap-2">
+                              <Input placeholder="What was this for?" value={expenseDesc} onChange={e => setExpenseDesc(e.target.value)} className="h-11 rounded-xl" />
+                              <Button variant="outline" size="icon" className="h-11 w-11 shrink-0 rounded-xl" onClick={handleAICategorize} disabled={isAIThinking || !expenseDesc}>
+                                {isAIThinking ? <Loader2 className="h-4 w-4 animate-spin" /> : <BrainCircuit className="h-4 w-4 text-primary" />}
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Label</Label>
+                            <Select value={expenseCategoryId} onValueChange={setExpenseCategoryId}>
+                              <SelectTrigger className="h-11 rounded-xl font-black">
+                                <SelectValue placeholder="Select Label" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {roomCategories?.map(c => (
+                                  <SelectItem key={c.id} value={c.id} className="font-black">{c.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                           <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Amount (₹)</Label>
@@ -620,7 +684,6 @@ export default function SplitPayPage() {
                                 </button>
                               ))}
                             </div>
-                            <p className="text-[8px] font-black uppercase text-muted-foreground px-1">Unmark members to exclude them from this bill.</p>
                           </div>
                           
                           <div className="space-y-2">
@@ -649,13 +712,11 @@ export default function SplitPayPage() {
                             {selectedParticipants.map((uid) => {
                               const members = Array.isArray(activeGroup?.members) ? activeGroup.members : [];
                               const name = members.find((m: any) => m.userId === uid)?.userName || 'User';
-                              
                               return (
                                 <div key={uid} className="flex flex-col gap-1.5 bg-background/50 p-3 rounded-xl border shadow-sm">
                                   <div className="flex justify-between items-center">
                                     <span className="text-[10px] font-black uppercase truncate max-w-[100px] opacity-70">{name}</span>
                                   </div>
-                                  
                                   <div className="relative">
                                     <Input 
                                       type="number" 
@@ -671,12 +732,7 @@ export default function SplitPayPage() {
                                       className="h-8 pl-7 text-xs font-bold rounded-lg"
                                     />
                                     {splitType === 'percentage' ? (
-                                      <>
-                                        <Percent className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" />
-                                        <span className="absolute right-2 top-2 text-[10px] font-black text-muted-foreground">
-                                          ≈ ₹{previewSplits[uid]?.toFixed(2)}
-                                        </span>
-                                      </>
+                                      <><Percent className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" /><span className="absolute right-2 top-2 text-[10px] font-black text-muted-foreground">≈ ₹{previewSplits[uid]?.toFixed(2)}</span></>
                                     ) : (
                                       <IndianRupee className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" />
                                     )}
@@ -689,11 +745,7 @@ export default function SplitPayPage() {
                       )}
                     </CardContent>
                     <CardFooter className="bg-muted/10 border-t py-4">
-                      <Button 
-                        onClick={handleAddExpense} 
-                        disabled={!splitValidation.isValid}
-                        className="w-full h-12 rounded-2xl font-black shadow-lg gap-2 text-base"
-                      >
+                      <Button onClick={handleAddExpense} disabled={!splitValidation.isValid} className="w-full h-12 rounded-2xl font-black shadow-lg gap-2 text-base">
                         <CheckCircle2 className="h-5 w-5" /> Sync to Shared Ledger
                       </Button>
                     </CardFooter>
@@ -708,37 +760,41 @@ export default function SplitPayPage() {
                         {(Array.isArray(activeGroup?.members) ? activeGroup.members : []).map((m: any) => (
                           <div key={m.userId} className="flex items-center justify-between p-3 rounded-2xl bg-muted/10 border border-dashed group">
                             <div className="flex items-center gap-3">
-                              <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-xs">
-                                {(m.userName || 'U')[0].toUpperCase()}
-                              </div>
+                              <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-xs">{(m.userName || 'U')[0].toUpperCase()}</div>
                               <div className="flex flex-col">
                                 <span className="text-sm font-black uppercase tracking-tight">{m.userName}</span>
                                 {m.userId === activeGroup?.createdBy && <span className="text-[8px] font-black uppercase text-orange-600">Room Admin</span>}
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              {user?.uid === activeGroup?.createdBy && m.userId !== user?.uid && (
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  onClick={() => handleKickMember(m.userId)} 
-                                  className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                  <UserMinus className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
+                            {user?.uid === activeGroup?.createdBy && m.userId !== user?.uid && (
+                              <Button variant="ghost" size="icon" onClick={() => handleKickMember(m.userId)} className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                                <UserMinus className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         ))}
                         <div className="pt-4 mt-2 border-t border-dashed">
-                          <p className="text-[10px] font-black uppercase text-muted-foreground mb-3 tracking-widest text-center">Admin Controls</p>
-                          <Button 
-                            variant="outline" 
-                            className="w-full h-10 rounded-xl font-black gap-2 text-[10px] uppercase"
-                            onClick={() => copyToClipboard(activeGroup?.id || '')}
-                          >
+                          <Button variant="outline" className="w-full h-10 rounded-xl font-black gap-2 text-[10px] uppercase" onClick={() => copyToClipboard(activeGroup?.id || '')}>
                             <UserPlus className="h-4 w-4" /> Invite via Code
                           </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="shadow-lg rounded-3xl border-none ring-1 ring-border overflow-hidden">
+                      <CardHeader className="bg-muted/30 border-b py-2.5 px-4"><CardTitle className="text-sm md:text-base flex items-center gap-2 font-black"><LayoutGrid className="h-4 w-4 text-primary" /> Room Labels</CardTitle></CardHeader>
+                      <CardContent className="pt-4 px-4 space-y-4">
+                        <div className="flex gap-2">
+                          <Input placeholder="New label..." value={newRoomCategoryName} onChange={(e) => setNewRoomCategoryName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addRoomCategory()} className="h-9 text-[11px]" />
+                          <Button size="icon" onClick={addRoomCategory} className="h-9 w-9 shrink-0 rounded-xl"><Plus className="h-4 w-4" /></Button>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {roomCategories?.length ? roomCategories.map(c => (
+                            <div key={c.id} className="flex items-center gap-1.5 pl-3 pr-1 py-1 bg-primary/10 text-primary rounded-full text-[9px] font-black uppercase border border-primary/20">
+                              {c.name}
+                              <button onClick={() => deleteDocumentNonBlocking(doc(roomCategoriesRef!, c.id))} className="ml-1 text-destructive p-0.5 hover:bg-destructive/10 rounded-full transition-colors"><Trash2 className="h-3 w-3" /></button>
+                            </div>
+                          )) : <p className="text-[10px] text-muted-foreground italic w-full text-center py-4">No room labels defined.</p>}
                         </div>
                       </CardContent>
                     </Card>
@@ -755,9 +811,7 @@ export default function SplitPayPage() {
                     )}>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-base font-black flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-xl bg-background border flex items-center justify-center text-primary font-black">
-                            {(b.userName || 'U')[0].toUpperCase()}
-                          </div>
+                          <div className="h-8 w-8 rounded-xl bg-background border flex items-center justify-center text-primary font-black">{(b.userName || 'U')[0].toUpperCase()}</div>
                           {b.userName}
                         </CardTitle>
                       </CardHeader>
@@ -799,31 +853,37 @@ export default function SplitPayPage() {
                 <Card className="rounded-3xl border-none ring-1 ring-border overflow-hidden">
                   <ScrollArea className="h-[500px]">
                     <div className="divide-y">
-                      {expenses?.sort((a,b) => b.createdAt.localeCompare(a.createdAt)).map(exp => (
-                        <div key={exp.id} className="p-6 hover:bg-muted/30 transition-colors">
-                          <div className="flex justify-between items-start mb-4">
-                            <div className="space-y-1">
-                              <h4 className="font-black text-lg tracking-tight">{exp.description}</h4>
-                              <p className="text-[10px] text-muted-foreground font-black uppercase">
-                                <span className="text-primary">{exp.paidByName}</span> paid ₹{exp.amount}
-                              </p>
+                      {expenses?.sort((a,b) => b.createdAt.localeCompare(a.createdAt)).map(exp => {
+                        const catName = roomCategories?.find(c => c.id === exp.expenseCategoryId)?.name;
+                        return (
+                          <div key={exp.id} className="p-6 hover:bg-muted/30 transition-colors">
+                            <div className="flex justify-between items-start mb-4">
+                              <div className="space-y-1">
+                                <h4 className="font-black text-lg tracking-tight">
+                                  {exp.description}
+                                  {catName && <Badge variant="secondary" className="ml-2 text-[8px] font-black uppercase bg-primary/10 text-primary border-primary/20">{catName}</Badge>}
+                                </h4>
+                                <p className="text-[10px] text-muted-foreground font-black uppercase">
+                                  <span className="text-primary">{exp.paidByName}</span> paid ₹{exp.amount}
+                                </p>
+                              </div>
+                              <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest">{exp.splitType} split</Badge>
                             </div>
-                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest">{exp.splitType} split</Badge>
+                            <div className="flex flex-wrap gap-2">
+                              {Object.entries(exp.splits || {}).map(([uid, share]: any) => {
+                                const members = Array.isArray(activeGroup?.members) ? activeGroup.members : [];
+                                const name = members.find((m: any) => m.userId === uid)?.userName || 'User';
+                                return share > 0 ? (
+                                  <div key={uid} className="flex items-center gap-2 px-3 py-1.5 bg-muted/20 rounded-full border border-dashed">
+                                    <span className="text-[9px] font-black uppercase opacity-60">{name}</span>
+                                    <span className="text-[10px] font-black">₹{share.toFixed(0)}</span>
+                                  </div>
+                                ) : null;
+                              })}
+                            </div>
                           </div>
-                          <div className="flex flex-wrap gap-2">
-                            {Object.entries(exp.splits || {}).map(([uid, share]: any) => {
-                              const members = Array.isArray(activeGroup?.members) ? activeGroup.members : [];
-                              const name = members.find((m: any) => m.userId === uid)?.userName || 'User';
-                              return share > 0 ? (
-                                <div key={uid} className="flex items-center gap-2 px-3 py-1.5 bg-muted/20 rounded-full border border-dashed">
-                                  <span className="text-[9px] font-black uppercase opacity-60">{name}</span>
-                                  <span className="text-[10px] font-black">₹{share.toFixed(0)}</span>
-                                </div>
-                              ) : null;
-                            })}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                       {settlements?.sort((a,b) => b.createdAt.localeCompare(a.createdAt)).map(s => (
                         <div key={s.id} className="p-6 bg-green-50/20 border-l-4 border-l-green-500">
                           <div className="flex items-center justify-between">
@@ -865,10 +925,6 @@ export default function SplitPayPage() {
               <Label className="text-[10px] font-black uppercase tracking-widest">Room Name</Label>
               <Input placeholder="e.g. Trip to Ladakh" value={roomName} onChange={e => setRoomName(e.target.value)} className="h-12 rounded-2xl" />
             </div>
-            <div className="p-4 bg-muted/20 rounded-xl border border-dashed space-y-2">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase">Identity Context</p>
-              <p className="text-xs font-black">You are automatically included as <span className="text-primary">{userName}</span> (Room Admin).</p>
-            </div>
           </div>
           <DialogFooter>
             <Button onClick={handleCreateRoom} disabled={isProcessing} className="w-full h-12 rounded-2xl font-black">
@@ -900,164 +956,50 @@ export default function SplitPayPage() {
 
       <Dialog open={isStatsModalOpen} onOpenChange={setIsStatsModalOpen}>
         <DialogContent className="max-w-2xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
-          <DialogHeader className="sr-only">
-            <DialogTitle>Room Analytics</DialogTitle>
-            <DialogDescription>Detailed breakdown of contributions and consumption for {activeGroup?.name}.</DialogDescription>
+          <DialogHeader className="p-8 bg-primary text-primary-foreground">
+            <DialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-3">
+              <div className="p-2 bg-white/20 rounded-xl"><BarChart3 className="h-6 w-6" /></div>
+              Room Analytics
+            </DialogTitle>
+            <DialogDescription className="text-[10px] font-black uppercase tracking-widest opacity-80">Detailed breakdown for {activeGroup?.name}</DialogDescription>
           </DialogHeader>
-          <div className="bg-primary p-8 text-primary-foreground">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-white/20 rounded-xl">
-                  <BarChart3 className="h-6 w-6" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-black tracking-tighter">Room Analytics</h2>
-                  <p className="text-[10px] font-black uppercase tracking-widest opacity-80">{activeGroup?.name}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-[9px] font-black uppercase opacity-70 tracking-widest">Total Spent</p>
-                <p className="text-3xl font-black tracking-tighter">₹{stats?.totalSpent.toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
-
           <div className="p-8 space-y-8 bg-background">
             <div className="grid gap-8 md:grid-cols-2">
               <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none font-black text-[8px] uppercase px-2">Contributions</Badge>
-                  <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Who funded the room?</span>
-                </div>
-                <div className="h-[200px] w-full relative">
+                <Badge className="bg-blue-100 text-blue-700 font-black text-[8px] uppercase">Contributions</Badge>
+                <div className="h-[200px] w-full">
                   {stats?.contributionData.length ? (
                     <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie 
-                          data={stats.contributionData} 
-                          innerRadius={50} 
-                          outerRadius={80} 
-                          paddingAngle={5} 
-                          dataKey="value"
-                          stroke="none"
-                        >
-                          {stats.contributionData.map((entry, index) => (
-                            <Cell key={index} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip 
-                          contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', fontSize: '10px', fontWeight: '900' }}
-                          formatter={(v: number) => `₹${v.toLocaleString()}`}
-                        />
-                      </PieChart>
+                      <PieChart><Pie data={stats.contributionData} innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">{stats.contributionData.map((entry, index) => <Cell key={index} fill={entry.color} />)}</Pie><Tooltip contentStyle={{ borderRadius: '16px', border: 'none', fontSize: '10px', fontWeight: '900' }} formatter={(v: number) => `₹${v.toLocaleString()}`} /></PieChart>
                     </ResponsiveContainer>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full opacity-30 grayscale space-y-2">
-                      <PieChartIcon className="h-10 w-10" />
-                      <p className="text-[9px] font-black uppercase tracking-widest">No contributions yet</p>
-                    </div>
-                  )}
+                  ) : <div className="flex items-center justify-center h-full opacity-30 grayscale"><PieChartIcon className="h-10 w-10" /></div>}
                 </div>
               </div>
-
               <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-none font-black text-[8px] uppercase px-2">Consumption</Badge>
-                  <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Who consumed the funds?</span>
-                </div>
-                <div className="h-[200px] w-full relative">
+                <Badge className="bg-orange-100 text-orange-700 font-black text-[8px] uppercase">Consumption</Badge>
+                <div className="h-[200px] w-full">
                   {stats?.consumptionData.length ? (
                     <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie 
-                          data={stats.consumptionData} 
-                          innerRadius={50} 
-                          outerRadius={80} 
-                          paddingAngle={5} 
-                          dataKey="value"
-                          stroke="none"
-                        >
-                          {stats.consumptionData.map((entry, index) => (
-                            <Cell key={index} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip 
-                          contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', fontSize: '10px', fontWeight: '900' }}
-                          formatter={(v: number) => `₹${v.toLocaleString()}`}
-                        />
-                      </PieChart>
+                      <PieChart><Pie data={stats.consumptionData} innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">{stats.consumptionData.map((entry, index) => <Cell key={index} fill={entry.color} />)}</Pie><Tooltip contentStyle={{ borderRadius: '16px', border: 'none', fontSize: '10px', fontWeight: '900' }} formatter={(v: number) => `₹${v.toLocaleString()}`} /></PieChart>
                     </ResponsiveContainer>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full opacity-30 grayscale space-y-2">
-                      <PieChartIcon className="h-10 w-10" />
-                      <p className="text-[9px] font-black uppercase tracking-widest">No consumption yet</p>
-                    </div>
-                  )}
+                  ) : <div className="flex items-center justify-center h-full opacity-30 grayscale"><PieChartIcon className="h-10 w-10" /></div>}
                 </div>
               </div>
             </div>
-
-            <div className="space-y-4">
-              <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground border-b pb-2">Individual Share Breakdown</h3>
-              <ScrollArea className="max-h-[200px]">
-                <div className="space-y-2 pr-4">
-                  {stats?.balances.map((b, idx) => (
-                    <div key={b.userId} className="flex items-center justify-between p-3 rounded-2xl bg-muted/10 border border-dashed">
-                      <div className="flex items-center gap-3">
-                        <div 
-                          className="h-8 w-8 rounded-xl flex items-center justify-center text-white font-black text-xs"
-                          style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
-                        >
-                          {b.userName[0].toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="text-xs font-black uppercase tracking-tight">{b.userName}</p>
-                          <p className="text-[8px] font-bold text-muted-foreground uppercase">Member Ledger</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-6">
-                        <div className="text-right">
-                          <p className="text-[8px] font-black uppercase opacity-60">Funded</p>
-                          <p className="text-sm font-black tracking-tight">₹{b.paid.toLocaleString()}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[8px] font-black uppercase opacity-60">Share</p>
-                          <p className="text-sm font-black tracking-tight">₹{b.share.toLocaleString()}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            </div>
           </div>
-
-          <div className="p-4 bg-muted/20 border-t flex justify-between items-center">
-            <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Analytics generated in real-time</p>
-            <Button onClick={() => setIsStatsModalOpen(false)} variant="outline" className="rounded-xl font-black h-9 text-[10px] uppercase px-6">Close Dashboard</Button>
-          </div>
+          <div className="p-4 bg-muted/20 border-t flex justify-end"><Button onClick={() => setIsStatsModalOpen(false)} variant="outline" className="rounded-xl font-black h-9 text-[10px] uppercase px-6">Close Dashboard</Button></div>
         </DialogContent>
       </Dialog>
 
       <AlertDialog open={!!roomToDelete} onOpenChange={(open) => !open && setRoomToDelete(null)}>
         <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-2">
-              <AlertTriangle className="h-6 w-6 text-destructive" />
-              Decommission Room?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-muted-foreground font-medium">
-              This action is permanent. All expenses, settlements, and ledger history for this room will be wiped from the encrypted network.
-            </AlertDialogDescription>
+            <AlertDialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-2"><AlertTriangle className="h-6 w-6 text-destructive" /> Decommission Room?</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground font-medium">This action is permanent. All expenses, settlements, and ledger history for this room will be wiped.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2">
             <AlertDialogCancel className="rounded-xl font-black h-11 text-[10px] uppercase">Retain Ledger</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteRoom}
-              className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 font-black h-11 text-[10px] uppercase"
-            >
-              Wipe Everything
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleDeleteRoom} className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 font-black h-11 text-[10px] uppercase">Wipe Everything</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

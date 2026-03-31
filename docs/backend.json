@@ -62,6 +62,18 @@
       },
       "required": ["id", "name", "createdBy", "memberUids", "members", "createdAt"]
     },
+    "RoomCategory": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "RoomCategory",
+      "type": "object",
+      "description": "Categories for shared room expenses.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "createdAt"]
+    },
     "RoomExpense": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "RoomExpense",
@@ -76,7 +88,8 @@
         "participants": { "type": "array", "items": { "type": "string" }, "description": "UserIds involved" },
         "splitType": { "type": "string", "enum": ["equal", "custom", "percentage"] },
         "splits": { "type": "object", "description": "Map of userId to amount" },
-        "note": { "type": "string" },
+        "expenseCategoryId": { "type": "string", "description": "Label ID" },
+        "description": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "roomId", "amount", "paidBy", "participants", "splitType", "splits", "createdAt"]
@@ -137,6 +150,15 @@
           "schema": { "$ref": "#/backend/entities/SharedGroup" },
           "description": "Collaborative split rooms.",
           "params": [{ "name": "groupId", "description": "Short code or ID" }]
+        }
+      },
+      {
+        "path": "/sharedGroups/{groupId}/categories/{categoryId}",
+        "definition": {
+          "entityName": "RoomCategory",
+          "schema": { "$ref": "#/backend/entities/RoomCategory" },
+          "description": "Categories in room.",
+          "params": [{ "name": "groupId", "description": "Room ID" }, { "name": "categoryId", "description": "Category ID" }]
         }
       },
       {
