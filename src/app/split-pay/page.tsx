@@ -60,7 +60,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/AlertDialog";
+} from "@/components/ui/alert-dialog";
 import { cn } from '@/lib/utils';
 import { 
   PieChart, 
