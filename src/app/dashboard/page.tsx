@@ -6,7 +6,7 @@ import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { format } from 'date-fns';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, query, where } from 'firebase/firestore';
 import { 
   TrendingUp, 
   CheckCircle2, 
@@ -15,7 +15,9 @@ import {
   DollarSign,
   TrendingDown,
   Loader2,
-  ShieldCheck
+  ShieldCheck,
+  Users,
+  HandCoins
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
@@ -31,6 +33,7 @@ export default function Dashboard() {
   const [decryptedBudget, setDecryptedBudget] = useState<any>(null);
   const [decryptedFixed, setDecryptedFixed] = useState<any[]>([]);
   const [decryptedExpenses, setDecryptedExpenses] = useState<any[]>([]);
+  const [decryptedDebts, setDecryptedDebts] = useState<any[]>([]);
   const [isDecrypting, setIsDecrypting] = useState(false);
 
   useEffect(() => {
@@ -71,6 +74,18 @@ export default function Dashboard() {
   }, [firestore, user, todayStr]);
   const { data: todayDiary } = useDoc(diaryRef);
 
+  const debtsRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, 'users', user.uid, 'debts');
+  }, [firestore, user]);
+  const { data: rawDebts } = useCollection(debtsRef);
+
+  const groupsQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'sharedGroups'), where('memberUids', 'array-contains', user.uid));
+  }, [firestore, user]);
+  const { data: myGroups } = useCollection(groupsQuery);
+
   useEffect(() => {
     const decryptAll = async () => {
       if (!user || !mounted) return;
@@ -102,10 +117,19 @@ export default function Dashboard() {
         })));
         setDecryptedExpenses(exps);
       }
+
+      if (rawDebts) {
+        const debts = await Promise.all(rawDebts.map(async d => ({
+          ...d,
+          amount: d.isEncrypted ? await decryptNumber(d.amount, user.uid) : (d.amount || 0),
+        })));
+        setDecryptedDebts(debts);
+      }
+
       setIsDecrypting(false);
     };
     decryptAll();
-  }, [rawBudget, rawFixed, rawExpenses, user, mounted]);
+  }, [rawBudget, rawFixed, rawExpenses, rawDebts, user, mounted]);
 
   const budgetReport = useMemo(() => {
     if (!decryptedBudget || !mounted) return null;
@@ -142,6 +166,8 @@ export default function Dashboard() {
 
   const goalsProgress = learningGoals?.length ? Math.round((learningGoals.filter(g => (g.completedCount || 0) >= (g.target || 0)).length / learningGoals.length) * 100) : 0;
 
+  const totalOwed = useMemo(() => decryptedDebts?.filter(d => !d.isPaid).reduce((sum, d) => sum + d.amount, 0) || 0, [decryptedDebts]);
+
   const isOverspent = spentToday > dailyBaseAllowance;
   const isWithinBudget = spentToday <= dailyBaseAllowance && spentToday > 0;
 
@@ -158,7 +184,7 @@ export default function Dashboard() {
 
   return (
     <AppShell>
-      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3 xl:grid-cols-6">
         <DashboardCard 
           href="/budget"
           title="Daily Allowance"
@@ -175,6 +201,24 @@ export default function Dashboard() {
           subtext={isOverspent ? "Above limit" : "Safe zone"}
           icon={<TrendingUp className="w-4 h-4" />}
           variant={isOverspent ? "destructive" : isWithinBudget ? "secondary" : "default"}
+        />
+
+        <DashboardCard 
+          href="/split-pay"
+          title="Shared Rooms"
+          value={`${myGroups?.length || 0}`}
+          subtext="Active ledgers"
+          icon={<Users className="w-4 h-4" />}
+          variant="default"
+        />
+
+        <DashboardCard 
+          href="/debts"
+          title="Debt Vault"
+          value={`₹${totalOwed.toFixed(0)}`}
+          subtext="Receivable total"
+          icon={<HandCoins className="w-4 h-4" />}
+          variant="default"
         />
 
         <DashboardCard 
