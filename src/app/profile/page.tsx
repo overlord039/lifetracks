@@ -1,17 +1,64 @@
 
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppShell } from '@/components/layout/shell';
-import { useUser } from '@/firebase';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useUser, useFirestore, updateDocumentNonBlocking, useAuth } from '@/firebase';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, Shield, Fingerprint, Mail, KeyRound } from 'lucide-react';
+import { User, Shield, Fingerprint, Mail, KeyRound, Pencil, Check, X, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { doc } from 'firebase/firestore';
+import { updateProfile } from 'firebase/auth';
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
+  const auth = useAuth();
+  const db = useFirestore();
+  const { toast } = useToast();
+  
+  const [isEditing, setIsEditing] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (user?.displayName) {
+      setNewName(user.displayName);
+    } else if (user?.email) {
+      setNewName(user.email.split('@')[0]);
+    }
+  }, [user]);
+
+  const handleSave = async () => {
+    if (!auth.currentUser || !newName.trim()) return;
+    setIsSaving(true);
+    try {
+      // Update Firebase Auth Profile
+      await updateProfile(auth.currentUser, {
+        displayName: newName.trim()
+      });
+
+      // Update Firestore User Document
+      if (db) {
+        const userRef = doc(db, 'users', auth.currentUser.uid);
+        updateDocumentNonBlocking(userRef, {
+          displayName: newName.trim(),
+          updatedAt: new Date().toISOString()
+        });
+      }
+
+      toast({ title: "Identity Updated", description: "Your public alias has been synchronized." });
+      setIsEditing(false);
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Update failed", description: error.message });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   if (isUserLoading) {
     return (
@@ -35,9 +82,38 @@ export default function ProfilePage() {
             </div>
           </div>
           <CardContent className="pt-16 pb-8 px-8 space-y-6">
-            <div className="space-y-1">
-              <h2 className="text-3xl font-black tracking-tighter">Identity Vault</h2>
-              <p className="text-muted-foreground text-sm font-medium">Your account is anchored by a unique primary key.</p>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+              <div className="space-y-1">
+                <h2 className="text-3xl font-black tracking-tighter">Identity Vault</h2>
+                <div className="flex items-center gap-2 group">
+                  {isEditing ? (
+                    <div className="flex items-center gap-2 animate-in slide-in-from-left-2">
+                      <Input 
+                        value={newName} 
+                        onChange={(e) => setNewName(e.target.value)}
+                        className="h-8 w-48 font-black text-lg bg-muted/20 border-primary/20 focus:ring-primary/20"
+                        autoFocus
+                      />
+                      <Button size="icon" variant="ghost" onClick={handleSave} disabled={isSaving} className="h-8 w-8 text-green-600 hover:bg-green-50">
+                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={() => { setIsEditing(false); setNewName(user?.displayName || user?.email?.split('@')[0] || ''); }} className="h-8 w-8 text-destructive hover:bg-red-50">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <p className="text-xl font-black text-primary tracking-tight">
+                        {user?.displayName || user?.email?.split('@')[0] || 'User'}
+                      </p>
+                      <Button variant="ghost" size="icon" onClick={() => setIsEditing(true)} className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                <p className="text-muted-foreground text-sm font-medium">Your account is anchored by a unique primary key.</p>
+              </div>
             </div>
 
             <div className="grid gap-4">
