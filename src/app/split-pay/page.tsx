@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -640,7 +639,13 @@ export default function SplitPayPage() {
                           <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Amount (₹)</Label>
                             <div className="relative">
-                              <Input type="number" placeholder="0.00" value={expenseAmt} onChange={e => setExpenseAmt(e.target.value)} className="h-11 pl-9 rounded-xl font-black text-lg" />
+                              <Input 
+                                type="number" 
+                                placeholder="0.00" 
+                                value={expenseAmt} 
+                                onChange={e => setExpenseAmt(e.target.value)} 
+                                className="h-11 pl-9 rounded-xl font-black text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                              />
                               <IndianRupee className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
                             </div>
                           </div>
@@ -729,7 +734,7 @@ export default function SplitPayPage() {
                                           handleSplitAdjustment(uid, e.target.value);
                                         }
                                       }}
-                                      className="h-8 pl-7 text-xs font-bold rounded-lg"
+                                      className="h-8 pl-7 text-xs font-bold rounded-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                     />
                                     {splitType === 'percentage' ? (
                                       <><Percent className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" /><span className="absolute right-2 top-2 text-[10px] font-black text-muted-foreground">≈ ₹{previewSplits[uid]?.toFixed(2)}</span></>
