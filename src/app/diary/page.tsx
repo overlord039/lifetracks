@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -174,7 +175,7 @@ export default function DiaryPage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-12">
-          <div className="lg:col-span-8 space-y-6">
+          <div className="lg:col-span-8 space-y-6 px-1">
             <Card className="shadow-xl rounded-2xl border-none ring-1 ring-border overflow-hidden flex flex-col">
               <CardHeader className="bg-muted/30 border-b py-4 px-6">
                 <CardTitle className="text-base flex items-center gap-2 font-black">
@@ -183,7 +184,7 @@ export default function DiaryPage() {
                 </CardTitle>
                 <CardDescription className="text-[10px] uppercase font-bold tracking-tight">E2EE Private reflection channel</CardDescription>
               </CardHeader>
-              <CardContent className="pt-6 px-6 space-y-6">
+              <CardContent className="pt-6 px-4 sm:px-6 space-y-6">
                 <div className="space-y-3">
                   <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Internal Sentiment</Label>
                   <div className="flex flex-wrap gap-2 justify-between bg-muted/20 p-3 rounded-2xl border border-dashed">
@@ -212,13 +213,13 @@ export default function DiaryPage() {
               </CardContent>
               <CardFooter className="bg-primary/5 text-primary text-[10px] font-black uppercase tracking-widest flex items-center gap-3 py-3 px-6 border-t mt-4">
                 <Quote className="w-3 h-3" />
-                <span>Memoir is secured automatically with AES-GCM 256.</span>
+                <span className="truncate">Memoir is secured automatically with AES-GCM 256.</span>
               </CardFooter>
             </Card>
           </div>
 
           <div className="lg:col-span-4 h-full">
-            <div className="md:hidden mb-6">
+            <div className="md:hidden mb-6 px-1">
               <Button 
                 onClick={saveEntry} 
                 disabled={loading} 
@@ -284,7 +285,7 @@ export default function DiaryPage() {
             </div>
           </div>
           
-          <div className="p-8 pt-10 space-y-6">
+          <div className="p-6 sm:p-8 pt-10 space-y-6">
             <DialogHeader className="text-left space-y-1">
               <DialogTitle className="text-2xl font-black tracking-tighter">
                 {selectedHistoryEntry && format(parseISO(selectedHistoryEntry.date), 'EEEE, MMM do yyyy')}

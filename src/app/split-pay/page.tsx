@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -475,8 +476,6 @@ export default function SplitPayPage() {
         
         // Ensure personal category exists (Sync Vault Label)
         let targetPersonalCatId = '';
-        // CRITICAL: Only match against 'daily' categories. Fixed labels are NOT shared with Split Pay.
-        // MODIFIED: Also check !pc.isPrivate to respect user's isolation mode.
         const match = personalCategories?.find(pc => 
           pc.type === 'daily' && 
           !pc.isPrivate && 
@@ -492,7 +491,7 @@ export default function SplitPayPage() {
             userId: user.uid,
             name: await encryptData(roomCatName, user.uid),
             type: 'daily',
-            isPrivate: false, // Default to public sync for room labels
+            isPrivate: false, 
             isEncrypted: true,
             createdAt: new Date().toISOString()
           }, { merge: true });
@@ -567,9 +566,9 @@ export default function SplitPayPage() {
             </div>
             <div>
               <h2 className="text-3xl font-black tracking-tighter">Collaborative Split</h2>
-              <p className="text-muted-foreground font-medium">Create or join rooms for shared expenses with real-time updates.</p>
+              <p className="text-muted-foreground font-medium px-4">Create or join rooms for shared expenses with real-time updates.</p>
             </div>
-            <div className="flex gap-3 w-full max-w-sm pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm pt-4 px-4">
               <Button onClick={() => setIsCreateModalOpen(true)} className="flex-1 h-12 rounded-2xl font-black gap-2 shadow-lg">
                 <Plus className="h-5 w-5" /> Create Room
               </Button>
@@ -579,7 +578,7 @@ export default function SplitPayPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 px-2">
             {decryptedGroups?.map(group => {
               const members = Array.isArray(group.members) ? group.members : [];
               return (
@@ -639,12 +638,12 @@ export default function SplitPayPage() {
               </Button>
               <div>
                 <h2 className="text-2xl font-black tracking-tighter flex items-center gap-2">
-                  {activeGroup ? activeGroup.name : "Verifying Access..."}
-                  <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none font-black text-[8px] uppercase tracking-widest">Live Ledger</Badge>
+                  {activeGroup ? activeGroup.name : "Verifying..."}
+                  <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none font-black text-[8px] uppercase tracking-widest hidden sm:inline-flex">Live Ledger</Badge>
                 </h2>
                 <div className="flex items-center gap-2 group">
                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Room ID: {selectedGroupId}</p>
-                  <button onClick={() => copyToClipboard(selectedGroupId || '')} className="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => copyToClipboard(selectedGroupId || '')} className="opacity-50 hover:opacity-100 transition-opacity">
                     <Copy className="h-3 w-3 text-muted-foreground hover:text-primary" />
                   </button>
                 </div>
@@ -653,41 +652,41 @@ export default function SplitPayPage() {
             
             <button 
               onClick={() => setIsStatsModalOpen(true)}
-              className="bg-primary/5 px-6 py-3 rounded-2xl border border-primary/10 flex flex-col md:flex-row items-center gap-4 md:gap-8 hover:bg-primary/10 transition-all group cursor-pointer"
+              className="bg-primary/5 px-4 sm:px-6 py-3 rounded-2xl border border-primary/10 flex flex-row items-center gap-4 md:gap-8 hover:bg-primary/10 transition-all group cursor-pointer w-full md:w-auto"
             >
-              <div className="text-center md:text-left">
+              <div className="text-left">
                 <p className="text-[9px] font-black uppercase text-primary/60 tracking-widest group-hover:text-primary transition-colors">Shared Pool</p>
-                <p className="text-2xl font-black text-primary">₹{stats?.totalSpent.toLocaleString() || '0'}</p>
+                <p className="text-xl sm:text-2xl font-black text-primary">₹{stats?.totalSpent.toLocaleString() || '0'}</p>
               </div>
-              <Separator orientation="vertical" className="hidden md:block h-8" />
+              <Separator orientation="vertical" className="hidden sm:block h-8" />
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                 <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground group-hover:text-primary transition-colors">{(Array.isArray(activeGroup?.members) ? activeGroup.members.length : 0)} Active</span>
               </div>
-              <BarChart3 className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0" />
+              <BarChart3 className="h-4 w-4 text-primary opacity-50 group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0" />
             </button>
           </header>
 
           {!activeGroup ? (
             <Card className="p-20 flex flex-col items-center justify-center border-dashed border-2 animate-pulse space-y-4">
               <Loader2 className="h-10 w-10 animate-spin text-primary" />
-              <p className="font-black uppercase text-xs tracking-widest text-muted-foreground">Authenticating Membership...</p>
+              <p className="font-black uppercase text-xs tracking-widest text-muted-foreground">Authenticating...</p>
             </Card>
           ) : (
             <Tabs defaultValue="add" className="w-full">
               <TabsList className="grid w-full grid-cols-3 h-12 p-1 bg-muted rounded-2xl mb-6">
-                <TabsTrigger value="add" className="rounded-xl font-black text-xs gap-2"><Calculator className="h-4 w-4" /> Add Bill</TabsTrigger>
-                <TabsTrigger value="balance" className="rounded-xl font-black text-xs gap-2"><Scale className="h-4 w-4" /> Balances</TabsTrigger>
-                <TabsTrigger value="history" className="rounded-xl font-black text-xs gap-2"><History className="h-4 w-4" /> Activity</TabsTrigger>
+                <TabsTrigger value="add" className="rounded-xl font-black text-[10px] sm:text-xs gap-1 sm:gap-2"><Calculator className="h-3 w-3 sm:h-4 sm:h-4" /> Add Bill</TabsTrigger>
+                <TabsTrigger value="balance" className="rounded-xl font-black text-[10px] sm:text-xs gap-1 sm:gap-2"><Scale className="h-3 w-3 sm:h-4 sm:h-4" /> Balances</TabsTrigger>
+                <TabsTrigger value="history" className="rounded-xl font-black text-[10px] sm:text-xs gap-1 sm:gap-2"><History className="h-3 w-3 sm:h-4 sm:h-4" /> Activity</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="add" className="animate-in fade-in slide-in-from-bottom-2">
+              <TabsContent value="add" className="animate-in fade-in slide-in-from-bottom-2 px-1">
                 <div className="grid gap-6 lg:grid-cols-12">
                   <Card className="lg:col-span-7 shadow-xl rounded-3xl border-none ring-1 ring-border overflow-hidden">
                     <CardHeader className="bg-primary/5 border-b py-4">
                       <CardTitle className="text-base font-black flex items-center gap-2">Sync New Expense</CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-6 space-y-6">
+                    <CardContent className="pt-6 space-y-6 px-4 sm:px-6">
                       <div className="grid gap-6 md:grid-cols-2">
                         <div className="space-y-4">
                           <div className="space-y-2">
@@ -834,10 +833,10 @@ export default function SplitPayPage() {
 
                   <div className="lg:col-span-5 space-y-6">
                     <Card className="shadow-lg rounded-3xl border-none ring-1 ring-border overflow-hidden">
-                      <CardHeader className="bg-muted/30 pb-3">
+                      <CardHeader className="bg-muted/30 pb-3 px-4 sm:px-6">
                         <CardTitle className="text-sm font-black flex items-center gap-2"><Users className="h-4 w-4" /> Room Members</CardTitle>
                       </CardHeader>
-                      <CardContent className="pt-4 space-y-3">
+                      <CardContent className="pt-4 space-y-3 px-4 sm:px-6">
                         {(Array.isArray(activeGroup?.members) ? activeGroup.members : []).map((m: any) => (
                           <div key={m.userId} className="flex items-center justify-between p-3 rounded-2xl bg-muted/10 border border-dashed group">
                             <div className="flex items-center gap-3">
@@ -848,7 +847,7 @@ export default function SplitPayPage() {
                               </div>
                             </div>
                             {user?.uid === activeGroup?.createdBy && m.userId !== user?.uid && (
-                              <Button variant="ghost" size="icon" onClick={() => handleKickMember(m.userId)} className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button variant="ghost" size="icon" onClick={() => handleKickMember(m.userId)} className="h-8 w-8 text-destructive opacity-50 group-hover:opacity-100 transition-opacity">
                                 <UserMinus className="h-4 w-4" />
                               </Button>
                             )}
@@ -863,8 +862,8 @@ export default function SplitPayPage() {
                     </Card>
 
                     <Card className="shadow-lg rounded-3xl border-none ring-1 ring-border overflow-hidden">
-                      <CardHeader className="bg-muted/30 border-b py-2.5 px-4"><CardTitle className="text-sm md:text-base flex items-center gap-2 font-black"><LayoutGrid className="h-4 w-4 text-primary" /> Room Labels</CardTitle></CardHeader>
-                      <CardContent className="pt-4 px-4 space-y-4">
+                      <CardHeader className="bg-muted/30 border-b py-2.5 px-4 sm:px-6"><CardTitle className="text-sm md:text-base flex items-center gap-2 font-black"><LayoutGrid className="h-4 w-4 text-primary" /> Room Labels</CardTitle></CardHeader>
+                      <CardContent className="pt-4 px-4 sm:px-6 space-y-4">
                         <div className="flex gap-2">
                           <Input placeholder="New label..." value={newRoomCategoryName} onChange={(e) => setNewRoomCategoryName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addRoomCategory()} className="h-9 text-[11px]" />
                           <Button size="icon" onClick={addRoomCategory} className="h-9 w-9 shrink-0 rounded-xl"><Plus className="h-4 w-4" /></Button>
@@ -883,7 +882,7 @@ export default function SplitPayPage() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="balance" className="animate-in fade-in slide-in-from-right-2">
+              <TabsContent value="balance" className="animate-in fade-in slide-in-from-right-2 px-1">
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {stats?.balances.map(b => (
                     <Card key={b.userId} className={cn(
@@ -930,17 +929,17 @@ export default function SplitPayPage() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="history" className="animate-in fade-in slide-in-from-left-2">
+              <TabsContent value="history" className="animate-in fade-in slide-in-from-left-2 px-1">
                 <Card className="rounded-3xl border-none ring-1 ring-border overflow-hidden">
                   <ScrollArea className="h-[500px]">
                     <div className="divide-y">
                       {expenses?.sort((a,b) => b.createdAt.localeCompare(a.createdAt)).map(exp => {
                         const catName = roomCategories?.find(c => c.id === exp.expenseCategoryId)?.name;
                         return (
-                          <div key={exp.id} className="p-6 hover:bg-muted/30 transition-colors">
+                          <div key={exp.id} className="p-4 sm:p-6 hover:bg-muted/30 transition-colors">
                             <div className="flex justify-between items-start mb-4">
                               <div className="space-y-1">
-                                <h4 className="font-black text-lg tracking-tight">
+                                <h4 className="font-black text-base sm:text-lg tracking-tight">
                                   {exp.description}
                                   {catName && <Badge variant="secondary" className="ml-2 text-[8px] font-black uppercase bg-primary/10 text-primary border-primary/20">{catName}</Badge>}
                                 </h4>
@@ -955,9 +954,9 @@ export default function SplitPayPage() {
                                 const members = Array.isArray(activeGroup?.members) ? activeGroup.members : [];
                                 const name = members.find((m: any) => m.userId === uid)?.userName || 'User';
                                 return share > 0 ? (
-                                  <div key={uid} className="flex items-center gap-2 px-3 py-1.5 bg-muted/20 rounded-full border border-dashed">
-                                    <span className="text-[9px] font-black uppercase opacity-60">{name}</span>
-                                    <span className="text-[10px] font-black">₹{share.toFixed(0)}</span>
+                                  <div key={uid} className="flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-muted/20 rounded-full border border-dashed">
+                                    <span className="text-[8px] sm:text-[9px] font-black uppercase opacity-60">{name}</span>
+                                    <span className="text-[9px] sm:text-[10px] font-black">₹{share.toFixed(0)}</span>
                                   </div>
                                 ) : null;
                               })}
@@ -966,12 +965,12 @@ export default function SplitPayPage() {
                         );
                       })}
                       {settlements?.sort((a,b) => b.createdAt.localeCompare(a.createdAt)).map(s => (
-                        <div key={s.id} className="p-6 bg-green-50/20 border-l-4 border-l-green-500">
+                        <div key={s.id} className="p-4 sm:p-6 bg-green-50/20 border-l-4 border-l-green-500">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <div className="p-2 bg-green-100 rounded-lg text-green-600"><Check className="h-4 w-4" /></div>
                               <div>
-                                <p className="text-xs font-black uppercase tracking-tight">
+                                <p className="text-[10px] sm:text-xs font-black uppercase tracking-tight">
                                   <span className="text-green-700">{s.paidByName}</span> settled <span className="text-green-700">₹{s.amount}</span> to {s.paidToName}
                                 </p>
                                 <p className="text-[8px] font-bold text-muted-foreground uppercase">{new Date(s.createdAt).toLocaleDateString()}</p>
@@ -996,7 +995,7 @@ export default function SplitPayPage() {
       )}
 
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="rounded-3xl max-w-md">
+        <DialogContent className="rounded-3xl max-w-[95vw] sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-2xl font-black tracking-tighter">Initialize Room</DialogTitle>
             <DialogDescription className="text-sm font-medium">Setup a private collaborative workspace.</DialogDescription>
@@ -1016,14 +1015,14 @@ export default function SplitPayPage() {
       </Dialog>
 
       <Dialog open={isJoiningModalOpen} onOpenChange={setIsJoiningModalOpen}>
-        <DialogContent className="rounded-3xl max-w-md">
+        <DialogContent className="rounded-3xl max-w-[95vw] sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-2xl font-black tracking-tighter">Join Existing Room</DialogTitle>
             <DialogDescription className="text-sm font-medium">Enter the Room Code shared with you.</DialogDescription>
           </DialogHeader>
           <div className="py-6 space-y-4">
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest">Room Code</Label>
+              <Label className="text-[10px] font-black uppercase tracking-widest text-center block">Room Code</Label>
               <Input placeholder="ABC123XY" value={joinCode} onChange={e => setJoinCode(e.target.value)} className="h-14 rounded-2xl text-2xl font-black text-center tracking-widest" />
             </div>
           </div>
@@ -1036,16 +1035,16 @@ export default function SplitPayPage() {
       </Dialog>
 
       <Dialog open={isStatsModalOpen} onOpenChange={setIsStatsModalOpen}>
-        <DialogContent className="max-w-2xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
-          <DialogHeader className="p-8 bg-primary text-primary-foreground">
-            <DialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-3">
-              <div className="p-2 bg-white/20 rounded-xl"><BarChart3 className="h-6 w-6" /></div>
+        <DialogContent className="max-w-[95vw] sm:max-w-2xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="p-6 sm:p-8 bg-primary text-primary-foreground">
+            <DialogTitle className="text-xl sm:text-2xl font-black tracking-tighter flex items-center gap-3">
+              <div className="p-2 bg-white/20 rounded-xl"><BarChart3 className="h-5 w-5 sm:h-6 sm:h-6" /></div>
               Room Analytics
             </DialogTitle>
             <DialogDescription className="text-[10px] font-black uppercase tracking-widest opacity-80">Detailed breakdown for {activeGroup?.name}</DialogDescription>
           </DialogHeader>
           <ScrollArea className="max-h-[70vh]">
-            <div className="p-8 space-y-8 bg-background">
+            <div className="p-4 sm:p-8 space-y-8 bg-background">
               <div className="grid gap-8 md:grid-cols-2">
                 <div className="space-y-4">
                   <div className="space-y-1">
@@ -1112,7 +1111,7 @@ export default function SplitPayPage() {
                           <div className="h-2 w-2 rounded-full" style={{ backgroundColor: cat.color }} />
                           <div className="flex flex-col">
                             <span className="text-[10px] font-black uppercase truncate max-w-[120px]">{cat.name}</span>
-                            <span className="text-[8px] text-muted-foreground font-bold uppercase">Room Expense Label</span>
+                            <span className="text-[8px] text-muted-foreground font-bold uppercase">Room Label</span>
                           </div>
                         </div>
                         <span className="text-xs font-black">₹{cat.value.toLocaleString()}</span>
@@ -1124,17 +1123,17 @@ export default function SplitPayPage() {
               </div>
             </div>
           </ScrollArea>
-          <div className="p-4 bg-muted/20 border-t flex justify-end"><Button onClick={() => setIsStatsModalOpen(false)} variant="outline" className="rounded-xl font-black h-9 text-[10px] uppercase px-6">Close Analytics</Button></div>
+          <div className="p-4 bg-muted/20 border-t flex justify-end"><Button onClick={() => setIsStatsModalOpen(false)} variant="outline" className="rounded-xl font-black h-9 text-[10px] uppercase px-6">Close Dashboard</Button></div>
         </DialogContent>
       </Dialog>
 
       <AlertDialog open={!!roomToDelete} onOpenChange={(open) => !open && setRoomToDelete(null)}>
-        <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
+        <AlertDialogContent className="rounded-3xl border-none shadow-2xl max-w-[90vw] sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-2"><AlertTriangle className="h-6 w-6 text-destructive" /> Decommission Room?</AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground font-medium">This action is permanent. All expenses, settlements, and ledger history for this room will be wiped.</AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2">
+          <AlertDialogFooter className="gap-2 sm:gap-0">
             <AlertDialogCancel className="rounded-xl font-black h-11 text-[10px] uppercase">Retain Ledger</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteRoom} className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 font-black h-11 text-[10px] uppercase">Wipe Everything</AlertDialogAction>
           </AlertDialogFooter>
