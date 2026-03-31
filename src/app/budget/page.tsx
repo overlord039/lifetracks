@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,8 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
-import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, Pencil, X, ShieldAlert } from 'lucide-react';
+import { collection, doc, query, where, getDocs } from 'firebase/firestore';
+import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, Pencil, X, ShieldAlert, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { format, getDaysInMonth } from 'date-fns';
@@ -28,6 +28,7 @@ export default function BudgetPage() {
   const [loading, setLoading] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const syncPerformed = useRef(false);
 
   const [decryptedCategories, setDecryptedCategories] = useState<any[]>([]);
   const [decryptedBudget, setDecryptedBudget] = useState<any>(null);
@@ -65,10 +66,16 @@ export default function BudgetPage() {
     return collection(db, 'users', user.uid, 'monthlyBudgets', monthId, 'expenses');
   }, [db, user, monthId]);
 
+  const myGroupsQuery = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return query(collection(db, 'sharedGroups'), where('memberUids', 'array-contains', user.uid));
+  }, [db, user]);
+
   const { data: rawCategories } = useCollection(categoriesRef);
   const { data: rawFixed } = useCollection(fixedExpensesRef);
   const { data: rawBudget } = useDoc(monthlyBudgetRef);
   const { data: rawExpenses } = useCollection(expensesRef);
+  const { data: myGroups } = useCollection(myGroupsQuery);
 
   useEffect(() => {
     const decryptAll = async () => {
@@ -113,6 +120,51 @@ export default function BudgetPage() {
     };
     decryptAll();
   }, [rawCategories, rawBudget, rawFixed, rawExpenses, user, mounted]);
+
+  // Sync Room Labels logic
+  useEffect(() => {
+    const syncRoomLabels = async () => {
+      if (!user || !db || !myGroups || decryptedCategories.length === 0 || syncPerformed.current) return;
+      
+      syncPerformed.current = true;
+      try {
+        const personalNames = new Set(decryptedCategories.map(c => c.name.toLowerCase()));
+        const labelsToImport: string[] = [];
+
+        for (const group of myGroups) {
+          const roomCatsRef = collection(db, 'sharedGroups', group.id, 'categories');
+          const snap = await getDocs(roomCatsRef);
+          snap.forEach(d => {
+            const labelName = d.data().name;
+            if (labelName && !personalNames.has(labelName.toLowerCase())) {
+              labelsToImport.push(labelName);
+              personalNames.add(labelName.toLowerCase());
+            }
+          });
+        }
+
+        if (labelsToImport.length > 0 && categoriesRef) {
+          for (const name of labelsToImport) {
+            const newRef = doc(categoriesRef);
+            setDocumentNonBlocking(newRef, {
+              userId: user.uid,
+              name: await encryptData(name, user.uid),
+              type: 'daily',
+              isEncrypted: true,
+              createdAt: new Date().toISOString()
+            }, { merge: true });
+          }
+          toast({ title: "Labels Synced", description: `Imported ${labelsToImport.length} labels from shared rooms.` });
+        }
+      } catch (e) {
+        console.error("Room label sync failed", e);
+      }
+    };
+
+    if (myGroups && decryptedCategories.length > 0) {
+      syncRoomLabels();
+    }
+  }, [myGroups, decryptedCategories, user, db, categoriesRef, toast]);
 
   const dailyCategories = decryptedCategories?.filter(c => c.type === 'daily') || [];
   const fixedCategories = decryptedCategories?.filter(c => c.type === 'fixed') || [];
@@ -420,7 +472,11 @@ export default function BudgetPage() {
           </div>
           
           <Card className="shadow-lg rounded-2xl border-none ring-1 ring-border overflow-hidden">
-            <CardHeader className="bg-muted/30 border-b py-2.5 px-4"><CardTitle className="text-sm md:text-base flex items-center gap-2 font-black"><LayoutGrid className="h-4 w-4 text-primary" /> Label Vault</CardTitle></CardHeader>
+            <CardHeader className="bg-muted/30 border-b py-2.5 px-4">
+              <CardTitle className="text-sm md:text-base flex items-center gap-2 font-black">
+                <LayoutGrid className="h-4 w-4 text-primary" /> Label Vault
+              </CardTitle>
+            </CardHeader>
             <CardContent className="pt-4 md:pt-6 px-4">
               <Tabs defaultValue="daily" onValueChange={(v) => setNewCategory({ ...newCategory, type: v })}>
                 <TabsList className="grid w-full grid-cols-2 mb-4 md:mb-6 h-9 md:h-10 p-1 bg-muted rounded-xl"><TabsTrigger value="daily" className="rounded-lg font-bold text-[11px] md:text-xs">Daily</TabsTrigger><TabsTrigger value="fixed" className="rounded-lg font-bold text-[11px] md:text-xs">Fixed</TabsTrigger></TabsList>

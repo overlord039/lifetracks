@@ -467,19 +467,32 @@ export default function SplitPayPage() {
       const syncToPersonalBudget = async () => {
         const monthId = format(new Date(), 'yyyyMM');
         const personalExpensesRef = collection(db, 'users', user.uid, 'monthlyBudgets', monthId, 'expenses');
+        const personalCategoriesRef = collection(db, 'users', user.uid, 'expenseCategories');
         const todayStr = format(new Date(), 'yyyy-MM-dd');
         
         const roomCatName = roomCategories?.find(c => c.id === expenseCategoryId)?.name || 'Room Bill';
         const personalDesc = `Room: ${activeGroup.name} - ${expenseDesc || roomCatName}`;
         
-        // Identify a personal category match or fallback to none
-        const match = personalCategories?.find(pc => 
-          pc.name.toLowerCase() === 'shared' || pc.name.toLowerCase() === roomCatName.toLowerCase()
-        );
+        // Ensure personal category exists (Sync Vault Label)
+        let targetPersonalCatId = '';
+        const match = personalCategories?.find(pc => pc.name.toLowerCase() === roomCatName.toLowerCase());
         
-        const targetPersonalCatId = match?.id || '';
+        if (match) {
+          targetPersonalCatId = match.id;
+        } else {
+          const newCatRef = doc(personalCategoriesRef);
+          targetPersonalCatId = newCatRef.id;
+          setDocumentNonBlocking(newCatRef, {
+            userId: user.uid,
+            name: await encryptData(roomCatName, user.uid),
+            type: 'daily',
+            isEncrypted: true,
+            createdAt: new Date().toISOString()
+          }, { merge: true });
+        }
 
-        addDocumentNonBlocking(personalExpensesRef, {
+        const expRef = doc(personalExpensesRef);
+        setDocumentNonBlocking(expRef, {
           userId: user.uid,
           monthlyBudgetId: monthId,
           description: await encryptData(personalDesc, user.uid),
@@ -489,7 +502,7 @@ export default function SplitPayPage() {
           isEncrypted: true,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
-        });
+        }, { merge: true });
       };
       syncToPersonalBudget();
     }
