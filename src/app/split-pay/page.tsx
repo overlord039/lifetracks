@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -96,6 +95,7 @@ export default function SplitPayPage() {
 
   // Quick Split State
   const [quickAmount, setQuickAmount] = useState('');
+  const [quickMemberCount, setQuickMemberCount] = useState('2');
   const [quickMembers, setQuickMembers] = useState<{ id: string, name: string, share: string }[]>([
     { id: '1', name: 'Me', share: '' },
     { id: '2', name: 'Member 2', share: '' }
@@ -113,6 +113,26 @@ export default function SplitPayPage() {
 
   const [decryptedGroups, setDecryptedGroups] = useState<any[]>([]);
   const [isDecryptingGroups, setIsDecryptingGroups] = useState(false);
+
+  // Sync quick members based on count input
+  useEffect(() => {
+    const count = parseInt(quickMemberCount) || 0;
+    if (count < 1 || !isQuickSplitModalOpen) return;
+    
+    setQuickMembers(prev => {
+      if (prev.length === count) return prev;
+      if (prev.length < count) {
+        const added = Array.from({ length: count - prev.length }, (_, i) => ({
+          id: Math.random().toString(),
+          name: `Member ${prev.length + i + 1}`,
+          share: ''
+        }));
+        return [...prev, ...added];
+      } else {
+        return prev.slice(0, count);
+      }
+    });
+  }, [quickMemberCount, isQuickSplitModalOpen]);
 
   const userProfileRef = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -201,11 +221,6 @@ export default function SplitPayPage() {
       setCustomSplits(newSplits);
     }
   }, [expenseAmt, selectedParticipants, splitType]);
-
-  const handleSplitAdjustment = (uid: string, newValue: string) => {
-    setCustomSplits(prev => ({ ...prev, [uid]: newValue }));
-    if (splitType === 'equal') setSplitType('custom');
-  };
 
   const handleAICategorize = async () => {
     if (!expenseDesc || !roomCategoriesRef || !roomCategories) return;
@@ -344,11 +359,12 @@ export default function SplitPayPage() {
     
     const newRoom = {
       id: roomId,
-      name: roomName.trim(),
+      name: await encryptData(roomName.trim(), user.uid),
       createdBy: user.uid,
       creatorName: userName,
       memberUids: [user.uid],
       members: [{ userId: user.uid, userName }],
+      isEncrypted: true,
       createdAt: new Date().toISOString()
     };
 
@@ -502,11 +518,14 @@ export default function SplitPayPage() {
 
   const handleQuickAddMember = () => {
     setQuickMembers([...quickMembers, { id: Math.random().toString(), name: `Member ${quickMembers.length + 1}`, share: '' }]);
+    setQuickMemberCount((quickMembers.length + 1).toString());
   };
 
   const handleQuickRemoveMember = (id: string) => {
     if (quickMembers.length <= 2) return;
-    setQuickMembers(quickMembers.filter(m => m.id !== id));
+    const updated = quickMembers.filter(m => m.id !== id);
+    setQuickMembers(updated);
+    setQuickMemberCount(updated.length.toString());
   };
 
   const quickSplitValidation = useMemo(() => {
@@ -1030,23 +1049,38 @@ export default function SplitPayPage() {
           </DialogHeader>
           <ScrollArea className="max-h-[70vh]">
             <div className="p-6 sm:p-8 space-y-8 bg-background">
-              <div className="space-y-4">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Bill Total (₹)</Label>
-                <div className="relative">
-                  <Input 
-                    type="number" 
-                    placeholder="0.00" 
-                    value={quickAmount} 
-                    onChange={e => setQuickAmount(e.target.value)} 
-                    className="h-14 pl-10 rounded-2xl font-black text-2xl tracking-tighter bg-muted/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
-                  />
-                  <IndianRupee className="absolute left-4 top-4.5 h-6 w-6 text-muted-foreground" />
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-4">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Bill Total (₹)</Label>
+                  <div className="relative">
+                    <Input 
+                      type="number" 
+                      placeholder="0.00" 
+                      value={quickAmount} 
+                      onChange={e => setQuickAmount(e.target.value)} 
+                      className="h-14 pl-10 rounded-2xl font-black text-2xl tracking-tighter bg-muted/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                    />
+                    <IndianRupee className="absolute left-4 top-4.5 h-6 w-6 text-muted-foreground" />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Number of People</Label>
+                  <div className="relative">
+                    <Input 
+                      type="number" 
+                      placeholder="2" 
+                      value={quickMemberCount} 
+                      onChange={e => setQuickMemberCount(e.target.value)} 
+                      className="h-14 pl-10 rounded-2xl font-black text-2xl tracking-tighter bg-muted/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                    />
+                    <Users className="absolute left-4 top-4.5 h-6 w-6 text-muted-foreground" />
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Virtual Group</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Manual Group Entry</Label>
                   <Badge variant={quickSplitValidation.isValid ? "secondary" : "destructive"} className="text-[8px] font-black uppercase">
                     {quickSplitValidation.message}
                   </Badge>
@@ -1089,7 +1123,7 @@ export default function SplitPayPage() {
                 </div>
                 
                 <Button variant="outline" onClick={handleQuickAddMember} className="w-full h-10 border-dashed rounded-xl font-black text-[10px] uppercase gap-2">
-                  <UserPlus className="h-4 w-4" /> Add Member
+                  <UserPlus className="h-4 w-4" /> Add Person Manually
                 </Button>
               </div>
             </div>
