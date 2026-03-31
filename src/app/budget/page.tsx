@@ -262,6 +262,18 @@ export default function BudgetPage() {
     setNewCategory({ ...newCategory, name: '', isPrivate: false });
   };
 
+  const toggleCategoryPrivacy = (id: string, currentPrivate: boolean) => {
+    if (!categoriesRef) return;
+    updateDocumentNonBlocking(doc(categoriesRef, id), { 
+      isPrivate: !currentPrivate,
+      updatedAt: new Date().toISOString()
+    });
+    toast({ 
+      title: !currentPrivate ? "Isolation Active" : "Public Mode Active", 
+      description: !currentPrivate ? "Label isolated from collaborative sync." : "Label now visible to Split Pay matching." 
+    });
+  };
+
   const addFixedExpense = async () => {
     if (!newFixed.name || !newFixed.amount || !newFixed.categoryId || !fixedExpensesRef || !user) return;
     setLoading(true);
@@ -509,10 +521,19 @@ export default function BudgetPage() {
 
                 <TabsContent value="daily" className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-right-2">
                   {dailyCategories.map(c => (
-                    <div key={c.id} className="flex items-center gap-1.5 pl-3 pr-1 py-1 bg-primary/10 text-primary rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-tighter border border-primary/20 whitespace-nowrap">
-                      {c.isPrivate && <Lock className="h-2.5 w-2.5 mr-0.5 opacity-70" />}
-                      {c.name}
-                      <button onClick={() => deleteDocumentNonBlocking(doc(categoriesRef!, c.id))} className="ml-1 text-destructive p-0.5 hover:bg-destructive/10 rounded-full transition-colors"><Trash2 className="h-3 w-3" /></button>
+                    <div key={c.id} className="flex items-center gap-1.5 pl-2 pr-1 py-1 bg-primary/10 text-primary rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-tighter border border-primary/20 whitespace-nowrap">
+                      <button 
+                        onClick={() => toggleCategoryPrivacy(c.id, c.isPrivate)}
+                        title={c.isPrivate ? "Make Public (Visible to Split Pay)" : "Make Private (Isolated from Split Pay)"}
+                        className={cn(
+                          "p-1 rounded-full transition-all duration-200",
+                          c.isPrivate ? "bg-primary text-white shadow-sm" : "text-primary/40 hover:text-primary hover:bg-primary/10"
+                        )}
+                      >
+                        <Lock className="h-2.5 w-2.5" />
+                      </button>
+                      <span className="px-1">{c.name}</span>
+                      <button onClick={() => deleteDocumentNonBlocking(doc(categoriesRef!, c.id))} className="ml-1 text-destructive p-1 hover:bg-destructive/10 rounded-full transition-colors"><Trash2 className="h-3 w-3" /></button>
                     </div>
                   ))}
                 </TabsContent>
