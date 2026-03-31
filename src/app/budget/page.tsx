@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, getDocs } from 'firebase/firestore';
-import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, Pencil, X, ShieldAlert, AlertTriangle, Lock } from 'lucide-react';
+import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, Pencil, X, ShieldAlert, AlertTriangle, Lock, ShieldCheck, Activity } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { format, getDaysInMonth } from 'date-fns';
@@ -97,6 +97,7 @@ export default function BudgetPage() {
           totalBudgetAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.totalBudgetAmount, user.uid) : (rawBudget.totalBudgetAmount || 0),
           baseBudgetAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.baseBudgetAmount, user.uid) : (rawBudget.baseBudgetAmount || 0),
           extraBudgetAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.extraBudgetAmount, user.uid) : (rawBudget.extraBudgetAmount || 0),
+          isDailyLimitEnabled: rawBudget.isDailyLimitEnabled ?? true,
         });
       }
 
@@ -122,14 +123,12 @@ export default function BudgetPage() {
     decryptAll();
   }, [rawCategories, rawBudget, rawFixed, rawExpenses, user, mounted]);
 
-  // Sync Room Labels logic - Only for Daily categories
   useEffect(() => {
     const syncRoomLabels = async () => {
       if (!user || !db || !myGroups || decryptedCategories.length === 0 || syncPerformed.current) return;
       
       syncPerformed.current = true;
       try {
-        // Only match against daily categories. Fixed labels are isolated.
         const personalDailyNames = new Set(
           decryptedCategories
             .filter(c => c.type === 'daily')
@@ -157,7 +156,7 @@ export default function BudgetPage() {
               userId: user.uid,
               name: await encryptData(name, user.uid),
               type: 'daily',
-              isPrivate: false, // Imported labels are public by default
+              isPrivate: false,
               isEncrypted: true,
               createdAt: new Date().toISOString()
             }, { merge: true });
@@ -327,12 +326,14 @@ export default function BudgetPage() {
     );
   }
 
+  const isDailyEnabled = decryptedBudget?.isDailyLimitEnabled !== false;
+
   return (
     <AppShell>
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-12">
         <div className="lg:col-span-8 flex flex-col gap-4">
           <div className="lg:hidden">
-            <SustainableTodayCard isOverspentToday={isOverspentToday} isWithinBudget={isWithinBudget} todayStr={todayStr} dailyAllocationToday={dailyAllocationToday} todayReport={todayReport} />
+            <SustainableTodayCard isOverspentToday={isOverspentToday} isWithinBudget={isWithinBudget} todayStr={todayStr} dailyAllocationToday={dailyAllocationToday} todayReport={todayReport} isDailyEnabled={isDailyEnabled} remainingNetPool={remainingNetPool} totalSpentThisMonth={totalSpentThisMonth} monthName={monthName} />
           </div>
 
           <Card className="shadow-lg border-t-4 border-t-primary rounded-2xl overflow-hidden">
@@ -383,27 +384,44 @@ export default function BudgetPage() {
                   )}
                 </div>
                 
-                <div className="space-y-3 p-4 md:p-5 border rounded-2xl bg-muted/10 relative overflow-hidden group">
-                  <div className="flex items-center justify-between relative z-10">
-                    <Label className="flex items-center gap-2 font-black text-xs"><CalendarDays className="h-4 w-4 text-primary" /> Weekend Boost</Label>
-                    <Switch checked={decryptedBudget?.isWeekendExtraBudgetEnabled || false} onCheckedChange={(checked) => saveMonthlyBudget({ isWeekendExtraBudgetEnabled: checked })} />
-                  </div>
-                  {decryptedBudget?.isWeekendExtraBudgetEnabled && (
-                    <div className="pt-2 animate-in fade-in zoom-in-95 relative z-10 text-center">
-                      <div className="p-3 md:p-4 bg-background/50 dark:bg-muted/30 rounded-xl border border-dashed border-primary/30">
-                        <p className="text-[8px] md:text-[9px] text-muted-foreground uppercase font-black tracking-widest mb-1">Encrypted Bonus</p>
-                        <p className="text-2xl md:text-3xl font-black text-primary tracking-tighter">₹{calculatedWeekendBonus}</p>
-                        <p className="text-[7px] md:text-[8px] text-muted-foreground font-medium mt-1">Applied Sat & Sun</p>
-                      </div>
+                <div className="space-y-4">
+                  <div className="space-y-3 p-4 border rounded-2xl bg-muted/10 relative overflow-hidden group">
+                    <div className="flex items-center justify-between relative z-10">
+                      <Label className="flex items-center gap-2 font-black text-xs"><CalendarDays className="h-4 w-4 text-primary" /> Weekend Boost</Label>
+                      <Switch checked={decryptedBudget?.isWeekendExtraBudgetEnabled || false} onCheckedChange={(checked) => saveMonthlyBudget({ isWeekendExtraBudgetEnabled: checked })} />
                     </div>
-                  )}
-                  <ShieldAlert className="absolute -bottom-4 -right-4 w-16 md:w-20 h-16 md:h-20 text-primary/5 -rotate-12" />
+                    {decryptedBudget?.isWeekendExtraBudgetEnabled && (
+                      <div className="pt-2 animate-in fade-in zoom-in-95 relative z-10 text-center">
+                        <div className="p-3 bg-background/50 dark:bg-muted/30 rounded-xl border border-dashed border-primary/30">
+                          <p className="text-[8px] text-muted-foreground uppercase font-black tracking-widest mb-1">Encrypted Bonus</p>
+                          <p className="text-xl font-black text-primary tracking-tighter">₹{calculatedWeekendBonus}</p>
+                        </div>
+                      </div>
+                    )}
+                    <ShieldCheck className="absolute -bottom-4 -right-4 w-16 h-16 text-primary/5 -rotate-12" />
+                  </div>
+
+                  <div className="space-y-3 p-4 border rounded-2xl bg-muted/10 relative overflow-hidden group">
+                    <div className="flex items-center justify-between relative z-10">
+                      <Label className="flex items-center gap-2 font-black text-xs"><Activity className="h-4 w-4 text-primary" /> Daily Tracking</Label>
+                      <Switch 
+                        checked={isDailyEnabled} 
+                        onCheckedChange={(checked) => saveMonthlyBudget({ isDailyLimitEnabled: checked })} 
+                      />
+                    </div>
+                    <p className="text-[9px] text-muted-foreground font-medium mt-1 relative z-10">
+                      {isDailyEnabled ? "Rolling daily allowance active." : "Month-wide pool mode active."}
+                    </p>
+                    <History className="absolute -bottom-4 -right-4 w-16 h-16 text-primary/5 -rotate-12" />
+                  </div>
                 </div>
               </div>
             </CardContent>
             <CardFooter className="bg-muted/10 grid grid-cols-2 gap-4 py-4 md:py-5 border-t px-4 md:px-6">
               <div className="flex flex-col"><span className="text-muted-foreground text-[8px] md:text-[9px] uppercase font-black tracking-widest">Net Month Pool</span><span className="text-lg md:text-xl font-black tracking-tighter">₹{remainingNetPool.toLocaleString()}</span></div>
-              <div className="flex flex-col border-l pl-4"><span className="text-muted-foreground text-[8px] md:text-[9px] uppercase font-black tracking-widest">Daily Base Limit</span><span className="text-lg md:text-xl font-black tracking-tighter">₹{dailyBase.toFixed(0)}</span></div>
+              {isDailyEnabled && (
+                <div className="flex flex-col border-l pl-4"><span className="text-muted-foreground text-[8px] md:text-[9px] uppercase font-black tracking-widest">Daily Base Limit</span><span className="text-lg md:text-xl font-black tracking-tighter">₹{dailyBase.toFixed(0)}</span></div>
+              )}
             </CardFooter>
           </Card>
 
@@ -418,7 +436,7 @@ export default function BudgetPage() {
                       <SelectTrigger className="h-9 text-[11px]"><SelectValue placeholder="Category" /></SelectTrigger>
                       <SelectContent>{fixedCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                     </Select>
-                    <Input type="number" placeholder="Amount" value={newFixed.amount} onChange={(e) => setNewFixed({ ...newFixed, amount: e.target.value })} className="h-9 text-[11px] font-bold" />
+                    <Input type="number" placeholder="Amount" value={newFixed.amount} onChange={(e) => setNewFixed({ ...newFixed, amount: e.target.value })} className="h-9 text-[11px] font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                   </div>
                   <Button onClick={addFixedExpense} className="w-full h-9 font-bold text-[11px]"><Plus className="h-3 w-3 mr-1" /> Add Secure Item</Button>
                 </div>
@@ -447,7 +465,7 @@ export default function BudgetPage() {
                     <SelectTrigger className="h-10 text-[11px]"><SelectValue placeholder="Label" /></SelectTrigger>
                     <SelectContent>{dailyCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}</SelectContent>
                   </Select>
-                  <Input type="number" placeholder="₹ Amount" value={newExpense.amount} onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })} className="h-10 text-base md:text-lg font-black tracking-tighter" />
+                  <Input type="number" placeholder="₹ Amount" value={newExpense.amount} onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })} className="h-10 text-base md:text-lg font-black tracking-tighter [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                 </div>
                 <div className="flex gap-2">
                   <Button onClick={handleLogExpense} className={cn("flex-1 h-10 font-black shadow-md rounded-xl text-xs", editingExpenseId && "bg-orange-500")} disabled={loading}>
@@ -489,7 +507,7 @@ export default function BudgetPage() {
 
         <div className="lg:col-span-4 flex flex-col gap-4">
           <div className="hidden lg:block">
-            <SustainableTodayCard isOverspentToday={isOverspentToday} isWithinBudget={isWithinBudget} todayStr={todayStr} dailyAllocationToday={dailyAllocationToday} todayReport={todayReport} />
+            <SustainableTodayCard isOverspentToday={isOverspentToday} isWithinBudget={isWithinBudget} todayStr={todayStr} dailyAllocationToday={dailyAllocationToday} todayReport={todayReport} isDailyEnabled={isDailyEnabled} remainingNetPool={remainingNetPool} totalSpentThisMonth={totalSpentThisMonth} monthName={monthName} />
           </div>
           
           <Card className="shadow-lg rounded-2xl border-none ring-1 ring-border overflow-hidden">
@@ -555,7 +573,26 @@ export default function BudgetPage() {
   );
 }
 
-function SustainableTodayCard({ isOverspentToday, isWithinBudget, todayStr, dailyAllocationToday, todayReport }: any) {
+function SustainableTodayCard({ isOverspentToday, isWithinBudget, todayStr, dailyAllocationToday, todayReport, isDailyEnabled, remainingNetPool, totalSpentThisMonth, monthName }: any) {
+  if (!isDailyEnabled) {
+    return (
+      <Card className="shadow-2xl transition-all duration-500 rounded-3xl border-none ring-4 ring-offset-4 ring-offset-background bg-primary text-primary-foreground ring-primary">
+        <CardHeader className="pb-1 px-5 pt-5 md:px-6 md:pt-6">
+          <CardTitle className="text-xl md:text-2xl font-black flex items-center gap-3 drop-shadow-md"><Coins className="h-6 w-6 md:h-7 md:h-7" /> Monthly Pool</CardTitle>
+          <CardDescription className="text-inherit opacity-80 font-black text-[9px] md:text-[10px] uppercase tracking-widest mt-1">Vault Status • {monthName}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 md:space-y-6 pt-2 px-5 md:px-6">
+          <div className="text-5xl md:text-6xl font-black tracking-tighter drop-shadow-xl">₹{remainingNetPool.toFixed(0)}</div>
+          <div className="space-y-3 md:space-y-4 pt-3 md:pt-4 border-t border-white/20">
+            <div className="flex justify-between items-center text-[10px] md:text-xs font-black opacity-90 uppercase tracking-tighter"><span>Month Spent</span><span className="text-lg md:text-xl">₹{totalSpentThisMonth.toFixed(0)}</span></div>
+            <div className="flex justify-between items-center text-[8px] md:text-[10px] font-black pt-2 md:pt-3 border-t border-white/10 uppercase tracking-widest opacity-80"><span>Remaining Cap</span><span className="text-2xl md:text-3xl tracking-tighter">₹{remainingNetPool.toFixed(0)}</span></div>
+          </div>
+        </CardContent>
+        <CardFooter className="pt-0 pb-4 md:pb-5 flex justify-center px-5 md:px-6"><div className="bg-white/10 px-3 md:px-4 py-1 md:py-1.5 rounded-full text-[8px] md:text-[9px] font-black uppercase tracking-widest backdrop-blur-md border border-white/10 shadow-sm">Pool Guidance Strategy</div></CardFooter>
+      </Card>
+    );
+  }
+
   const remaining = Math.max(0, dailyAllocationToday - (todayReport?.spent || 0));
   return (
     <Card className={cn(
