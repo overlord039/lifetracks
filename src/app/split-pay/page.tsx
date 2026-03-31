@@ -277,11 +277,16 @@ export default function SplitPayPage() {
       settlementMap[uid] = 0;
     });
 
+    const categoryTotals: Record<string, number> = {};
+
     expenses.forEach(exp => {
       paidMap[exp.paidBy] = (paidMap[exp.paidBy] || 0) + exp.amount;
       Object.entries(exp.splits || {}).forEach(([uid, share]) => {
         shareMap[uid] = (shareMap[uid] || 0) + (share as number);
       });
+
+      const catName = roomCategories?.find(c => c.id === exp.expenseCategoryId)?.name || 'Unlabeled';
+      categoryTotals[catName] = (categoryTotals[catName] || 0) + exp.amount;
     });
 
     settlements?.forEach(s => {
@@ -311,8 +316,14 @@ export default function SplitPayPage() {
       color: CHART_COLORS[idx % CHART_COLORS.length]
     })).filter(d => d.value > 0);
 
-    return { totalSpent, balances, contributionData, consumptionData };
-  }, [activeGroup, expenses, settlements]);
+    const categorySpendData = Object.entries(categoryTotals).map(([name, value], idx) => ({
+      name,
+      value,
+      color: CHART_COLORS[idx % CHART_COLORS.length]
+    })).sort((a, b) => b.value - a.value);
+
+    return { totalSpent, balances, contributionData, consumptionData, categorySpendData };
+  }, [activeGroup, expenses, settlements, roomCategories]);
 
   const previewSplits = useMemo(() => {
     if (!expenseAmt || !activeGroup || selectedParticipants.length === 0) return {};
@@ -968,30 +979,74 @@ export default function SplitPayPage() {
             </DialogTitle>
             <DialogDescription className="text-[10px] font-black uppercase tracking-widest opacity-80">Detailed breakdown for {activeGroup?.name}</DialogDescription>
           </DialogHeader>
-          <div className="p-8 space-y-8 bg-background">
-            <div className="grid gap-8 md:grid-cols-2">
-              <div className="space-y-4">
-                <Badge className="bg-blue-100 text-blue-700 font-black text-[8px] uppercase">Contributions</Badge>
-                <div className="h-[200px] w-full">
-                  {stats?.contributionData.length ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart><Pie data={stats.contributionData} innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">{stats.contributionData.map((entry, index) => <Cell key={index} fill={entry.color} />)}</Pie><Tooltip contentStyle={{ borderRadius: '16px', border: 'none', fontSize: '10px', fontWeight: '900' }} formatter={(v: number) => `₹${v.toLocaleString()}`} /></PieChart>
-                    </ResponsiveContainer>
-                  ) : <div className="flex items-center justify-center h-full opacity-30 grayscale"><PieChartIcon className="h-10 w-10" /></div>}
+          <ScrollArea className="max-h-[70vh]">
+            <div className="p-8 space-y-8 bg-background">
+              <div className="grid gap-8 md:grid-cols-2">
+                <div className="space-y-4">
+                  <Badge className="bg-blue-100 text-blue-700 font-black text-[8px] uppercase">Member Contributions</Badge>
+                  <div className="h-[200px] w-full">
+                    {stats?.contributionData.length ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={stats.contributionData} innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
+                            {stats.contributionData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
+                          </Pie>
+                          <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', fontSize: '10px', fontWeight: '900' }} formatter={(v: number) => `₹${v.toLocaleString()}`} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : <div className="flex items-center justify-center h-full opacity-30 grayscale"><PieChartIcon className="h-10 w-10" /></div>}
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <Badge className="bg-orange-100 text-orange-700 font-black text-[8px] uppercase">Member Consumption</Badge>
+                  <div className="h-[200px] w-full">
+                    {stats?.consumptionData.length ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={stats.consumptionData} innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
+                            {stats.consumptionData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
+                          </Pie>
+                          <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', fontSize: '10px', fontWeight: '900' }} formatter={(v: number) => `₹${v.toLocaleString()}`} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : <div className="flex items-center justify-center h-full opacity-30 grayscale"><PieChartIcon className="h-10 w-10" /></div>}
+                  </div>
                 </div>
               </div>
+
+              <Separator />
+
               <div className="space-y-4">
-                <Badge className="bg-orange-100 text-orange-700 font-black text-[8px] uppercase">Consumption</Badge>
-                <div className="h-[200px] w-full">
-                  {stats?.consumptionData.length ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart><Pie data={stats.consumptionData} innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">{stats.consumptionData.map((entry, index) => <Cell key={index} fill={entry.color} />)}</Pie><Tooltip contentStyle={{ borderRadius: '16px', border: 'none', fontSize: '10px', fontWeight: '900' }} formatter={(v: number) => `₹${v.toLocaleString()}`} /></PieChart>
-                    </ResponsiveContainer>
-                  ) : <div className="flex items-center justify-center h-full opacity-30 grayscale"><PieChartIcon className="h-10 w-10" /></div>}
+                <Badge className="bg-purple-100 text-purple-700 font-black text-[8px] uppercase">Spending by Label</Badge>
+                <div className="grid gap-8 md:grid-cols-2 items-center">
+                  <div className="h-[200px] w-full">
+                    {stats?.categorySpendData.length ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={stats.categorySpendData} innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
+                            {stats.categorySpendData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
+                          </Pie>
+                          <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', fontSize: '10px', fontWeight: '900' }} formatter={(v: number) => `₹${v.toLocaleString()}`} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : <div className="flex items-center justify-center h-full opacity-30 grayscale"><LayoutGrid className="h-10 w-10" /></div>}
+                  </div>
+                  <div className="space-y-2">
+                    {stats?.categorySpendData.map((cat, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 rounded-2xl bg-muted/30 border border-dashed hover:bg-muted/50 transition-colors">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full" style={{ backgroundColor: cat.color }} />
+                          <span className="text-[10px] font-black uppercase truncate max-w-[120px]">{cat.name}</span>
+                        </div>
+                        <span className="text-xs font-black">₹{cat.value.toLocaleString()}</span>
+                      </div>
+                    ))}
+                    {!stats?.categorySpendData.length && <p className="text-[10px] text-muted-foreground italic text-center py-10">No categorized bills found.</p>}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          </ScrollArea>
           <div className="p-4 bg-muted/20 border-t flex justify-end"><Button onClick={() => setIsStatsModalOpen(false)} variant="outline" className="rounded-xl font-black h-9 text-[10px] uppercase px-6">Close Dashboard</Button></div>
         </DialogContent>
       </Dialog>
