@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, arrayUnion } from 'firebase/firestore';
 import { 
   Users, 
@@ -31,7 +31,8 @@ import {
   Percent,
   Coins,
   PieChart as PieChartIcon,
-  BarChart3
+  BarChart3,
+  Trash2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -47,6 +48,16 @@ import {
   DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from '@/lib/utils';
 import { 
   PieChart, 
@@ -56,6 +67,7 @@ import {
   Tooltip, 
   Legend 
 } from 'recharts';
+import { decryptData } from '@/lib/encryption';
 
 type SplitType = 'equal' | 'custom' | 'percentage';
 
@@ -71,6 +83,7 @@ export default function SplitPayPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [roomToDelete, setRoomToDelete] = useState<string | null>(null);
   
   const [roomName, setRoomName] = useState('');
   const [joinCode, setJoinCode] = useState('');
@@ -81,6 +94,9 @@ export default function SplitPayPage() {
   const [splitType, setSplitType] = useState<SplitType>('equal');
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [customSplits, setCustomSplits] = useState<Record<string, string>>({});
+
+  const [decryptedGroups, setDecryptedGroups] = useState<any[]>([]);
+  const [isDecryptingGroups, setIsDecryptingGroups] = useState(false);
 
   const userProfileRef = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -95,20 +111,40 @@ export default function SplitPayPage() {
   }, [db, user]);
   const { data: myGroups, isLoading: isGroupsLoading } = useCollection(myGroupsQuery);
 
+  useEffect(() => {
+    const decryptGroupNames = async () => {
+      if (!myGroups || !user) {
+        setDecryptedGroups(myGroups || []);
+        return;
+      }
+      setIsDecryptingGroups(true);
+      const decrypted = await Promise.all(myGroups.map(async (group) => ({
+        ...group,
+        name: group.isEncrypted ? await decryptData(group.name, user.uid) : group.name
+      })));
+      setDecryptedGroups(decrypted);
+      setIsDecryptingGroups(false);
+    };
+    decryptGroupNames();
+  }, [myGroups, user]);
+
   const activeGroup = useMemo(() => 
-    myGroups?.find(g => g.id === selectedGroupId), 
-  [myGroups, selectedGroupId]);
+    decryptedGroups?.find(g => g.id === selectedGroupId), 
+  [decryptedGroups, selectedGroupId]);
 
   const expensesRef = useMemoFirebase(() => {
     if (!db || !selectedGroupId || !activeGroup) return null;
+    // Strict membership check: only listen if UID is in memberUids
+    if (!activeGroup.memberUids?.includes(user?.uid)) return null;
     return collection(db, 'sharedGroups', selectedGroupId, 'expenses');
-  }, [db, selectedGroupId, activeGroup]);
+  }, [db, selectedGroupId, activeGroup, user?.uid]);
   const { data: expenses, error: expensesError } = useCollection(expensesRef);
 
   const settlementsRef = useMemoFirebase(() => {
     if (!db || !selectedGroupId || !activeGroup) return null;
+    if (!activeGroup.memberUids?.includes(user?.uid)) return null;
     return collection(db, 'sharedGroups', selectedGroupId, 'settlements');
-  }, [db, selectedGroupId, activeGroup]);
+  }, [db, selectedGroupId, activeGroup, user?.uid]);
   const { data: settlements, error: settlementsError } = useCollection(settlementsRef);
 
   useEffect(() => {
@@ -116,7 +152,7 @@ export default function SplitPayPage() {
       setSelectedParticipants(activeGroup.memberUids || []);
       if (!paidBy) setPaidBy(user?.uid || '');
     }
-  }, [activeGroup, user?.uid]);
+  }, [activeGroup, user?.uid, paidBy]);
 
   useEffect(() => {
     if (splitType === 'equal' && expenseAmt && selectedParticipants.length > 0) {
@@ -321,6 +357,13 @@ export default function SplitPayPage() {
     toast({ title: "Syncing Membership", description: "Verifying credentials with ledger..." });
   };
 
+  const handleDeleteRoom = () => {
+    if (!roomToDelete || !db) return;
+    deleteDocumentNonBlocking(doc(db, 'sharedGroups', roomToDelete));
+    setRoomToDelete(null);
+    toast({ title: "Room Decommissioned", description: "All ledger data wiped from existence." });
+  };
+
   const handleKickMember = (targetUserId: string) => {
     if (!activeGroup || !db || user?.uid !== activeGroup.createdBy) return;
     
@@ -382,7 +425,7 @@ export default function SplitPayPage() {
     toast({ title: "Code Copied", description: "Ready to share with friends." });
   };
 
-  if (isGroupsLoading) {
+  if (isGroupsLoading || isDecryptingGroups) {
     return (
       <AppShell>
         <div className="flex h-[60vh] w-full items-center justify-center flex-col gap-4">
@@ -416,22 +459,35 @@ export default function SplitPayPage() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            {myGroups?.map(group => {
+            {decryptedGroups?.map(group => {
               const members = Array.isArray(group.members) ? group.members : [];
               return (
                 <Card 
                   key={group.id} 
-                  className="group cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all rounded-3xl border-none ring-1 ring-border overflow-hidden"
+                  className="group cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all rounded-3xl border-none ring-1 ring-border overflow-hidden relative"
                   onClick={() => setSelectedGroupId(group.id)}
                 >
                   <CardHeader className="bg-muted/30 pb-4">
                     <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="text-xl font-black tracking-tight">{group.name}</CardTitle>
+                      <div className="flex-1 min-w-0 pr-8">
+                        <CardTitle className="text-xl font-black tracking-tight truncate">{group.name}</CardTitle>
                         <CardDescription className="text-[10px] uppercase font-black tracking-widest text-primary">ID: {group.id}</CardDescription>
                       </div>
-                      <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors mt-1" />
+                      <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors mt-1 shrink-0" />
                     </div>
+                    {group.createdBy === user?.uid && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="absolute right-12 top-6 h-8 w-8 text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRoomToDelete(group.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </CardHeader>
                   <CardContent className="pt-4 flex items-center justify-between">
                     <div className="flex -space-x-2">
@@ -982,6 +1038,29 @@ export default function SplitPayPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!roomToDelete} onOpenChange={(open) => !open && setRoomToDelete(null)}>
+        <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-2">
+              <AlertTriangle className="h-6 w-6 text-destructive" />
+              Decommission Room?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground font-medium">
+              This action is permanent. All expenses, settlements, and ledger history for this room will be wiped from the encrypted network.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="rounded-xl font-black h-11 text-[10px] uppercase">Retain Ledger</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteRoom}
+              className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 font-black h-11 text-[10px] uppercase"
+            >
+              Wipe Everything
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }
