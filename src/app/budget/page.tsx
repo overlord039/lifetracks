@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, getDocs } from 'firebase/firestore';
-import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, Pencil, X, ShieldAlert, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, Pencil, X, ShieldAlert, AlertTriangle, Lock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { format, getDaysInMonth } from 'date-fns';
@@ -156,6 +156,7 @@ export default function BudgetPage() {
               userId: user.uid,
               name: await encryptData(name, user.uid),
               type: 'daily',
+              isPrivate: false, // Imported labels are public by default
               isEncrypted: true,
               createdAt: new Date().toISOString()
             }, { merge: true });
@@ -209,7 +210,7 @@ export default function BudgetPage() {
   const [extraAmount, setExtraAmount] = useState('');
   const [tempInitialBudget, setTempInitialBudget] = useState('');
   const [isAddingExtra, setIsAddingExtra] = useState(false);
-  const [newCategory, setNewCategory] = useState({ name: '', type: 'daily' });
+  const [newCategory, setNewCategory] = useState({ name: '', type: 'daily', isPrivate: false });
   const [newFixed, setNewFixed] = useState({ name: '', amount: '', categoryId: '' });
   const [newExpense, setNewExpense] = useState({ description: '', amount: '', categoryId: '' });
 
@@ -254,10 +255,11 @@ export default function BudgetPage() {
       userId: user?.uid,
       name: await encryptData(newCategory.name.trim(), user.uid),
       type: newCategory.type,
+      isPrivate: newCategory.isPrivate,
       isEncrypted: true,
       createdAt: new Date().toISOString()
     });
-    setNewCategory({ ...newCategory, name: '' });
+    setNewCategory({ ...newCategory, name: '', isPrivate: false });
   };
 
   const addFixedExpense = async () => {
@@ -484,11 +486,44 @@ export default function BudgetPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-4 md:pt-6 px-4">
-              <Tabs defaultValue="daily" onValueChange={(v) => setNewCategory({ ...newCategory, type: v })}>
+              <Tabs defaultValue="daily" onValueChange={(v) => setNewCategory({ ...newCategory, type: v as any })}>
                 <TabsList className="grid w-full grid-cols-2 mb-4 md:mb-6 h-9 md:h-10 p-1 bg-muted rounded-xl"><TabsTrigger value="daily" className="rounded-lg font-bold text-[11px] md:text-xs">Daily</TabsTrigger><TabsTrigger value="fixed" className="rounded-lg font-bold text-[11px] md:text-xs">Fixed</TabsTrigger></TabsList>
-                <div className="flex gap-2 mb-4 md:mb-6"><Input placeholder="New private label..." value={newCategory.name} onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && addCategory()} className="h-9 text-[11px]" /><Button size="icon" onClick={addCategory} className="h-9 w-9 shrink-0 rounded-xl"><Plus className="h-4 w-4" /></Button></div>
-                <TabsContent value="daily" className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-right-2">{dailyCategories.map(c => <div key={c.id} className="flex items-center gap-1.5 pl-3 pr-1 py-1 bg-primary/10 text-primary rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-tighter border border-primary/20 whitespace-nowrap">{c.name}<button onClick={() => deleteDocumentNonBlocking(doc(categoriesRef!, c.id))} className="ml-1 text-destructive p-0.5 hover:bg-destructive/10 rounded-full transition-colors"><Trash2 className="h-3 w-3" /></button></div>)}</TabsContent>
-                <TabsContent value="fixed" className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-left-2">{fixedCategories.map(c => <div key={c.id} className="flex items-center gap-1.5 pl-3 pr-1 py-1 bg-secondary/20 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-tighter border border-secondary/30 whitespace-nowrap">{c.name}<button onClick={() => deleteDocumentNonBlocking(doc(categoriesRef!, c.id))} className="ml-1 text-destructive p-0.5 hover:bg-destructive/10 rounded-full transition-colors"><Trash2 className="h-3 w-3" /></button></div>)}</TabsContent>
+                
+                <div className="space-y-3 mb-4 md:mb-6">
+                  <div className="flex gap-2">
+                    <Input placeholder="New private label..." value={newCategory.name} onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && addCategory()} className="h-9 text-[11px]" />
+                    <Button size="icon" onClick={addCategory} className="h-9 w-9 shrink-0 rounded-xl"><Plus className="h-4 w-4" /></Button>
+                  </div>
+                  {newCategory.type === 'daily' && (
+                    <div className="flex items-center justify-between px-1">
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-1.5">
+                        <Lock className="h-3 w-3" /> Isolation Mode (Private)
+                      </Label>
+                      <Switch 
+                        checked={newCategory.isPrivate} 
+                        onCheckedChange={(checked) => setNewCategory({ ...newCategory, isPrivate: checked })}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <TabsContent value="daily" className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-right-2">
+                  {dailyCategories.map(c => (
+                    <div key={c.id} className="flex items-center gap-1.5 pl-3 pr-1 py-1 bg-primary/10 text-primary rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-tighter border border-primary/20 whitespace-nowrap">
+                      {c.isPrivate && <Lock className="h-2.5 w-2.5 mr-0.5 opacity-70" />}
+                      {c.name}
+                      <button onClick={() => deleteDocumentNonBlocking(doc(categoriesRef!, c.id))} className="ml-1 text-destructive p-0.5 hover:bg-destructive/10 rounded-full transition-colors"><Trash2 className="h-3 w-3" /></button>
+                    </div>
+                  ))}
+                </TabsContent>
+                <TabsContent value="fixed" className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-left-2">
+                  {fixedCategories.map(c => (
+                    <div key={c.id} className="flex items-center gap-1.5 pl-3 pr-1 py-1 bg-secondary/20 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-tighter border border-secondary/30 whitespace-nowrap">
+                      {c.name}
+                      <button onClick={() => deleteDocumentNonBlocking(doc(categoriesRef!, c.id))} className="ml-1 text-destructive p-0.5 hover:bg-destructive/10 rounded-full transition-colors"><Trash2 className="h-3 w-3" /></button>
+                    </div>
+                  ))}
+                </TabsContent>
               </Tabs>
             </CardContent>
           </Card>

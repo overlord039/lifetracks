@@ -476,8 +476,10 @@ export default function SplitPayPage() {
         // Ensure personal category exists (Sync Vault Label)
         let targetPersonalCatId = '';
         // CRITICAL: Only match against 'daily' categories. Fixed labels are NOT shared with Split Pay.
+        // MODIFIED: Also check !pc.isPrivate to respect user's isolation mode.
         const match = personalCategories?.find(pc => 
           pc.type === 'daily' && 
+          !pc.isPrivate && 
           pc.name.toLowerCase() === roomCatName.toLowerCase()
         );
         
@@ -490,6 +492,7 @@ export default function SplitPayPage() {
             userId: user.uid,
             name: await encryptData(roomCatName, user.uid),
             type: 'daily',
+            isPrivate: false, // Default to public sync for room labels
             isEncrypted: true,
             createdAt: new Date().toISOString()
           }, { merge: true });
