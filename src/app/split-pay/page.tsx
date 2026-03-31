@@ -68,8 +68,9 @@ import {
   Tooltip, 
   Legend 
 } from 'recharts';
-import { decryptData } from '@/lib/encryption';
+import { encryptData, decryptData } from '@/lib/encryption';
 import { categorizeExpense } from '@/ai/flows/categorize-expense-flow';
+import { format } from 'date-fns';
 
 type SplitType = 'equal' | 'custom' | 'percentage';
 
@@ -115,6 +116,13 @@ export default function SplitPayPage() {
     return query(collection(db, 'sharedGroups'), where('memberUids', 'array-contains', user.uid));
   }, [db, user]);
   const { data: myGroups, isLoading: isGroupsLoading } = useCollection(myGroupsQuery);
+
+  // Sync personal categories for auto-labeling when syncing to budget vault
+  const personalCategoriesRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return collection(db, 'users', user.uid, 'expenseCategories');
+  }, [db, user]);
+  const { data: personalCategories } = useCollection(personalCategoriesRef);
 
   useEffect(() => {
     const decryptGroupNames = async () => {
@@ -439,6 +447,7 @@ export default function SplitPayPage() {
     const members = Array.isArray(activeGroup.members) ? activeGroup.members : [];
     const paidByName = members.find((m: any) => m.userId === paidBy)?.userName || 'Unknown';
 
+    // 1. Sync to room ledger
     addDocumentNonBlocking(expensesRef, {
       roomId: activeGroup.id,
       amount: amt,
@@ -452,11 +461,47 @@ export default function SplitPayPage() {
       createdAt: new Date().toISOString()
     });
 
+    // 2. Automatically sync the user's split to their personal budget vault
+    const myShare = previewSplits[user.uid] || 0;
+    if (myShare > 0) {
+      const syncToPersonalBudget = async () => {
+        const monthId = format(new Date(), 'yyyyMM');
+        const personalExpensesRef = collection(db, 'users', user.uid, 'monthlyBudgets', monthId, 'expenses');
+        const todayStr = format(new Date(), 'yyyy-MM-dd');
+        
+        const roomCatName = roomCategories?.find(c => c.id === expenseCategoryId)?.name || 'Room Bill';
+        const personalDesc = `Room: ${activeGroup.name} - ${expenseDesc || roomCatName}`;
+        
+        // Identify a personal category match or fallback to none
+        const match = personalCategories?.find(pc => 
+          pc.name.toLowerCase() === 'shared' || pc.name.toLowerCase() === roomCatName.toLowerCase()
+        );
+        
+        const targetPersonalCatId = match?.id || '';
+
+        addDocumentNonBlocking(personalExpensesRef, {
+          userId: user.uid,
+          monthlyBudgetId: monthId,
+          description: await encryptData(personalDesc, user.uid),
+          amount: await encryptData(myShare.toFixed(2), user.uid),
+          expenseCategoryId: targetPersonalCatId,
+          date: todayStr,
+          isEncrypted: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+      };
+      syncToPersonalBudget();
+    }
+
     setExpenseAmt('');
     setExpenseDesc('');
     setExpenseCategoryId('');
     setCustomSplits({});
-    toast({ title: "Ledger Updated" });
+    toast({ 
+      title: "Ledger Updated", 
+      description: myShare > 0 ? "Private split synced to budget vault." : "Shared ledger updated." 
+    });
   };
 
   const handleSettle = (fromId: string, fromName: string, toId: string, amount: number) => {
