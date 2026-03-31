@@ -34,6 +34,7 @@ export default function Dashboard() {
   const [decryptedFixed, setDecryptedFixed] = useState<any[]>([]);
   const [decryptedExpenses, setDecryptedExpenses] = useState<any[]>([]);
   const [decryptedDebts, setDecryptedDebts] = useState<any[]>([]);
+  const [decryptedGroups, setDecryptedGroups] = useState<any[]>([]);
   const [isDecrypting, setIsDecrypting] = useState(false);
 
   useEffect(() => {
@@ -84,7 +85,7 @@ export default function Dashboard() {
     if (!firestore || !user) return null;
     return query(collection(firestore, 'sharedGroups'), where('memberUids', 'array-contains', user.uid));
   }, [firestore, user]);
-  const { data: myGroups } = useCollection(groupsQuery);
+  const { data: rawGroups } = useCollection(groupsQuery);
 
   useEffect(() => {
     const decryptAll = async () => {
@@ -126,10 +127,18 @@ export default function Dashboard() {
         setDecryptedDebts(debts);
       }
 
+      if (rawGroups) {
+        const groups = await Promise.all(rawGroups.map(async g => ({
+          ...g,
+          name: g.isEncrypted ? await decryptData(g.name, user.uid) : g.name
+        })));
+        setDecryptedGroups(groups);
+      }
+
       setIsDecrypting(false);
     };
     decryptAll();
-  }, [rawBudget, rawFixed, rawExpenses, rawDebts, user, mounted]);
+  }, [rawBudget, rawFixed, rawExpenses, rawDebts, rawGroups, user, mounted]);
 
   const budgetReport = useMemo(() => {
     if (!decryptedBudget || !mounted) return null;
@@ -168,6 +177,9 @@ export default function Dashboard() {
 
   const totalOwed = useMemo(() => decryptedDebts?.filter(d => !d.isPaid).reduce((sum, d) => sum + d.amount, 0) || 0, [decryptedDebts]);
 
+  const manualRoomsCount = useMemo(() => decryptedGroups.filter(g => g.isManual).length, [decryptedGroups]);
+  const sharedRoomsCount = decryptedGroups.length - manualRoomsCount;
+
   const isOverspent = spentToday > dailyBaseAllowance;
   const isWithinBudget = spentToday <= dailyBaseAllowance && spentToday > 0;
 
@@ -205,9 +217,9 @@ export default function Dashboard() {
 
         <DashboardCard 
           href="/split-pay"
-          title="Shared Rooms"
-          value={`${myGroups?.length || 0}`}
-          subtext="Active ledgers"
+          title="Shared Spaces"
+          value={`${decryptedGroups.length}`}
+          subtext={`${sharedRoomsCount} Shared • ${manualRoomsCount} Manual`}
           icon={<Users className="w-4 h-4" />}
           variant="default"
         />
