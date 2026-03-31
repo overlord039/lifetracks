@@ -121,14 +121,20 @@ export default function BudgetPage() {
     decryptAll();
   }, [rawCategories, rawBudget, rawFixed, rawExpenses, user, mounted]);
 
-  // Sync Room Labels logic
+  // Sync Room Labels logic - Only for Daily categories
   useEffect(() => {
     const syncRoomLabels = async () => {
       if (!user || !db || !myGroups || decryptedCategories.length === 0 || syncPerformed.current) return;
       
       syncPerformed.current = true;
       try {
-        const personalNames = new Set(decryptedCategories.map(c => c.name.toLowerCase()));
+        // Only match against daily categories. Fixed labels are isolated.
+        const personalDailyNames = new Set(
+          decryptedCategories
+            .filter(c => c.type === 'daily')
+            .map(c => c.name.toLowerCase())
+        );
+        
         const labelsToImport: string[] = [];
 
         for (const group of myGroups) {
@@ -136,9 +142,9 @@ export default function BudgetPage() {
           const snap = await getDocs(roomCatsRef);
           snap.forEach(d => {
             const labelName = d.data().name;
-            if (labelName && !personalNames.has(labelName.toLowerCase())) {
+            if (labelName && !personalDailyNames.has(labelName.toLowerCase())) {
               labelsToImport.push(labelName);
-              personalNames.add(labelName.toLowerCase());
+              personalDailyNames.add(labelName.toLowerCase());
             }
           });
         }

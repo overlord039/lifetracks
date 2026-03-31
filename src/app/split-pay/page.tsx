@@ -475,7 +475,11 @@ export default function SplitPayPage() {
         
         // Ensure personal category exists (Sync Vault Label)
         let targetPersonalCatId = '';
-        const match = personalCategories?.find(pc => pc.name.toLowerCase() === roomCatName.toLowerCase());
+        // CRITICAL: Only match against 'daily' categories. Fixed labels are NOT shared with Split Pay.
+        const match = personalCategories?.find(pc => 
+          pc.type === 'daily' && 
+          pc.name.toLowerCase() === roomCatName.toLowerCase()
+        );
         
         if (match) {
           targetPersonalCatId = match.id;
