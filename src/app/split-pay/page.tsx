@@ -611,12 +611,14 @@ export default function SplitPayPage() {
                 <Card 
                   key={group.id} 
                   className={cn(
-                    "group cursor-pointer hover:ring-2 transition-all rounded-3xl border-none ring-1 ring-border overflow-hidden relative",
-                    group.isManual ? "hover:ring-secondary/50" : "hover:ring-primary/50"
+                    "group cursor-pointer hover:ring-2 transition-all rounded-3xl border-none ring-1 overflow-hidden relative",
+                    group.isManual 
+                      ? "ring-secondary/30 bg-secondary/[0.03] hover:ring-secondary/60" 
+                      : "ring-border bg-card hover:ring-primary/50"
                   )}
                   onClick={() => setSelectedGroupId(group.id)}
                 >
-                  <CardHeader className={cn("pb-4", group.isManual ? "bg-secondary/10" : "bg-muted/30")}>
+                  <CardHeader className={cn("pb-4", group.isManual ? "bg-secondary/20" : "bg-muted/30")}>
                     <div className="flex justify-between items-start">
                       <div className="flex-1 min-w-0 pr-8">
                         <div className="flex items-center gap-2 mb-1">
@@ -625,7 +627,7 @@ export default function SplitPayPage() {
                         </div>
                         <CardDescription className={cn(
                           "text-[10px] uppercase font-black tracking-widest",
-                          group.isManual ? "text-secondary-foreground/70" : "text-primary"
+                          group.isManual ? "text-secondary-foreground font-bold" : "text-primary"
                         )}>
                           {group.isManual ? "Manual Ledger" : `Join Code: ${group.id}`}
                         </CardDescription>
@@ -662,7 +664,7 @@ export default function SplitPayPage() {
                         </div>
                       )}
                     </div>
-                    <Badge variant="secondary" className="font-black text-[10px] uppercase">{members.length} Members</Badge>
+                    <Badge variant={group.isManual ? "secondary" : "default"} className={cn("font-black text-[10px] uppercase", group.isManual && "bg-secondary/20 text-secondary-foreground")}>{members.length} Members</Badge>
                   </CardContent>
                 </Card>
               );
