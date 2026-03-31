@@ -424,7 +424,7 @@ export default function SplitPayPage() {
   };
 
   const handleAddExpense = async () => {
-    if (!expenseAmt || !expenseDesc || !paidBy || !activeGroup || !user || !expensesRef || !splitValidation.isValid) return;
+    if (!expenseAmt || !paidBy || !activeGroup || !user || !expensesRef || !splitValidation.isValid) return;
     const amt = parseFloat(expenseAmt);
     const members = Array.isArray(activeGroup.members) ? activeGroup.members : [];
     const paidByName = members.find((m: any) => m.userId === paidBy)?.userName || 'Unknown';
@@ -432,7 +432,7 @@ export default function SplitPayPage() {
     addDocumentNonBlocking(expensesRef, {
       roomId: activeGroup.id,
       amount: amt,
-      description: expenseDesc,
+      description: expenseDesc || 'Expense',
       paidBy,
       paidByName,
       expenseCategoryId,
@@ -616,7 +616,7 @@ export default function SplitPayPage() {
                       <div className="grid gap-6 md:grid-cols-2">
                         <div className="space-y-4">
                           <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Description</Label>
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Description (Optional)</Label>
                             <div className="flex gap-2">
                               <Input placeholder="What was this for?" value={expenseDesc} onChange={e => setExpenseDesc(e.target.value)} className="h-11 rounded-xl" />
                               <Button variant="outline" size="icon" className="h-11 w-11 shrink-0 rounded-xl" onClick={handleAICategorize} disabled={isAIThinking || !expenseDesc}>
