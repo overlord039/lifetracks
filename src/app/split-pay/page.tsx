@@ -34,7 +34,8 @@ import {
   BarChart3,
   Trash2,
   BrainCircuit,
-  LayoutGrid
+  LayoutGrid,
+  X
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -59,7 +60,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/AlertDialog";
 import { cn } from '@/lib/utils';
 import { 
   PieChart, 
@@ -86,11 +87,19 @@ export default function SplitPayPage() {
   const [isJoiningModalOpen, setIsJoiningModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+  const [isQuickSplitModalOpen, setIsQuickSplitModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [roomToDelete, setRoomToDelete] = useState<string | null>(null);
   
   const [roomName, setRoomName] = useState('');
   const [joinCode, setJoinCode] = useState('');
+
+  // Quick Split State
+  const [quickAmount, setQuickAmount] = useState('');
+  const [quickMembers, setQuickMembers] = useState<{ id: string, name: string, share: string }[]>([
+    { id: '1', name: 'Me', share: '' },
+    { id: '2', name: 'Member 2', share: '' }
+  ]);
 
   const [expenseDesc, setExpenseDesc] = useState('');
   const [expenseAmt, setExpenseAmt] = useState('');
@@ -118,7 +127,6 @@ export default function SplitPayPage() {
   }, [db, user]);
   const { data: myGroups, isLoading: isGroupsLoading } = useCollection(myGroupsQuery);
 
-  // Sync personal categories for auto-labeling when syncing to budget vault
   const personalCategoriesRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return collection(db, 'users', user.uid, 'expenseCategories');
@@ -194,53 +202,8 @@ export default function SplitPayPage() {
     }
   }, [expenseAmt, selectedParticipants, splitType]);
 
-  useEffect(() => {
-    if (expensesError || settlementsError) {
-      toast({ 
-        variant: "destructive", 
-        title: "Access Restricted", 
-        description: "Membership not confirmed. Returning to lobby." 
-      });
-      setSelectedGroupId(null);
-    }
-  }, [expensesError, settlementsError, toast]);
-
   const handleSplitAdjustment = (uid: string, newValue: string) => {
-    const total = parseFloat(expenseAmt) || 0;
-    if (total <= 0) {
-      setCustomSplits({ ...customSplits, [uid]: newValue });
-      return;
-    }
-
-    const val = parseFloat(newValue) || 0;
-    const others = selectedParticipants.filter(id => id !== uid);
-    
-    if (others.length === 0) {
-      setCustomSplits({ [uid]: newValue });
-      return;
-    }
-
-    const remaining = total - val;
-    const count = others.length;
-    const base = Math.floor((remaining / count) * 100) / 100;
-    let remainder = Math.round((remaining - (base * count)) * 100) / 100;
-
-    const newSplits = { ...customSplits };
-    newSplits[uid] = newValue;
-    
-    others.forEach(otherId => {
-      let s = base;
-      if (remainder > 0) {
-        s = Math.round((s + 0.01) * 100) / 100;
-        remainder = Math.round((remainder - 0.01) * 100) / 100;
-      } else if (remainder < 0) {
-        s = Math.round((s - 0.01) * 100) / 100;
-        remainder = Math.round((remainder + 0.01) * 100) / 100;
-      }
-      newSplits[otherId] = s.toFixed(2);
-    });
-
-    setCustomSplits(newSplits);
+    setCustomSplits(prev => ({ ...prev, [uid]: newValue }));
     if (splitType === 'equal') setSplitType('custom');
   };
 
@@ -448,7 +411,6 @@ export default function SplitPayPage() {
     const members = Array.isArray(activeGroup.members) ? activeGroup.members : [];
     const paidByName = members.find((m: any) => m.userId === paidBy)?.userName || 'Unknown';
 
-    // 1. Sync to room ledger
     addDocumentNonBlocking(expensesRef, {
       roomId: activeGroup.id,
       amount: amt,
@@ -462,7 +424,6 @@ export default function SplitPayPage() {
       createdAt: new Date().toISOString()
     });
 
-    // 2. Automatically sync the user's split to their personal budget vault
     const myShare = previewSplits[user.uid] || 0;
     if (myShare > 0) {
       const syncToPersonalBudget = async () => {
@@ -474,7 +435,6 @@ export default function SplitPayPage() {
         const roomCatName = roomCategories?.find(c => c.id === expenseCategoryId)?.name || 'Room Bill';
         const personalDesc = `Room: ${activeGroup.name} - ${expenseDesc || roomCatName}`;
         
-        // Ensure personal category exists (Sync Vault Label)
         let targetPersonalCatId = '';
         const match = personalCategories?.find(pc => 
           pc.type === 'daily' && 
@@ -540,9 +500,34 @@ export default function SplitPayPage() {
     toast({ title: "Settlement Logged" });
   };
 
+  const handleQuickAddMember = () => {
+    setQuickMembers([...quickMembers, { id: Math.random().toString(), name: `Member ${quickMembers.length + 1}`, share: '' }]);
+  };
+
+  const handleQuickRemoveMember = (id: string) => {
+    if (quickMembers.length <= 2) return;
+    setQuickMembers(quickMembers.filter(m => m.id !== id));
+  };
+
+  const quickSplitValidation = useMemo(() => {
+    const total = parseFloat(quickAmount) || 0;
+    if (total <= 0) return { isValid: false, message: 'Enter total amount' };
+    const sum = quickMembers.reduce((s, m) => s + (parseFloat(m.share) || 0), 0);
+    const diff = Math.abs(total - sum);
+    if (diff > 0.05) return { isValid: false, message: `Difference: ₹${(total - sum).toFixed(2)}` };
+    return { isValid: true, message: 'Split balanced' };
+  }, [quickAmount, quickMembers]);
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast({ title: "Code Copied" });
+  };
+
+  const shareQuickSplit = () => {
+    const summary = `Split Pay Summary (₹${quickAmount}):\n` + 
+      quickMembers.map(m => `- ${m.name}: ₹${m.share || '0'}`).join('\n');
+    copyToClipboard(summary);
+    toast({ title: "Summary Copied", description: "Ready to share with the group!" });
   };
 
   if (isGroupsLoading || isDecryptingGroups) {
@@ -571,6 +556,9 @@ export default function SplitPayPage() {
             <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm pt-4 px-4">
               <Button onClick={() => setIsCreateModalOpen(true)} className="flex-1 h-12 rounded-2xl font-black gap-2 shadow-lg">
                 <Plus className="h-5 w-5" /> Create Room
+              </Button>
+              <Button onClick={() => setIsQuickSplitModalOpen(true)} variant="secondary" className="flex-1 h-12 rounded-2xl font-black gap-2">
+                <Calculator className="h-5 w-5" /> Quick Split
               </Button>
               <Button onClick={() => setIsJoiningModalOpen(true)} variant="outline" className="flex-1 h-12 rounded-2xl font-black gap-2">
                 <Share2 className="h-5 w-5" /> Join Room
@@ -771,8 +759,8 @@ export default function SplitPayPage() {
                             <Tabs value={splitType} onValueChange={(v: any) => setSplitType(v)} className="w-full">
                               <TabsList className="grid w-full grid-cols-3 h-9 p-1 rounded-xl">
                                 <TabsTrigger value="equal" className="text-[9px] font-black uppercase">Equal</TabsTrigger>
-                                <TabsTrigger value="custom" className="text-[9px] font-black uppercase">₹</TabsTrigger>
-                                <TabsTrigger value="percentage" className="text-[9px] font-black uppercase">%</TabsTrigger>
+                                <TabsTrigger value="custom" className="text-[9px] font-black uppercase">₹ Manual</TabsTrigger>
+                                <TabsTrigger value="percentage" className="text-[9px] font-black uppercase">% Manual</TabsTrigger>
                               </TabsList>
                             </Tabs>
                           </div>
@@ -803,11 +791,8 @@ export default function SplitPayPage() {
                                       placeholder="0.00" 
                                       value={customSplits[uid] || ''} 
                                       onChange={(e) => {
-                                        if (splitType === 'percentage') {
-                                          setCustomSplits({...customSplits, [uid]: e.target.value});
-                                        } else {
-                                          handleSplitAdjustment(uid, e.target.value);
-                                        }
+                                        if (splitType === 'equal') setSplitType('custom');
+                                        setCustomSplits({...customSplits, [uid]: e.target.value});
                                       }}
                                       className="h-8 pl-7 text-xs font-bold rounded-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                     />
@@ -1031,6 +1016,90 @@ export default function SplitPayPage() {
               {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : "Join Room"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isQuickSplitModalOpen} onOpenChange={setIsQuickSplitModalOpen}>
+        <DialogContent className="rounded-3xl max-w-[95vw] sm:max-w-xl p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="p-6 sm:p-8 bg-secondary text-secondary-foreground">
+            <DialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-3">
+              <div className="p-2 bg-white/20 rounded-xl"><Calculator className="h-6 w-6" /></div>
+              Quick Split Calculator
+            </DialogTitle>
+            <DialogDescription className="text-xs font-black uppercase tracking-widest opacity-80">Manual calculation tool (No ledger storage)</DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[70vh]">
+            <div className="p-6 sm:p-8 space-y-8 bg-background">
+              <div className="space-y-4">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Bill Total (₹)</Label>
+                <div className="relative">
+                  <Input 
+                    type="number" 
+                    placeholder="0.00" 
+                    value={quickAmount} 
+                    onChange={e => setQuickAmount(e.target.value)} 
+                    className="h-14 pl-10 rounded-2xl font-black text-2xl tracking-tighter bg-muted/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                  />
+                  <IndianRupee className="absolute left-4 top-4.5 h-6 w-6 text-muted-foreground" />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Virtual Group</Label>
+                  <Badge variant={quickSplitValidation.isValid ? "secondary" : "destructive"} className="text-[8px] font-black uppercase">
+                    {quickSplitValidation.message}
+                  </Badge>
+                </div>
+                
+                <div className="grid gap-4">
+                  {quickMembers.map((member, idx) => (
+                    <div key={member.id} className="flex items-center gap-3 animate-in fade-in slide-in-from-left-2" style={{ animationDelay: `${idx * 50}ms` }}>
+                      <div className="flex-1 flex gap-2">
+                        <Input 
+                          placeholder="Name..." 
+                          value={member.name} 
+                          onChange={e => {
+                            const newMembers = [...quickMembers];
+                            newMembers[idx].name = e.target.value;
+                            setQuickMembers(newMembers);
+                          }}
+                          className="h-10 rounded-xl font-bold text-sm w-32 sm:w-auto"
+                        />
+                        <div className="relative flex-1">
+                          <Input 
+                            type="number" 
+                            placeholder="Share ₹" 
+                            value={member.share} 
+                            onChange={e => {
+                              const newMembers = [...quickMembers];
+                              newMembers[idx].share = e.target.value;
+                              setQuickMembers(newMembers);
+                            }}
+                            className="h-10 pl-8 rounded-xl font-black text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                          <IndianRupee className="absolute left-2.5 top-3 h-3.5 w-3.5 text-muted-foreground" />
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="icon" onClick={() => handleQuickRemoveMember(member.id)} className="h-10 w-10 text-destructive/50 hover:text-destructive hover:bg-destructive/10 rounded-xl">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                
+                <Button variant="outline" onClick={handleQuickAddMember} className="w-full h-10 border-dashed rounded-xl font-black text-[10px] uppercase gap-2">
+                  <UserPlus className="h-4 w-4" /> Add Member
+                </Button>
+              </div>
+            </div>
+          </ScrollArea>
+          <div className="p-4 sm:p-6 bg-muted/20 border-t grid grid-cols-2 gap-3">
+            <Button variant="outline" onClick={() => setIsQuickSplitModalOpen(false)} className="rounded-2xl font-black h-12 uppercase text-[10px]">Close Tool</Button>
+            <Button onClick={shareQuickSplit} disabled={!quickSplitValidation.isValid} className="rounded-2xl font-black h-12 uppercase text-[10px] gap-2 shadow-lg">
+              <Share2 className="h-4 w-4" /> Share Summary
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
