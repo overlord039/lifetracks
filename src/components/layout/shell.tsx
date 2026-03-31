@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -40,7 +39,6 @@ import { cn } from '@/lib/utils';
 
 const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
-  { title: 'Profile', url: '/profile', icon: UserCircle },
   { title: 'Salary Planner', url: '/salary-planner', icon: Calculator },
   { title: 'Learning', url: '/learning', icon: GraduationCap },
   { title: 'Budget', url: '/budget', icon: Wallet },
@@ -91,9 +89,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter className="p-4 space-y-4">
-            <div className="flex flex-col gap-2 p-3 rounded-xl bg-sidebar-accent/50 border border-sidebar-border">
+            <Link 
+              href="/profile" 
+              className={cn(
+                "flex flex-col gap-2 p-3 rounded-xl border transition-all duration-200 group/profile",
+                pathname === '/profile' 
+                  ? "bg-primary/10 border-primary/30" 
+                  : "bg-sidebar-accent/50 border-sidebar-border hover:bg-sidebar-accent hover:border-primary/20"
+              )}
+            >
               <div className="flex items-center gap-3">
-                <Avatar className="h-8 w-8 border-2 border-primary/20">
+                <Avatar className={cn(
+                  "h-8 w-8 border-2 transition-colors",
+                  pathname === '/profile' ? "border-primary" : "border-primary/20 group-hover/profile:border-primary/40"
+                )}>
                   <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
                     {user?.email?.charAt(0).toUpperCase() || 'U'}
                   </AvatarFallback>
@@ -103,7 +112,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <span className="text-[10px] text-muted-foreground truncate font-medium">ID: {user?.uid.slice(0, 8)}...</span>
                 </div>
               </div>
-            </div>
+            </Link>
             <Button 
               variant="ghost" 
               className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 h-10 font-bold"
@@ -120,7 +129,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <SidebarTrigger className="flex h-9 w-9 items-center justify-center rounded-md border bg-card shadow-sm md:hidden" />
             <div className="flex-1 flex items-center gap-2 overflow-hidden">
               <h1 className="text-sm md:text-lg font-black truncate tracking-tight">
-                {navItems.find(item => item.url === pathname)?.title || 'Dashboard'}
+                {pathname === '/profile' ? 'Profile' : (navItems.find(item => item.url === pathname)?.title || 'Dashboard')}
               </h1>
               <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800 text-[8px] md:text-[9px] uppercase font-black tracking-tighter px-1.5 py-0">
                 <ShieldCheck className="h-2.5 w-2.5 mr-1" /> Automated E2EE
@@ -128,11 +137,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />
-              <Avatar className="h-8 w-8 md:hidden border">
-                <AvatarFallback className="bg-primary text-primary-foreground text-[10px] font-black">
-                  {user?.email?.charAt(0).toUpperCase() || 'U'}
-                </AvatarFallback>
-              </Avatar>
+              <Link href="/profile" className="md:hidden">
+                <Avatar className="h-8 w-8 border">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-[10px] font-black">
+                    {user?.email?.charAt(0).toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+              </Link>
             </div>
           </header>
           <main className="flex-1 overflow-x-hidden overflow-y-auto p-3 md:p-6 lg:p-8 w-full">
