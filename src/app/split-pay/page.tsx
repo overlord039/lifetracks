@@ -610,15 +610,24 @@ export default function SplitPayPage() {
               return (
                 <Card 
                   key={group.id} 
-                  className="group cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all rounded-3xl border-none ring-1 ring-border overflow-hidden relative"
+                  className={cn(
+                    "group cursor-pointer hover:ring-2 transition-all rounded-3xl border-none ring-1 ring-border overflow-hidden relative",
+                    group.isManual ? "hover:ring-secondary/50" : "hover:ring-primary/50"
+                  )}
                   onClick={() => setSelectedGroupId(group.id)}
                 >
-                  <CardHeader className="bg-muted/30 pb-4">
+                  <CardHeader className={cn("pb-4", group.isManual ? "bg-secondary/10" : "bg-muted/30")}>
                     <div className="flex justify-between items-start">
                       <div className="flex-1 min-w-0 pr-8">
-                        <CardTitle className="text-xl font-black tracking-tight truncate">{group.name}</CardTitle>
-                        <CardDescription className="text-[10px] uppercase font-black tracking-widest text-primary">
-                          {group.isManual ? "Manual Ledger" : `ID: ${group.id}`}
+                        <div className="flex items-center gap-2 mb-1">
+                          {group.isManual ? <Calculator className="h-3.5 w-3.5 text-secondary-foreground" /> : <Users className="h-3.5 w-3.5 text-primary" />}
+                          <CardTitle className="text-xl font-black tracking-tight truncate">{group.name}</CardTitle>
+                        </div>
+                        <CardDescription className={cn(
+                          "text-[10px] uppercase font-black tracking-widest",
+                          group.isManual ? "text-secondary-foreground/70" : "text-primary"
+                        )}>
+                          {group.isManual ? "Manual Ledger" : `Join Code: ${group.id}`}
                         </CardDescription>
                       </div>
                       <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors mt-1 shrink-0" />
@@ -640,7 +649,10 @@ export default function SplitPayPage() {
                   <CardContent className="pt-4 flex items-center justify-between">
                     <div className="flex -space-x-2">
                       {members.slice(0, 4).map((m: any) => (
-                        <div key={m.userId} title={m.userName} className="h-8 w-8 rounded-full bg-primary border-2 border-background flex items-center justify-center text-[10px] font-black text-white">
+                        <div key={m.userId} title={m.userName} className={cn(
+                          "h-8 w-8 rounded-full border-2 border-background flex items-center justify-center text-[10px] font-black text-white",
+                          group.isManual ? "bg-secondary" : "bg-primary"
+                        )}>
                           {(m.userName || 'U')[0].toUpperCase()}
                         </div>
                       ))}
@@ -667,11 +679,16 @@ export default function SplitPayPage() {
               <div>
                 <h2 className="text-2xl font-black tracking-tighter flex items-center gap-2">
                   {activeGroup ? activeGroup.name : "Verifying..."}
-                  <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none font-black text-[8px] uppercase tracking-widest hidden sm:inline-flex">Live Ledger</Badge>
+                  <Badge className={cn(
+                    "hover:opacity-100 border-none font-black text-[8px] uppercase tracking-widest hidden sm:inline-flex",
+                    activeGroup?.isManual ? "bg-secondary/20 text-secondary-foreground" : "bg-green-100 text-green-700"
+                  )}>
+                    {activeGroup?.isManual ? "Manual PERSISTENCE" : "Live Ledger"}
+                  </Badge>
                 </h2>
                 <div className="flex items-center gap-2 group">
                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                    {activeGroup?.isManual ? "Manual Persistence Mode" : `Room ID: ${selectedGroupId}`}
+                    {activeGroup?.isManual ? "Standalone Ledger Mode" : `Room ID: ${selectedGroupId}`}
                   </p>
                   {!activeGroup?.isManual && (
                     <button onClick={() => copyToClipboard(selectedGroupId || '')} className="opacity-50 hover:opacity-100 transition-opacity">
@@ -869,7 +886,10 @@ export default function SplitPayPage() {
                         {(Array.isArray(activeGroup?.members) ? activeGroup.members : []).map((m: any) => (
                           <div key={m.userId} className="flex items-center justify-between p-3 rounded-2xl bg-muted/10 border border-dashed group">
                             <div className="flex items-center gap-3">
-                              <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-xs">{(m.userName || 'U')[0].toUpperCase()}</div>
+                              <div className={cn(
+                                "h-8 w-8 rounded-xl flex items-center justify-center text-white font-black text-xs",
+                                activeGroup?.isManual ? "bg-secondary" : "bg-primary/10 !text-primary"
+                              )}>{(m.userName || 'U')[0].toUpperCase()}</div>
                               <div className="flex flex-col">
                                 <span className="text-sm font-black uppercase tracking-tight">{m.userName}</span>
                                 {m.userId === activeGroup?.createdBy && <span className="text-[8px] font-black uppercase text-orange-600">Room Admin</span>}
@@ -922,7 +942,10 @@ export default function SplitPayPage() {
                     )}>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-base font-black flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-xl bg-background border flex items-center justify-center text-primary font-black">{(b.userName || 'U')[0].toUpperCase()}</div>
+                          <div className={cn(
+                            "h-8 w-8 rounded-xl border flex items-center justify-center font-black",
+                            activeGroup?.isManual ? "bg-secondary text-secondary-foreground" : "bg-background text-primary"
+                          )}>{(b.userName || 'U')[0].toUpperCase()}</div>
                           {b.userName}
                         </CardTitle>
                       </CardHeader>
@@ -1140,7 +1163,10 @@ export default function SplitPayPage() {
 
       <Dialog open={isStatsModalOpen} onOpenChange={setIsStatsModalOpen}>
         <DialogContent className="max-w-[95vw] sm:max-w-2xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
-          <DialogHeader className="p-6 sm:p-8 bg-primary text-primary-foreground">
+          <DialogHeader className={cn(
+            "p-6 sm:p-8 text-white",
+            activeGroup?.isManual ? "bg-secondary text-secondary-foreground" : "bg-primary text-primary-foreground"
+          )}>
             <DialogTitle className="text-xl sm:text-2xl font-black tracking-tighter flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-xl"><BarChart3 className="h-5 w-5 sm:h-6 sm:h-6" /></div>
               Room Analytics
