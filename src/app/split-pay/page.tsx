@@ -179,14 +179,14 @@ export default function SplitPayPage() {
     if (!activeGroup.memberUids?.includes(user?.uid)) return null;
     return collection(db, 'sharedGroups', selectedGroupId, 'expenses');
   }, [db, selectedGroupId, activeGroup, user?.uid]);
-  const { data: expenses, error: expensesError } = useCollection(expensesRef);
+  const { data: expenses } = useCollection(expensesRef);
 
   const settlementsRef = useMemoFirebase(() => {
     if (!db || !selectedGroupId || !activeGroup) return null;
     if (!activeGroup.memberUids?.includes(user?.uid)) return null;
     return collection(db, 'sharedGroups', selectedGroupId, 'settlements');
   }, [db, selectedGroupId, activeGroup, user?.uid]);
-  const { data: settlements, error: settlementsError } = useCollection(settlementsRef);
+  const { data: settlements } = useCollection(settlementsRef);
 
   const roomCategoriesRef = useMemoFirebase(() => {
     if (!db || !selectedGroupId || !activeGroup) return null;
@@ -526,6 +526,26 @@ export default function SplitPayPage() {
     const updated = quickMembers.filter(m => m.id !== id);
     setQuickMembers(updated);
     setQuickMemberCount(updated.length.toString());
+  };
+
+  const handleQuickSplitEqually = () => {
+    const amt = parseFloat(quickAmount) || 0;
+    const count = quickMembers.length;
+    if (count === 0 || amt <= 0) return;
+    
+    const base = Math.floor((amt / count) * 100) / 100;
+    let remainder = Math.round((amt - (base * count)) * 100) / 100;
+    
+    const newMembers = quickMembers.map((m) => {
+      let s = base;
+      if (remainder > 0) {
+        s = Math.round((s + 0.01) * 100) / 100;
+        remainder = Math.round((remainder - 0.01) * 100) / 100;
+      }
+      return { ...m, share: s.toFixed(2) };
+    });
+    setQuickMembers(newMembers);
+    toast({ title: "Balanced Equally" });
   };
 
   const quickSplitValidation = useMemo(() => {
@@ -1081,9 +1101,12 @@ export default function SplitPayPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Manual Group Entry</Label>
-                  <Badge variant={quickSplitValidation.isValid ? "secondary" : "destructive"} className="text-[8px] font-black uppercase">
-                    {quickSplitValidation.message}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="sm" onClick={handleQuickSplitEqually} disabled={!quickAmount || parseFloat(quickAmount) <= 0} className="h-7 text-[9px] font-black uppercase border border-dashed rounded-lg px-2 hover:bg-primary/10 hover:text-primary transition-all">Split Equally</Button>
+                    <Badge variant={quickSplitValidation.isValid ? "secondary" : "destructive"} className="text-[8px] font-black uppercase">
+                      {quickSplitValidation.message}
+                    </Badge>
+                  </div>
                 </div>
                 
                 <div className="grid gap-4">
