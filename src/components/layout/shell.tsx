@@ -65,7 +65,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background overflow-x-hidden">
-        <Sidebar className="border-r hidden md:flex">
+        <Sidebar className="border-r">
           <SidebarHeader className="p-4 flex flex-row items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <span className="text-white font-bold text-xl">L</span>
@@ -115,7 +115,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </SidebarFooter>
         </Sidebar>
         
-        <SidebarInset className="flex flex-col w-full">
+        <SidebarInset className="flex flex-col w-full min-w-0">
           <header className="sticky top-0 z-30 flex h-14 md:h-16 items-center gap-3 border-b bg-background/80 backdrop-blur-md px-3 md:px-6">
             <SidebarTrigger className="flex h-9 w-9 items-center justify-center rounded-md border bg-card shadow-sm md:hidden" />
             <div className="flex-1 flex items-center gap-2 overflow-hidden">
@@ -135,7 +135,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Avatar>
             </div>
           </header>
-          <main className="flex-1 overflow-x-hidden overflow-y-auto p-3 md:p-6 lg:p-8">
+          <main className="flex-1 overflow-x-hidden overflow-y-auto p-3 md:p-6 lg:p-8 w-full">
             {children}
           </main>
         </SidebarInset>
