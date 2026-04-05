@@ -25,7 +25,8 @@ import {
   ShieldCheck,
   Target,
   Loader2,
-  Pencil
+  Pencil,
+  Check
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -39,6 +40,7 @@ import {
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { encryptData, decryptData, decryptNumber } from '@/lib/encryption';
+import Link from 'next/link';
 
 const COLORS = ['#64B5F6', '#81C784', '#FFB74D', '#BA68C8', '#F06292'];
 const INV_COLORS = ['#BA68C8', '#64B5F6', '#FFD54F'];
@@ -65,6 +67,7 @@ export default function SalaryPlannerPage() {
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [isDecrypting, setIsDecrypting] = useState(false);
+  const [isSynced, setIsSynced] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -223,6 +226,7 @@ export default function SalaryPlannerPage() {
       updatedAt: new Date().toISOString(),
       createdAt: new Date().toISOString()
     }, { merge: true });
+    setIsSynced(true);
     toast({ title: 'Budget Synced', description: `₹${Math.round(amounts.expense).toLocaleString()} set as monthly target.` });
   };
 
@@ -268,6 +272,7 @@ export default function SalaryPlannerPage() {
                 size="icon" 
                 onClick={() => {
                   setShowResults(false);
+                  setIsSynced(false);
                   setTimeout(() => document.getElementById('salary-input')?.focus(), 100);
                 }} 
                 className="h-10 w-10 md:h-12 md:w-12 rounded-2xl text-muted-foreground hover:text-primary transition-colors"
@@ -335,10 +340,23 @@ export default function SalaryPlannerPage() {
                     Your planned expenses are <span className="font-black text-foreground">₹{Math.round(amounts.expense).toLocaleString()}</span>. 
                     Set this as your daily budget cap?
                   </p>
-                  <div className="p-3 md:p-4 bg-white/50 dark:bg-background/20 border border-blue-200 dark:border-blue-800/50 rounded-2xl space-y-3 shadow-sm">
-                    <p className="text-[8px] md:text-[9px] font-black text-blue-800 dark:text-blue-300 uppercase tracking-widest text-center">Auto-sync monthly target?</p>
-                    <Button size="sm" onClick={syncWithBudget} className="w-full bg-blue-600 hover:bg-blue-700 font-black rounded-xl shadow-md h-8 md:h-9 text-[10px]">Sync Now</Button>
-                  </div>
+                  
+                  {isSynced ? (
+                    <div className="p-3 md:p-4 bg-green-500/10 border border-green-200 dark:border-green-800/50 rounded-2xl flex flex-col items-center gap-2 animate-in zoom-in-95">
+                      <div className="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center text-white shadow-sm">
+                        <Check className="h-4 w-4" />
+                      </div>
+                      <p className="text-[9px] font-black text-green-700 dark:text-green-400 uppercase tracking-widest">Vault Synchronized</p>
+                      <Button variant="ghost" asChild className="h-7 text-[8px] font-black uppercase text-green-700 hover:bg-green-500/10">
+                        <Link href="/budget">View Budget <ChevronRight className="ml-1 h-3 w-3" /></Link>
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="p-3 md:p-4 bg-white/50 dark:bg-background/20 border border-blue-200 dark:border-blue-800/50 rounded-2xl space-y-3 shadow-sm">
+                      <p className="text-[8px] md:text-[9px] font-black text-blue-800 dark:text-blue-300 uppercase tracking-widest text-center">Auto-sync monthly target?</p>
+                      <Button size="sm" onClick={syncWithBudget} className="w-full bg-blue-600 hover:bg-blue-700 font-black rounded-xl shadow-md h-8 md:h-9 text-[10px]">Sync Now</Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
