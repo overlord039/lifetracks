@@ -123,6 +123,7 @@ export default function BudgetPage() {
     decryptAll();
   }, [rawCategories, rawBudget, rawFixed, rawExpenses, user, mounted]);
 
+  // Unified Label Sync: Import labels from rooms to personal budget
   useEffect(() => {
     const syncRoomLabels = async () => {
       if (!user || !db || !myGroups || decryptedCategories.length === 0 || syncPerformed.current) return;
@@ -144,7 +145,7 @@ export default function BudgetPage() {
             const labelName = d.data().name;
             if (labelName && !personalDailyNames.has(labelName.toLowerCase())) {
               labelsToImport.push(labelName);
-              personalDailyNames.add(labelName.toLowerCase());
+              personalDailyNames.add(labelName.toLowerCase()); // Avoid duplicates in same run
             }
           });
         }
@@ -156,7 +157,7 @@ export default function BudgetPage() {
               userId: user.uid,
               name: await encryptData(name, user.uid),
               type: 'daily',
-              isPrivate: false,
+              isPrivate: false, // Imported room labels are public by default
               isEncrypted: true,
               createdAt: new Date().toISOString()
             }, { merge: true });

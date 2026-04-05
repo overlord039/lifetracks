@@ -121,6 +121,9 @@ export default function SplitPayPage() {
   const [decryptedGroups, setDecryptedGroups] = useState<any[]>([]);
   const [isDecryptingGroups, setIsDecryptingGroups] = useState(false);
 
+  // Unified Label Sync state
+  const [decryptedPersonalCategories, setDecryptedPersonalCategories] = useState<any[]>([]);
+
   // Sync manual members based on count input
   useEffect(() => {
     const count = parseInt(manualMemberCount) || 0;
@@ -159,6 +162,19 @@ export default function SplitPayPage() {
     return collection(db, 'users', user.uid, 'expenseCategories');
   }, [db, user]);
   const { data: personalCategories } = useCollection(personalCategoriesRef);
+
+  // Decrypt personal categories for label sync
+  useEffect(() => {
+    const decryptCats = async () => {
+      if (!personalCategories || !user) return;
+      const cats = await Promise.all(personalCategories.map(async c => ({
+        ...c,
+        name: c.isEncrypted ? await decryptData(c.name, user.uid) : c.name
+      })));
+      setDecryptedPersonalCategories(cats);
+    };
+    decryptCats();
+  }, [personalCategories, user]);
 
   useEffect(() => {
     const decryptGroupNames = async () => {
@@ -201,6 +217,26 @@ export default function SplitPayPage() {
     return collection(db, 'sharedGroups', selectedGroupId, 'categories');
   }, [db, selectedGroupId, activeGroup, user?.uid]);
   const { data: roomCategories } = useCollection(roomCategoriesRef);
+
+  // Unified Label Sync: Push personal public labels to the room
+  useEffect(() => {
+    const syncLabelsToRoom = async () => {
+      if (!user || !activeGroup || decryptedPersonalCategories.length === 0 || !roomCategories || !roomCategoriesRef) return;
+      
+      const publicLabels = decryptedPersonalCategories.filter(c => c.type === 'daily' && !c.isPrivate);
+      const existingNames = new Set(roomCategories.map(c => c.name.toLowerCase()));
+
+      for (const label of publicLabels) {
+        if (label.name && !existingNames.has(label.name.toLowerCase())) {
+          addDocumentNonBlocking(roomCategoriesRef, {
+            name: label.name,
+            createdAt: new Date().toISOString()
+          });
+        }
+      }
+    };
+    syncLabelsToRoom();
+  }, [activeGroup, decryptedPersonalCategories, roomCategories, user, roomCategoriesRef]);
 
   useEffect(() => {
     if (activeGroup) {
@@ -526,7 +562,8 @@ export default function SplitPayPage() {
         const personalDesc = `Room: ${activeGroup.name} - ${expenseDesc || roomCatName}`;
         
         let targetPersonalCatId = '';
-        const match = personalCategories?.find(pc => 
+        // Use decrypted categories for matching
+        const match = decryptedPersonalCategories?.find(pc => 
           pc.type === 'daily' && 
           !pc.isPrivate && 
           pc.name.toLowerCase() === roomCatName.toLowerCase()
@@ -630,7 +667,7 @@ export default function SplitPayPage() {
               <h2 className="text-3xl font-black tracking-tighter">Collaborative Split</h2>
               <p className="text-muted-foreground font-medium px-4">Create or join rooms for shared expenses with real-time updates.</p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm pt-4 px-4">
+            <div className="flex flex-col sm:flex-row gap-3 w-full max-sm:px-4 max-w-sm pt-4">
               <Button onClick={() => setIsCreateModalOpen(true)} className="flex-1 h-12 rounded-2xl font-black gap-2 shadow-lg">
                 <Plus className="h-5 w-5" /> Collaborative Room
               </Button>
@@ -693,15 +730,9 @@ export default function SplitPayPage() {
                         <div key={m.userId} title={m.userName} className={cn(
                           "h-8 w-8 rounded-full border-2 border-background flex items-center justify-center text-[10px] font-black text-white",
                           group.isManual ? "bg-secondary" : "bg-primary"
-                        )}>
-                          {(m.userName || 'U')[0].toUpperCase()}
-                        </div>
+                        )}>{(m.userName || 'U')[0].toUpperCase()}</div>
                       ))}
-                      {members.length > 4 && (
-                        <div className="h-8 w-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[8px] font-black">
-                          +{members.length - 4}
-                        </div>
-                      )}
+                      {members.length > 4 && <div className="h-8 w-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[8px] font-black">+{members.length - 4}</div>}
                     </div>
                     <Badge variant={group.isManual ? "secondary" : "default"} className={cn("font-black text-[10px] uppercase", group.isManual && "bg-secondary/20 text-secondary-foreground")}>{members.length} Members</Badge>
                   </CardContent>
@@ -751,7 +782,7 @@ export default function SplitPayPage() {
                     "hover:opacity-100 border-none font-black text-[8px] uppercase tracking-widest hidden sm:inline-flex",
                     activeGroup?.isManual ? "bg-secondary/20 text-secondary-foreground" : "bg-green-100 text-green-700"
                   )}>
-                    {activeGroup?.isManual ? "Manual PERSISTENCE" : "Live Ledger"}
+                    {activeGroup?.isManual ? "Manual Ledger" : "Live Ledger"}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-2 group">
