@@ -24,7 +24,8 @@ import {
   Coins,
   ShieldCheck,
   Target,
-  Loader2
+  Loader2,
+  Pencil
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -236,6 +237,17 @@ export default function SalaryPlannerPage() {
     );
   }
 
+  const chartTooltipStyle = {
+    borderRadius: '16px',
+    border: '1px solid hsl(var(--border))',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+    backgroundColor: 'hsl(var(--popover))',
+    color: 'hsl(var(--popover-foreground))',
+    padding: '8px 12px',
+    fontSize: '10px',
+    fontWeight: 'bold'
+  };
+
   return (
     <AppShell>
       <div className="flex flex-col gap-4 md:gap-6 max-w-7xl mx-auto">
@@ -249,11 +261,27 @@ export default function SalaryPlannerPage() {
               <p className="text-[9px] md:text-[10px] font-black text-muted-foreground uppercase tracking-widest">Optimized Income Allocation</p>
             </div>
           </div>
-          {showResults && (
-            <Button onClick={handleSave} className="shadow-lg h-10 md:h-12 px-5 md:px-6 font-black rounded-2xl bg-primary hover:bg-primary/90 text-[11px] md:text-sm">
-              <Save className="h-4 w-4 mr-2" /> Save Strategy
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {showResults && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => {
+                  setShowResults(false);
+                  setTimeout(() => document.getElementById('salary-input')?.focus(), 100);
+                }} 
+                className="h-10 w-10 md:h-12 md:w-12 rounded-2xl text-muted-foreground hover:text-primary transition-colors"
+                title="Edit Base Metrics"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            )}
+            {showResults && (
+              <Button onClick={handleSave} className="shadow-lg h-10 md:h-12 px-5 md:px-6 font-black rounded-2xl bg-primary hover:bg-primary/90 text-[11px] md:text-sm">
+                <Save className="h-4 w-4 mr-2" /> Save Strategy
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="grid gap-4 md:gap-6 lg:grid-cols-12">
@@ -270,6 +298,7 @@ export default function SalaryPlannerPage() {
                 <div className="space-y-2">
                   <Label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground">Monthly Salary (₹)</Label>
                   <Input 
+                    id="salary-input"
                     type="number" 
                     placeholder="e.g. 75000" 
                     value={salary} 
@@ -394,7 +423,8 @@ export default function SalaryPlannerPage() {
                               {salaryData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
                             </Pie>
                             <RechartsTooltip 
-                              contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', fontSize: '9px', fontWeight: 'bold' }} 
+                              contentStyle={chartTooltipStyle}
+                              itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
                               formatter={(v: number) => `₹${Math.round(v).toLocaleString()}`} 
                             />
                             <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', paddingTop: '10px' }} />
@@ -425,6 +455,11 @@ export default function SalaryPlannerPage() {
                             <Pie data={invData} innerRadius={40} outerRadius={60} paddingAngle={4} dataKey="value" stroke="none">
                               {invData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
                             </Pie>
+                            <RechartsTooltip 
+                              contentStyle={chartTooltipStyle}
+                              itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                              formatter={(v: number) => `₹${Math.round(v).toLocaleString()}`} 
+                            />
                             <Legend iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold' }} />
                           </PieChart>
                         </ResponsiveContainer>
