@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -34,7 +35,8 @@ import {
   Trash2,
   BrainCircuit,
   LayoutGrid,
-  X
+  X,
+  Pencil
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -87,11 +89,14 @@ export default function SplitPayPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
   const [isManualRoomModalOpen, setIsManualRoomModalOpen] = useState(false);
+  const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [roomToDelete, setRoomToDelete] = useState<string | null>(null);
   
   const [roomName, setRoomName] = useState('');
   const [joinCode, setJoinCode] = useState('');
+  const [isEditingRoomName, setIsEditingRoomName] = useState(false);
+  const [editedRoomName, setEditedRoomName] = useState('');
 
   // Manual Room Creation State
   const [manualRoomName, setManualRoomName] = useState('');
@@ -100,6 +105,8 @@ export default function SplitPayPage() {
     { id: '1', name: 'Me', share: '' },
     { id: '2', name: 'Member 2', share: '' }
   ]);
+
+  const [newMemberName, setNewMemberName] = useState('');
 
   const [expenseDesc, setExpenseDesc] = useState('');
   const [expenseAmt, setExpenseAmt] = useState('');
@@ -199,6 +206,7 @@ export default function SplitPayPage() {
     if (activeGroup) {
       setSelectedParticipants(activeGroup.memberUids || []);
       if (!paidBy) setPaidBy(user?.uid || '');
+      setEditedRoomName(activeGroup.name);
     }
   }, [activeGroup, user?.uid, paidBy]);
 
@@ -409,6 +417,37 @@ export default function SplitPayPage() {
     setSelectedGroupId(roomId);
     setIsProcessing(false);
     toast({ title: "Manual Ledger Launched" });
+  };
+
+  const handleUpdateRoomName = async () => {
+    if (!activeGroup || !editedRoomName.trim() || !db || !user) return;
+    if (activeGroup.createdBy !== user.uid) return;
+    
+    updateDocumentNonBlocking(doc(db, 'sharedGroups', activeGroup.id), {
+      name: await encryptData(editedRoomName.trim(), user.uid),
+      updatedAt: new Date().toISOString()
+    });
+    
+    setIsEditingRoomName(false);
+    toast({ title: "Room Renamed" });
+  };
+
+  const handleAddMemberManually = async () => {
+    if (!activeGroup || !newMemberName.trim() || !db || !user) return;
+    if (activeGroup.createdBy !== user.uid) return;
+
+    const newMember = {
+      userId: `virtual_${Math.random().toString(36).substring(2, 7)}`,
+      userName: newMemberName.trim()
+    };
+
+    updateDocumentNonBlocking(doc(db, 'sharedGroups', activeGroup.id), {
+      members: arrayUnion(newMember)
+    });
+
+    setNewMemberName('');
+    setIsAddMemberModalOpen(false);
+    toast({ title: "Member Added", description: `${newMember.userName} added to ledger.` });
   };
 
   const handleJoinRoom = async () => {
@@ -678,16 +717,43 @@ export default function SplitPayPage() {
               <Button variant="ghost" size="icon" onClick={() => setSelectedGroupId(null)} className="h-10 w-10 rounded-xl">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <div>
-                <h2 className="text-2xl font-black tracking-tighter flex items-center gap-2">
-                  {activeGroup ? activeGroup.name : "Verifying..."}
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2 group">
+                  {isEditingRoomName ? (
+                    <div className="flex items-center gap-2 animate-in slide-in-from-left-2">
+                      <Input 
+                        value={editedRoomName} 
+                        onChange={(e) => setEditedRoomName(e.target.value)}
+                        className="h-8 w-48 font-black text-xl bg-muted/20 border-primary/20 focus:ring-primary/20"
+                        autoFocus
+                        onKeyDown={(e) => e.key === 'Enter' && handleUpdateRoomName()}
+                      />
+                      <Button size="icon" variant="ghost" onClick={handleUpdateRoomName} className="h-8 w-8 text-green-600 hover:bg-green-50">
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={() => { setIsEditingRoomName(false); setEditedRoomName(activeGroup?.name || ''); }} className="h-8 w-8 text-destructive hover:bg-red-50">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-2xl font-black tracking-tighter flex items-center gap-2">
+                        {activeGroup ? activeGroup.name : "Verifying..."}
+                      </h2>
+                      {activeGroup?.createdBy === user?.uid && (
+                        <Button variant="ghost" size="icon" onClick={() => setIsEditingRoomName(true)} className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
                   <Badge className={cn(
                     "hover:opacity-100 border-none font-black text-[8px] uppercase tracking-widest hidden sm:inline-flex",
                     activeGroup?.isManual ? "bg-secondary/20 text-secondary-foreground" : "bg-green-100 text-green-700"
                   )}>
                     {activeGroup?.isManual ? "Manual PERSISTENCE" : "Live Ledger"}
                   </Badge>
-                </h2>
+                </div>
                 <div className="flex items-center gap-2 group">
                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                     {activeGroup?.isManual ? "Standalone Ledger Mode" : `Room ID: ${selectedGroupId}`}
@@ -904,11 +970,16 @@ export default function SplitPayPage() {
                             )}
                           </div>
                         ))}
-                        {!activeGroup?.isManual && (
-                          <div className="pt-4 mt-2 border-t border-dashed">
-                            <Button variant="outline" className="w-full h-10 rounded-xl font-black gap-2 text-[10px] uppercase" onClick={() => copyToClipboard(activeGroup?.id || '')}>
-                              <UserPlus className="h-4 w-4" /> Invite via Code
+                        {user?.uid === activeGroup?.createdBy && (
+                          <div className="pt-4 mt-2 border-t border-dashed space-y-2">
+                            <Button variant="outline" className="w-full h-10 rounded-xl font-black gap-2 text-[10px] uppercase" onClick={() => setIsAddMemberModalOpen(true)}>
+                              <Plus className="h-4 w-4" /> Add Member
                             </Button>
+                            {!activeGroup?.isManual && (
+                              <Button variant="ghost" className="w-full h-10 rounded-xl font-black gap-2 text-[10px] uppercase text-muted-foreground" onClick={() => copyToClipboard(activeGroup?.id || '')}>
+                                <UserPlus className="h-4 w-4" /> Invite via Code
+                              </Button>
+                            )}
                           </div>
                         )}
                       </CardContent>
@@ -1160,6 +1231,33 @@ export default function SplitPayPage() {
               {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Launch Manual Ledger
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAddMemberModalOpen} onOpenChange={setIsAddMemberModalOpen}>
+        <DialogContent className="rounded-3xl max-w-[95vw] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black tracking-tighter">Add Member</DialogTitle>
+            <DialogDescription className="text-sm font-medium">Add a virtual member to track their shares locally.</DialogDescription>
+          </DialogHeader>
+          <div className="py-6 space-y-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest">Member Name</Label>
+              <Input 
+                placeholder="e.g. John Doe" 
+                value={newMemberName} 
+                onChange={e => setNewMemberName(e.target.value)} 
+                className="h-12 rounded-2xl" 
+                autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && handleAddMemberManually()}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleAddMemberManually} disabled={!newMemberName.trim()} className="w-full h-12 rounded-2xl font-black">
+              Add to Room
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
