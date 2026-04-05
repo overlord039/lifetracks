@@ -323,6 +323,18 @@ export default function ReportsPage() {
     );
   }
 
+  // Common Tooltip Style for all charts
+  const chartTooltipStyle = {
+    borderRadius: '12px',
+    border: '1px solid hsl(var(--border))',
+    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+    backgroundColor: 'hsl(var(--popover))',
+    color: 'hsl(var(--popover-foreground))',
+    padding: '8px 12px',
+    fontSize: '11px',
+    fontWeight: '600'
+  };
+
   return (
     <AppShell>
       <div className="space-y-4 md:space-y-6 max-w-7xl mx-auto">
@@ -425,9 +437,10 @@ export default function ReportsPage() {
                   <BarChart data={weeklyReport.weeklyData}>
                     <Bar dataKey="spent" fill="#FFB74D" radius={[2, 2, 0, 0]} />
                     <Tooltip 
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--card-foreground))' }}
+                      contentStyle={chartTooltipStyle}
                       formatter={(v: number) => `₹${v.toLocaleString()}`}
-                      labelClassName="text-[10px] font-bold"
+                      labelClassName="text-[10px] font-bold text-popover-foreground"
+                      itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
                     />
                   </BarChart>
                 </ResponsiveContainer>
@@ -477,14 +490,16 @@ export default function ReportsPage() {
                       outerRadius={60}
                       paddingAngle={5}
                       dataKey="value"
+                      stroke="none"
                     >
                       {chartsData.categoryData.map((entry: any, index: number) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
                     <Tooltip 
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--card-foreground))' }}
+                      contentStyle={chartTooltipStyle}
                       formatter={(value: number) => `₹${value.toLocaleString()}`}
+                      itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -531,7 +546,7 @@ export default function ReportsPage() {
           </Card>
 
           <Card className="md:col-span-2 lg:col-span-4 shadow-md overflow-hidden rounded-2xl">
-            <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 px-4 md:px-6 pt-4">
+            <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-4 md:px-6 pt-4">
               <div>
                 <CardTitle className="text-base md:text-lg font-black">Spending Tracker</CardTitle>
                 <CardDescription className="text-[10px] uppercase font-bold tracking-tight">Visualizing your spending trends over time.</CardDescription>
@@ -547,17 +562,19 @@ export default function ReportsPage() {
             <CardContent className="h-[250px] md:h-[400px] pt-4 -ml-4 md:ml-0 p-4 md:p-6">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartsData.spendingData} margin={{ left: -10, right: 10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
-                  <XAxis dataKey="name" fontSize={9} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                  <YAxis fontSize={9} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} stroke="hsl(var(--muted-foreground))" />
+                  <XAxis dataKey="name" fontSize={9} tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
+                  <YAxis fontSize={9} tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
                   <Tooltip 
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--card-foreground))' }}
+                    contentStyle={chartTooltipStyle}
                     formatter={(value: number, name: string, props: any) => [
                       `₹${value.toLocaleString()}`, 
                       props.payload.fullLabel || props.payload.name
                     ]} 
+                    itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                    labelStyle={{ color: 'hsl(var(--popover-foreground))', fontWeight: 'bold', marginBottom: '4px' }}
                   />
-                  <Bar dataKey="spent" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Actual Spend" />
+                  <Bar dataKey="spent" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Actual Spend" animationDuration={1000} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
