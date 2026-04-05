@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -97,6 +96,10 @@ export default function SplitPayPage() {
   const [joinCode, setJoinCode] = useState('');
   const [isEditingRoomName, setIsEditingRoomName] = useState(false);
   const [editedRoomName, setEditedRoomName] = useState('');
+
+  // Member editing state
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+  const [editedMemberName, setEditedMemberName] = useState('');
 
   // Manual Room Creation State
   const [manualRoomName, setManualRoomName] = useState('');
@@ -466,6 +469,24 @@ export default function SplitPayPage() {
     
     setIsEditingRoomName(false);
     toast({ title: "Room Renamed" });
+  };
+
+  const handleUpdateMemberName = async (targetUserId: string) => {
+    if (!activeGroup || !editedMemberName.trim() || !db || !user) return;
+    if (activeGroup.createdBy !== user.uid) return;
+
+    const updatedMembers = activeGroup.members.map((m: any) => 
+      m.userId === targetUserId ? { ...m, userName: editedMemberName.trim() } : m
+    );
+
+    updateDocumentNonBlocking(doc(db, 'sharedGroups', activeGroup.id), {
+      members: updatedMembers,
+      updatedAt: new Date().toISOString()
+    });
+
+    setEditingMemberId(null);
+    setEditedMemberName('');
+    toast({ title: "Member Updated" });
   };
 
   const handleAddMemberManually = async () => {
@@ -984,17 +1005,45 @@ export default function SplitPayPage() {
                       <CardContent className="pt-4 space-y-3 px-4 sm:px-6">
                         {(Array.isArray(activeGroup?.members) ? activeGroup.members : []).map((m: any) => (
                           <div key={m.userId} className="flex items-center justify-between p-3 rounded-2xl bg-muted/10 border border-dashed group">
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
                               <div className={cn(
-                                "h-8 w-8 rounded-xl flex items-center justify-center text-white font-black text-xs",
+                                "h-8 w-8 rounded-xl flex items-center justify-center text-white font-black text-xs shrink-0",
                                 activeGroup?.isManual ? "bg-secondary" : "bg-primary/10 !text-primary"
                               )}>{(m.userName || 'U')[0].toUpperCase()}</div>
-                              <div className="flex flex-col">
-                                <span className="text-sm font-black uppercase tracking-tight">{m.userName}</span>
+                              
+                              <div className="flex flex-col min-w-0 flex-1">
+                                {editingMemberId === m.userId ? (
+                                  <div className="flex items-center gap-2 animate-in slide-in-from-left-1 w-full">
+                                    <Input 
+                                      value={editedMemberName}
+                                      onChange={e => setEditedMemberName(e.target.value)}
+                                      onKeyDown={e => e.key === 'Enter' && handleUpdateMemberName(m.userId)}
+                                      className="h-7 text-xs font-black uppercase py-0 px-2 bg-background border-primary/30"
+                                      autoFocus
+                                    />
+                                    <button onClick={() => handleUpdateMemberName(m.userId)} className="text-green-600"><Check className="h-3.5 w-3.5" /></button>
+                                    <button onClick={() => setEditingMemberId(null)} className="text-destructive"><X className="h-3.5 w-3.5" /></button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2 group/name">
+                                    <span className="text-sm font-black uppercase tracking-tight truncate">{m.userName}</span>
+                                    {user?.uid === activeGroup?.createdBy && (
+                                      <button 
+                                        onClick={() => {
+                                          setEditingMemberId(m.userId);
+                                          setEditedMemberName(m.userName);
+                                        }}
+                                        className="opacity-0 group-hover/name:opacity-100 text-muted-foreground hover:text-primary transition-opacity"
+                                      >
+                                        <Pencil className="h-3 w-3" />
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
                                 {m.userId === activeGroup?.createdBy && <span className="text-[8px] font-black uppercase text-orange-600">Room Admin</span>}
                               </div>
                             </div>
-                            {user?.uid === activeGroup?.createdBy && m.userId !== user?.uid && (
+                            {user?.uid === activeGroup?.createdBy && m.userId !== user?.uid && !editingMemberId && (
                               <Button variant="ghost" size="icon" onClick={() => handleKickMember(m.userId)} className="h-8 w-8 text-destructive opacity-50 group-hover:opacity-100 transition-opacity">
                                 <UserMinus className="h-4 w-4" />
                               </Button>
