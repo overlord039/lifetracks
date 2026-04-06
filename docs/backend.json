@@ -7,44 +7,97 @@
       "type": "object",
       "description": "Represents a user of the LifeTrack application.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the User entity."
-        },
-        "email": {
-          "type": "string",
-          "description": "The email address of the user.",
-          "format": "email"
-        },
-        "displayName": {
-          "type": "string",
-          "description": "The chosen public name of the user."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the user account was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the user's profile was last updated.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "email",
-        "createdAt"
-      ]
+      "required": ["id", "email", "createdAt"]
+    },
+    "ExpenseCategory": {
+      "title": "ExpenseCategory",
+      "type": "object",
+      "description": "Personal expense categories (labels).",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string", "description": "Encrypted category name" },
+        "type": { "type": "string", "enum": ["daily", "fixed"] },
+        "isPrivate": { "type": "boolean" },
+        "isEncrypted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "SalaryProfile": {
+      "title": "SalaryProfile",
+      "type": "object",
+      "description": "User's financial strategy metrics.",
+      "properties": {
+        "userId": { "type": "string" },
+        "salary": { "type": "string", "description": "Encrypted salary amount" },
+        "age": { "type": "string", "description": "Encrypted age" },
+        "expensePercent": { "type": "number" },
+        "savingsPercent": { "type": "number" },
+        "investmentPercent": { "type": "number" },
+        "healthPercent": { "type": "number" },
+        "personalPercent": { "type": "number" },
+        "isEncrypted": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Debt": {
+      "title": "Debt",
+      "type": "object",
+      "description": "E2EE Debt records.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "debtorName": { "type": "string", "description": "Encrypted name" },
+        "amount": { "type": "string", "description": "Encrypted amount" },
+        "description": { "type": "string", "description": "Encrypted notes" },
+        "isPaid": { "type": "boolean" },
+        "isEncrypted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "LearningGoal": {
+      "title": "LearningGoal",
+      "type": "object",
+      "description": "Skill mastery targets.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "skill": { "type": "string" },
+        "difficulty": { "type": "string", "enum": ["Easy", "Medium", "Hard"] },
+        "target": { "type": "number" },
+        "completedCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "DailyDiary": {
+      "title": "DailyDiary",
+      "type": "object",
+      "description": "Encrypted daily reflections.",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string", "description": "YYYY-MM-DD" },
+        "whatIDidToday": { "type": "string", "description": "Encrypted text" },
+        "whatILearned": { "type": "string", "description": "Encrypted text" },
+        "challengesBlockers": { "type": "string", "description": "Encrypted text" },
+        "tomorrowsPlan": { "type": "string", "description": "Encrypted text" },
+        "mood": { "type": "string", "description": "Encrypted emoji" },
+        "isEncrypted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
     },
     "SharedGroup": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "SharedGroup",
       "type": "object",
       "description": "A collaborative room for shared expenses.",
       "properties": {
         "id": { "type": "string" },
-        "name": { "type": "string" },
+        "name": { "type": "string", "description": "Encrypted room name" },
         "createdBy": { "type": "string" },
         "creatorName": { "type": "string" },
         "memberUids": { "type": "array", "items": { "type": "string" } },
@@ -58,24 +111,12 @@
             }
           } 
         },
+        "isEncrypted": { "type": "boolean" },
+        "isManual": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "name", "createdBy", "memberUids", "members", "createdAt"]
-    },
-    "RoomCategory": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "RoomCategory",
-      "type": "object",
-      "description": "Categories for shared room expenses.",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "name", "createdAt"]
+      }
     },
     "RoomExpense": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "RoomExpense",
       "type": "object",
       "description": "An expense within a shared room.",
@@ -83,102 +124,30 @@
         "id": { "type": "string" },
         "roomId": { "type": "string" },
         "amount": { "type": "number" },
-        "paidBy": { "type": "string", "description": "UserId of payer" },
+        "paidBy": { "type": "string" },
         "paidByName": { "type": "string" },
-        "participants": { "type": "array", "items": { "type": "string" }, "description": "UserIds involved" },
+        "participants": { "type": "array", "items": { "type": "string" } },
         "splitType": { "type": "string", "enum": ["equal", "custom", "percentage"] },
-        "splits": { "type": "object", "description": "Map of userId to amount" },
-        "expenseCategoryId": { "type": "string", "description": "Label ID" },
+        "splits": { "type": "object", "description": "userId -> amount map" },
+        "expenseCategoryId": { "type": "string" },
         "description": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "roomId", "amount", "paidBy", "participants", "splitType", "splits", "createdAt"]
-    },
-    "RoomSettlement": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "RoomSettlement",
-      "type": "object",
-      "description": "A settlement payment within a room.",
-      "properties": {
-        "id": { "type": "string" },
-        "roomId": { "type": "string" },
-        "paidBy": { "type": "string", "description": "UserId of sender" },
-        "paidByName": { "type": "string" },
-        "paidTo": { "type": "string", "description": "UserId of receiver" },
-        "paidToName": { "type": "string" },
-        "amount": { "type": "number" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "roomId", "paidBy", "paidTo", "amount", "createdAt"]
-    },
-    "MonthlyBudget": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "MonthlyBudget",
-      "type": "object",
-      "description": "Stores user's budget settings.",
-      "properties": {
-        "id": { "type": "string" },
-        "userId": { "type": "string" },
-        "month": { "type": "number" },
-        "year": { "type": "number" },
-        "totalBudgetAmount": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" }
       }
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "google.com"
-    ]
+    "providers": ["password", "google.com"]
   },
   "firestore": {
     "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": { "$ref": "#/backend/entities/User" },
-          "description": "User profile.",
-          "params": [{ "name": "userId", "description": "User UID" }]
-        }
-      },
-      {
-        "path": "/sharedGroups/{groupId}",
-        "definition": {
-          "entityName": "SharedGroup",
-          "schema": { "$ref": "#/backend/entities/SharedGroup" },
-          "description": "Collaborative split rooms.",
-          "params": [{ "name": "groupId", "description": "Short code or ID" }]
-        }
-      },
-      {
-        "path": "/sharedGroups/{groupId}/categories/{categoryId}",
-        "definition": {
-          "entityName": "RoomCategory",
-          "schema": { "$ref": "#/backend/entities/RoomCategory" },
-          "description": "Categories in room.",
-          "params": [{ "name": "groupId", "description": "Room ID" }, { "name": "categoryId", "description": "Category ID" }]
-        }
-      },
-      {
-        "path": "/sharedGroups/{groupId}/expenses/{expenseId}",
-        "definition": {
-          "entityName": "RoomExpense",
-          "schema": { "$ref": "#/backend/entities/RoomExpense" },
-          "description": "Expenses in room.",
-          "params": [{ "name": "groupId", "description": "Room ID" }, { "name": "expenseId", "description": "Expense ID" }]
-        }
-      },
-      {
-        "path": "/sharedGroups/{groupId}/settlements/{id}",
-        "definition": {
-          "entityName": "RoomSettlement",
-          "schema": { "$ref": "#/backend/entities/RoomSettlement" },
-          "description": "Settlements in room.",
-          "params": [{ "name": "groupId", "description": "Room ID" }, { "name": "id", "description": "Settlement ID" }]
-        }
-      }
+      { "path": "/users/{userId}", "definition": { "entityName": "User", "description": "User profile." } },
+      { "path": "/users/{userId}/expenseCategories/{catId}", "definition": { "entityName": "ExpenseCategory", "description": "Personal labels." } },
+      { "path": "/users/{userId}/salaryProfiles/current", "definition": { "entityName": "SalaryProfile", "description": "Planner data." } },
+      { "path": "/users/{userId}/debts/{debtId}", "definition": { "entityName": "Debt", "description": "Debt records." } },
+      { "path": "/users/{userId}/learningGoals/{goalId}", "definition": { "entityName": "LearningGoal", "description": "Learning progress." } },
+      { "path": "/users/{userId}/dailyDiaries/{date}", "definition": { "entityName": "DailyDiary", "description": "Diary entries." } },
+      { "path": "/sharedGroups/{groupId}", "definition": { "entityName": "SharedGroup", "description": "Collaboration rooms." } },
+      { "path": "/sharedGroups/{groupId}/expenses/{expenseId}", "definition": { "entityName": "RoomExpense", "description": "Shared bills." } }
     ]
   }
 }
