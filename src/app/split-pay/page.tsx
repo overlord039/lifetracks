@@ -221,20 +221,34 @@ export default function SplitPayPage() {
   }, [db, selectedGroupId, activeGroup, user?.uid]);
   const { data: roomCategories } = useCollection(roomCategoriesRef);
 
-  // Unified Label Sync: Push personal public labels to the room
+  // Case-Insensitive Deduplication for room categories
+  const filteredRoomCategories = useMemo(() => {
+    const seen = new Set<string>();
+    return (roomCategories || []).filter(c => {
+      const lowerName = (c.name || '').trim().toLowerCase();
+      if (!lowerName || seen.has(lowerName)) return false;
+      seen.add(lowerName);
+      return true;
+    });
+  }, [roomCategories]);
+
+  // Unified Label Sync: Push personal public labels to the room (case-insensitive)
   useEffect(() => {
     const syncLabelsToRoom = async () => {
       if (!user || !activeGroup || decryptedPersonalCategories.length === 0 || !roomCategories || !roomCategoriesRef) return;
       
       const publicLabels = decryptedPersonalCategories.filter(c => c.type === 'daily' && !c.isPrivate);
-      const existingNames = new Set(roomCategories.map(c => c.name.toLowerCase()));
+      const existingNames = new Set(roomCategories.map(c => (c.name || '').trim().toLowerCase()));
 
       for (const label of publicLabels) {
-        if (label.name && !existingNames.has(label.name.toLowerCase())) {
+        const labelName = (label.name || '').trim();
+        if (labelName && !existingNames.has(labelName.toLowerCase())) {
           addDocumentNonBlocking(roomCategoriesRef, {
-            name: label.name,
+            name: labelName,
             createdAt: new Date().toISOString()
           });
+          // Update local set to prevent redundant writes in same effect cycle
+          existingNames.add(labelName.toLowerCase());
         }
       }
     };
@@ -279,13 +293,20 @@ export default function SplitPayPage() {
       });
       
       if (result.isNewCategorySuggested) {
-        const docRef = await addDocumentNonBlocking(roomCategoriesRef, {
-          name: result.suggestedCategoryName,
-          createdAt: new Date().toISOString()
-        });
-        if (docRef) setExpenseCategoryId(docRef.id);
+        // Case-insensitive check even for AI suggestions
+        const alreadyExists = roomCategories.find(c => (c.name || '').trim().toLowerCase() === result.suggestedCategoryName.trim().toLowerCase());
+        
+        if (alreadyExists) {
+          setExpenseCategoryId(alreadyExists.id);
+        } else {
+          const docRef = await addDocumentNonBlocking(roomCategoriesRef, {
+            name: result.suggestedCategoryName,
+            createdAt: new Date().toISOString()
+          });
+          if (docRef) setExpenseCategoryId(docRef.id);
+        }
       } else {
-        const existing = roomCategories.find(c => c.name === result.suggestedCategoryName);
+        const existing = roomCategories.find(c => (c.name || '').trim().toLowerCase() === result.suggestedCategoryName.trim().toLowerCase());
         if (existing) setExpenseCategoryId(existing.id);
       }
       toast({ title: "Classified", description: result.reasoning });
@@ -527,6 +548,18 @@ export default function SplitPayPage() {
 
   const addRoomCategory = async () => {
     if (!newRoomCategoryName.trim() || !roomCategoriesRef) return;
+    
+    // Case-insensitive check
+    const alreadyExists = roomCategories?.some(c => (c.name || '').trim().toLowerCase() === newRoomCategoryName.trim().toLowerCase());
+    if (alreadyExists) {
+      toast({ 
+        variant: "destructive", 
+        title: "Label Exists", 
+        description: `"${newRoomCategoryName}" is already defined in this room.` 
+      });
+      return;
+    }
+
     addDocumentNonBlocking(roomCategoriesRef, {
       name: newRoomCategoryName.trim(),
       createdAt: new Date().toISOString()
@@ -579,15 +612,15 @@ export default function SplitPayPage() {
         const personalCategoriesRef = collection(db, 'users', user.uid, 'expenseCategories');
         const todayStr = format(new Date(), 'yyyy-MM-dd');
         
-        const roomCatName = roomCategories?.find(c => c.id === expenseCategoryId)?.name || 'Room Bill';
+        const roomCatName = (roomCategories?.find(c => c.id === expenseCategoryId)?.name || 'Room Bill').trim();
         const personalDesc = `Room: ${activeGroup.name} - ${expenseDesc || roomCatName}`;
         
         let targetPersonalCatId = '';
-        // Use decrypted categories for matching
+        // Case-insensitive match for unified labels
         const match = decryptedPersonalCategories?.find(pc => 
           pc.type === 'daily' && 
           !pc.isPrivate && 
-          pc.name.toLowerCase() === roomCatName.toLowerCase()
+          (pc.name || '').trim().toLowerCase() === roomCatName.toLowerCase()
         );
         
         if (match) {
@@ -874,7 +907,7 @@ export default function SplitPayPage() {
                                 <SelectValue placeholder="Select Label" />
                               </SelectTrigger>
                               <SelectContent>
-                                {roomCategories?.map(c => (
+                                {filteredRoomCategories?.map(c => (
                                   <SelectItem key={c.id} value={c.id} className="font-black">{c.name}</SelectItem>
                                 ))}
                               </SelectContent>
@@ -1073,7 +1106,7 @@ export default function SplitPayPage() {
                           <Button size="icon" onClick={addRoomCategory} className="h-9 w-9 shrink-0 rounded-xl"><Plus className="h-4 w-4" /></Button>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {roomCategories?.length ? roomCategories.map(c => (
+                          {filteredRoomCategories?.length ? filteredRoomCategories.map(c => (
                             <div key={c.id} className="flex items-center gap-1.5 pl-3 pr-1 py-1 bg-primary/10 text-primary rounded-full text-[9px] font-black uppercase border border-primary/20">
                               {c.name}
                               <button onClick={() => deleteDocumentNonBlocking(doc(roomCategoriesRef!, c.id))} className="ml-1 text-destructive p-0.5 hover:bg-destructive/10 rounded-full transition-colors"><Trash2 className="h-3 w-3" /></button>

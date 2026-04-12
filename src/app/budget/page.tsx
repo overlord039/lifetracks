@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -133,7 +132,7 @@ export default function BudgetPage() {
         const personalDailyNames = new Set(
           decryptedCategories
             .filter(c => c.type === 'daily')
-            .map(c => c.name.toLowerCase())
+            .map(c => (c.name || '').trim().toLowerCase())
         );
         
         const labelsToImport: string[] = [];
@@ -142,7 +141,7 @@ export default function BudgetPage() {
           const roomCatsRef = collection(db, 'sharedGroups', group.id, 'categories');
           const snap = await getDocs(roomCatsRef);
           snap.forEach(d => {
-            const labelName = d.data().name;
+            const labelName = (d.data().name || '').trim();
             if (labelName && !personalDailyNames.has(labelName.toLowerCase())) {
               labelsToImport.push(labelName);
               personalDailyNames.add(labelName.toLowerCase()); // Avoid duplicates in same run
@@ -174,8 +173,31 @@ export default function BudgetPage() {
     }
   }, [myGroups, decryptedCategories, user, db, categoriesRef, toast]);
 
-  const dailyCategories = decryptedCategories?.filter(c => c.type === 'daily') || [];
-  const fixedCategories = decryptedCategories?.filter(c => c.type === 'fixed') || [];
+  // Case-Insensitive Deduplication for UI rendering
+  const dailyCategories = useMemo(() => {
+    const seen = new Set<string>();
+    return (decryptedCategories || [])
+      .filter(c => c.type === 'daily')
+      .filter(c => {
+        const lowerName = (c.name || '').trim().toLowerCase();
+        if (!lowerName || seen.has(lowerName)) return false;
+        seen.add(lowerName);
+        return true;
+      });
+  }, [decryptedCategories]);
+
+  const fixedCategories = useMemo(() => {
+    const seen = new Set<string>();
+    return (decryptedCategories || [])
+      .filter(c => c.type === 'fixed')
+      .filter(c => {
+        const lowerName = (c.name || '').trim().toLowerCase();
+        if (!lowerName || seen.has(lowerName)) return false;
+        seen.add(lowerName);
+        return true;
+      });
+  }, [decryptedCategories]);
+
   const totalIncludedFixed = decryptedFixed?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
   const netMonthlyPool = (decryptedBudget?.totalBudgetAmount || 0) - totalIncludedFixed;
   const totalSpentThisMonth = decryptedExpenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
@@ -252,6 +274,21 @@ export default function BudgetPage() {
 
   const addCategory = async () => {
     if (!newCategory.name.trim() || !categoriesRef || !user) return;
+    
+    // Case-insensitive duplicate check before adding
+    const isDuplicate = decryptedCategories.some(
+      c => c.type === newCategory.type && (c.name || '').trim().toLowerCase() === newCategory.name.trim().toLowerCase()
+    );
+
+    if (isDuplicate) {
+      toast({ 
+        variant: "destructive", 
+        title: "Label Exists", 
+        description: `"${newCategory.name}" is already defined in your ${newCategory.type} vault.` 
+      });
+      return;
+    }
+
     addDocumentNonBlocking(categoriesRef, {
       userId: user?.uid,
       name: await encryptData(newCategory.name.trim(), user.uid),
