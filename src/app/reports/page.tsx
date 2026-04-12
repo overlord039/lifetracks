@@ -410,18 +410,29 @@ export default function ReportsPage() {
                 Monthly Tally
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 md:space-y-4 p-4 md:p-6">
-              <div className="space-y-2">
-                <div className="flex justify-between items-center text-xs md:text-sm">
-                  <span className="text-muted-foreground font-medium">Monthly Pool</span>
-                  <span className="font-black">₹{totals.budget.toLocaleString()}</span>
+            <CardContent className="space-y-4 md:space-y-6 p-4 md:p-6">
+              <div className="space-y-4">
+                <div className="flex justify-between items-start text-xs md:text-sm">
+                  <div className="flex flex-col">
+                    <span className="text-foreground font-black uppercase text-[10px] tracking-tight">Monthly Pool</span>
+                    <span className="text-muted-foreground text-[9px] font-medium leading-tight">Total target budget for this period</span>
+                  </div>
+                  <span className="font-black text-lg tracking-tighter">₹{totals.budget.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between items-center text-xs md:text-sm">
-                  <span className="text-muted-foreground font-medium">Fixed Expenses</span>
+                
+                <div className="flex justify-between items-start text-xs md:text-sm">
+                  <div className="flex flex-col">
+                    <span className="text-foreground font-black uppercase text-[10px] tracking-tight">Fixed Vault</span>
+                    <span className="text-muted-foreground text-[9px] font-medium leading-tight">Scheduled non-negotiable costs</span>
+                  </div>
                   <span className="font-bold text-destructive">₹{totals.fixed.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between items-center text-xs md:text-sm">
-                  <span className="text-muted-foreground font-medium">Daily Spending</span>
+
+                <div className="flex justify-between items-start text-xs md:text-sm">
+                  <div className="flex flex-col">
+                    <span className="text-foreground font-black uppercase text-[10px] tracking-tight">Daily Spends</span>
+                    <span className="text-muted-foreground text-[9px] font-medium leading-tight">Cumulative records for variable labels</span>
+                  </div>
                   <div className="flex flex-col items-end">
                     <span className="font-bold">₹{totals.daily.toLocaleString()}</span>
                     {totals.dailyDiff !== 0 && (
@@ -440,20 +451,21 @@ export default function ReportsPage() {
               <Separator />
 
               <div className="pt-1 md:pt-2 flex items-center justify-between">
-                <div>
-                  <p className="text-[8px] md:text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Remaining Balance</p>
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-primary">Remaining Vault</p>
+                  <p className="text-[9px] text-muted-foreground font-medium mb-1">Funds available before exhaustion</p>
                   <p className={cn(
-                    "text-xl md:text-3xl font-black tracking-tighter",
+                    "text-3xl md:text-4xl font-black tracking-tighter leading-none",
                     totals.remaining >= 0 ? 'text-primary' : 'text-destructive'
                   )}>
                     ₹{totals.remaining.toLocaleString()}
                   </p>
                 </div>
                 <div className={cn(
-                  "p-2 md:p-3 rounded-xl",
-                  totals.remaining >= 0 ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"
+                  "p-3 md:p-4 rounded-2xl shadow-inner",
+                  totals.remaining >= 0 ? "bg-primary/10 text-primary border border-primary/20" : "bg-destructive/10 text-destructive border border-destructive/20"
                 )}>
-                  {totals.remaining >= 0 ? <TrendingUp className="h-5 w-5 md:h-6 md:w-6" /> : <TrendingDown className="h-5 w-5 md:h-6 md:w-6" />}
+                  {totals.remaining >= 0 ? <TrendingUp className="h-6 w-6 md:h-8 md:w-8" /> : <TrendingDown className="h-6 w-6 md:h-8 md:w-8" />}
                 </div>
               </div>
             </CardContent>
