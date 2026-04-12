@@ -371,8 +371,8 @@ export default function ReportsPage() {
     setSelectedTransactionIds(next);
   };
 
-  const handleToggleAll = (checked: boolean) => {
-    if (checked) {
+  const handleToggleAll = (checked: any) => {
+    if (checked === true) {
       const allCatIds = new Set(decryptedCategories.map(c => c.id).concat(['misc']));
       const allTxnIds = new Set(decryptedExpenses.map(e => e.id));
       setSelectedAuditCategories(allCatIds);
@@ -699,7 +699,7 @@ export default function ReportsPage() {
                   <div className="flex items-center gap-2 pr-2">
                     <Checkbox 
                       id="audit-select-all" 
-                      checked={selectedAuditCategories.size === (decryptedCategories.length + (decryptedExpenses.some(e => !e.expenseCategoryId) ? 1 : 0))}
+                      checked={decryptedExpenses.length > 0 && selectedTransactionIds.size === decryptedExpenses.length}
                       onCheckedChange={handleToggleAll}
                       className="h-4 w-4 rounded border-primary/30"
                     />
