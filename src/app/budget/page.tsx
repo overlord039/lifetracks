@@ -85,7 +85,7 @@ export default function BudgetPage() {
       if (rawCategories) {
         const cats = await Promise.all(rawCategories.map(async c => ({
           ...c,
-          name: c.isEncrypted ? await decryptData(c.name, user.uid) : c.name
+          name: c.isEncrypted ? await decryptData(c.name, user.uid) : (c.name || '')
         })));
         setDecryptedCategories(cats);
       }
@@ -103,8 +103,8 @@ export default function BudgetPage() {
       if (rawFixed) {
         const fixed = await Promise.all(rawFixed.map(async f => ({
           ...f,
-          name: f.isEncrypted ? await decryptData(f.name, user.uid) : f.name,
-          amount: f.isEncrypted ? await decryptNumber(f.amount, user.uid) : f.amount,
+          name: f.isEncrypted ? await decryptData(f.name, user.uid) : (f.name || ''),
+          amount: f.isEncrypted ? await decryptNumber(f.amount, user.uid) : (f.amount || 0),
         })));
         setDecryptedFixed(fixed);
       }
@@ -112,8 +112,8 @@ export default function BudgetPage() {
       if (rawExpenses) {
         const exps = await Promise.all(rawExpenses.map(async e => ({
           ...e,
-          description: e.isEncrypted ? await decryptData(e.description, user.uid) : e.description,
-          amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : e.amount,
+          description: e.isEncrypted ? await decryptData(e.description, user.uid) : (e.description || ''),
+          amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : (e.amount || 0),
         })));
         setDecryptedExpenses(exps);
       }
@@ -121,6 +121,33 @@ export default function BudgetPage() {
     };
     decryptAll();
   }, [rawCategories, rawBudget, rawFixed, rawExpenses, user, mounted]);
+
+  // Case-Insensitive Deduplication for UI rendering
+  const dailyCategories = useMemo(() => {
+    const seen = new Set<string>();
+    const normalize = (s: string) => (s || '').trim().toLowerCase();
+    return (decryptedCategories || [])
+      .filter(c => c.type === 'daily')
+      .filter(c => {
+        const norm = normalize(c.name);
+        if (!norm || seen.has(norm)) return false;
+        seen.add(norm);
+        return true;
+      });
+  }, [decryptedCategories]);
+
+  const fixedCategories = useMemo(() => {
+    const seen = new Set<string>();
+    const normalize = (s: string) => (s || '').trim().toLowerCase();
+    return (decryptedCategories || [])
+      .filter(c => c.type === 'fixed')
+      .filter(c => {
+        const norm = normalize(c.name);
+        if (!norm || seen.has(norm)) return false;
+        seen.add(norm);
+        return true;
+      });
+  }, [decryptedCategories]);
 
   // Unified Label Sync: Import labels from rooms to personal budget
   useEffect(() => {
@@ -172,31 +199,6 @@ export default function BudgetPage() {
       syncRoomLabels();
     }
   }, [myGroups, decryptedCategories, user, db, categoriesRef, toast]);
-
-  // Case-Insensitive Deduplication for UI rendering
-  const dailyCategories = useMemo(() => {
-    const seen = new Set<string>();
-    return (decryptedCategories || [])
-      .filter(c => c.type === 'daily')
-      .filter(c => {
-        const lowerName = (c.name || '').trim().toLowerCase();
-        if (!lowerName || seen.has(lowerName)) return false;
-        seen.add(lowerName);
-        return true;
-      });
-  }, [decryptedCategories]);
-
-  const fixedCategories = useMemo(() => {
-    const seen = new Set<string>();
-    return (decryptedCategories || [])
-      .filter(c => c.type === 'fixed')
-      .filter(c => {
-        const lowerName = (c.name || '').trim().toLowerCase();
-        if (!lowerName || seen.has(lowerName)) return false;
-        seen.add(lowerName);
-        return true;
-      });
-  }, [decryptedCategories]);
 
   const totalIncludedFixed = decryptedFixed?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
   const netMonthlyPool = (decryptedBudget?.totalBudgetAmount || 0) - totalIncludedFixed;

@@ -172,7 +172,7 @@ export default function SplitPayPage() {
       if (!personalCategories || !user) return;
       const cats = await Promise.all(personalCategories.map(async c => ({
         ...c,
-        name: c.isEncrypted ? await decryptData(c.name, user.uid) : c.name
+        name: c.isEncrypted ? await decryptData(c.name, user.uid) : (c.name || '')
       })));
       setDecryptedPersonalCategories(cats);
     };
@@ -188,7 +188,7 @@ export default function SplitPayPage() {
       setIsDecryptingGroups(true);
       const decrypted = await Promise.all(myGroups.map(async (group) => ({
         ...group,
-        name: group.isEncrypted ? await decryptData(group.name, user.uid) : group.name
+        name: group.isEncrypted ? await decryptData(group.name, user.uid) : (group.name || '')
       })));
       setDecryptedGroups(decrypted);
       setIsDecryptingGroups(false);
@@ -224,10 +224,11 @@ export default function SplitPayPage() {
   // Case-Insensitive Deduplication for room categories
   const filteredRoomCategories = useMemo(() => {
     const seen = new Set<string>();
+    const normalize = (s: string) => (s || '').trim().toLowerCase();
     return (roomCategories || []).filter(c => {
-      const lowerName = (c.name || '').trim().toLowerCase();
-      if (!lowerName || seen.has(lowerName)) return false;
-      seen.add(lowerName);
+      const norm = normalize(c.name);
+      if (!norm || seen.has(norm)) return false;
+      seen.add(norm);
       return true;
     });
   }, [roomCategories]);
@@ -292,9 +293,11 @@ export default function SplitPayPage() {
         existingCategories: roomCategories.map(c => c.name)
       });
       
+      const normalize = (s: string) => (s || '').trim().toLowerCase();
+      const suggestedNorm = normalize(result.suggestedCategoryName);
+      
       if (result.isNewCategorySuggested) {
-        // Case-insensitive check even for AI suggestions
-        const alreadyExists = roomCategories.find(c => (c.name || '').trim().toLowerCase() === result.suggestedCategoryName.trim().toLowerCase());
+        const alreadyExists = roomCategories.find(c => normalize(c.name) === suggestedNorm);
         
         if (alreadyExists) {
           setExpenseCategoryId(alreadyExists.id);
@@ -306,7 +309,7 @@ export default function SplitPayPage() {
           if (docRef) setExpenseCategoryId(docRef.id);
         }
       } else {
-        const existing = roomCategories.find(c => (c.name || '').trim().toLowerCase() === result.suggestedCategoryName.trim().toLowerCase());
+        const existing = roomCategories.find(c => normalize(c.name) === suggestedNorm);
         if (existing) setExpenseCategoryId(existing.id);
       }
       toast({ title: "Classified", description: result.reasoning });
@@ -550,7 +553,10 @@ export default function SplitPayPage() {
     if (!newRoomCategoryName.trim() || !roomCategoriesRef) return;
     
     // Case-insensitive check
-    const alreadyExists = roomCategories?.some(c => (c.name || '').trim().toLowerCase() === newRoomCategoryName.trim().toLowerCase());
+    const normalize = (s: string) => (s || '').trim().toLowerCase();
+    const newNorm = normalize(newRoomCategoryName);
+    const alreadyExists = roomCategories?.some(c => normalize(c.name) === newNorm);
+    
     if (alreadyExists) {
       toast({ 
         variant: "destructive", 
