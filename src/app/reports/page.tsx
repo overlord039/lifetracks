@@ -46,7 +46,8 @@ import {
   Minus,
   Activity,
   Loader2,
-  CheckSquare
+  CheckSquare,
+  ReceiptText
 } from 'lucide-react';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
 import { Button } from '@/components/ui/button';
@@ -216,6 +217,12 @@ export default function ReportsPage() {
     return (decryptedExpenses || [])
       .filter(exp => selectedAuditCategories.has(exp.expenseCategoryId || 'misc'))
       .reduce((sum, exp) => sum + exp.amount, 0);
+  }, [decryptedExpenses, selectedAuditCategories]);
+
+  const auditExpenses = useMemo(() => {
+    return (decryptedExpenses || [])
+      .filter(exp => selectedAuditCategories.has(exp.expenseCategoryId || 'misc'))
+      .sort((a, b) => b.date.localeCompare(a.date));
   }, [decryptedExpenses, selectedAuditCategories]);
 
   const weeklyReport = useMemo(() => {
@@ -617,7 +624,7 @@ export default function ReportsPage() {
       </div>
 
       <Dialog open={isAuditModalOpen} onOpenChange={setIsAuditModalOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-md rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
+        <DialogContent className="max-w-[95vw] sm:max-w-2xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
           <div className="bg-primary p-6 sm:p-8 text-primary-foreground relative">
             <DialogHeader className="text-left space-y-1">
               <DialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-2">
@@ -630,13 +637,12 @@ export default function ReportsPage() {
             </DialogHeader>
           </div>
           
-          <div className="p-6 sm:p-8 space-y-6">
-            <div className="space-y-3">
-              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Select to calculate partial sum</p>
-              <ScrollArea className="max-h-[40vh] pr-4">
-                <div className="space-y-2">
+          <ScrollArea className="max-h-[75vh]">
+            <div className="p-6 sm:p-8 space-y-8">
+              <div className="space-y-4">
+                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Select labels to calculate partial sum</p>
+                <div className="grid gap-2 sm:grid-cols-2">
                   {chartsData.categoryData.length > 0 ? chartsData.categoryData.map((cat: any) => {
-                    // Match with decryptedCategories to get ID
                     const catId = decryptedCategories.find(c => c.name === cat.name)?.id || 'misc';
                     const isChecked = selectedAuditCategories.has(catId);
                     return (
@@ -657,29 +663,60 @@ export default function ReportsPage() {
                           />
                           <div className="flex items-center gap-2">
                             <div className="h-2 w-2 rounded-full" style={{ backgroundColor: cat.color }} />
-                            <label htmlFor={`audit-${catId}`} className="text-xs font-black uppercase cursor-pointer">{cat.name}</label>
+                            <label htmlFor={`audit-${catId}`} className="text-[10px] font-black uppercase cursor-pointer truncate max-w-[100px]">{cat.name}</label>
                           </div>
                         </div>
-                        <span className="text-xs font-black">₹{cat.value.toLocaleString()}</span>
+                        <span className="text-[10px] font-black">₹{cat.value.toLocaleString()}</span>
                       </div>
                     );
                   }) : (
-                    <p className="text-center py-10 text-muted-foreground italic text-xs">No categories recorded yet.</p>
+                    <p className="text-center py-10 text-muted-foreground italic text-xs col-span-2">No categories recorded yet.</p>
                   )}
                 </div>
-              </ScrollArea>
-            </div>
+              </div>
 
-            <div className="pt-4 border-t border-dashed">
-              <div className="p-5 bg-muted/20 rounded-3xl border text-center relative overflow-hidden group">
-                <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1 relative z-10">Total Checked Spends</p>
-                <p className="text-4xl font-black text-primary tracking-tighter relative z-10">₹{auditTotal.toLocaleString()}</p>
-                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                  <TrendingDown className="h-16 w-16 -rotate-12" />
+              <div className="space-y-4 pt-4 border-t border-dashed">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
+                    <ReceiptText className="h-3.5 w-3.5" />
+                    Detailed line items
+                  </p>
+                  <Badge variant="outline" className="text-[8px] font-black uppercase">{auditExpenses.length} Records</Badge>
+                </div>
+                
+                <ScrollArea className="h-[250px] border rounded-2xl bg-muted/5">
+                  <div className="p-3 space-y-2">
+                    {auditExpenses.length > 0 ? auditExpenses.map((exp, idx) => (
+                      <div key={idx} className="flex justify-between items-center p-3 rounded-xl bg-card border shadow-sm group hover:border-primary/30 transition-all">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[11px] font-bold truncate tracking-tight">{exp.description || 'Secured Item'}</p>
+                          <p className="text-[8px] text-muted-foreground uppercase font-black">{format(new Date(exp.date), 'dd MMM yyyy')}</p>
+                        </div>
+                        <div className="text-right ml-4">
+                          <span className="text-xs font-black">₹{exp.amount.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    )) : (
+                      <div className="flex flex-col items-center justify-center py-16 opacity-30 grayscale space-y-2">
+                        <ReceiptText className="h-8 w-8" />
+                        <p className="text-[10px] font-black uppercase tracking-widest">No detailed items found.</p>
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+
+              <div className="pt-4 border-t border-dashed">
+                <div className="p-5 bg-muted/20 rounded-3xl border text-center relative overflow-hidden group">
+                  <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1 relative z-10">Total Checked Spends</p>
+                  <p className="text-4xl font-black text-primary tracking-tighter relative z-10">₹{auditTotal.toLocaleString()}</p>
+                  <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                    <TrendingDown className="h-16 w-16 -rotate-12" />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          </ScrollArea>
           
           <div className="p-4 bg-muted/10 border-t flex justify-end">
             <Button onClick={() => setIsAuditModalOpen(false)} variant="outline" className="font-black rounded-xl text-[10px] uppercase h-10 px-6">Close Audit</Button>
