@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -47,7 +48,8 @@ import {
   Activity,
   Loader2,
   CheckSquare,
-  ReceiptText
+  ReceiptText,
+  History
 } from 'lucide-react';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
 import { Button } from '@/components/ui/button';
@@ -75,6 +77,7 @@ export default function ReportsPage() {
   const [mounted, setMounted] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [selectedAuditCategories, setSelectedAuditCategories] = useState<Set<string>>(new Set());
+  const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(new Set());
 
   const [decryptedBudget, setDecryptedBudget] = useState<any>(null);
   const [decryptedPrevBudget, setDecryptedPrevBudget] = useState<any>(null);
@@ -164,6 +167,8 @@ export default function ReportsPage() {
           amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : (e.amount || 0),
         })));
         setDecryptedExpenses(exps);
+        // Initialize all transactions as selected initially
+        setSelectedTransactionIds(new Set(exps.map(e => e.id)));
       }
 
       if (rawPrevExpenses) {
@@ -216,9 +221,9 @@ export default function ReportsPage() {
 
   const auditTotal = useMemo(() => {
     return (decryptedExpenses || [])
-      .filter(exp => selectedAuditCategories.has(exp.expenseCategoryId || 'misc'))
+      .filter(exp => selectedTransactionIds.has(exp.id))
       .reduce((sum, exp) => sum + exp.amount, 0);
-  }, [decryptedExpenses, selectedAuditCategories]);
+  }, [decryptedExpenses, selectedTransactionIds]);
 
   const auditExpenses = useMemo(() => {
     return (decryptedExpenses || [])
@@ -339,7 +344,32 @@ export default function ReportsPage() {
     setSelectedDate(prev => subMonths(prev, -delta));
   };
 
-  const weekDiff = weeklyReport.currentWeekSpent - weeklyReport.lastWeekSpent;
+  const toggleAuditCategory = (catId: string) => {
+    const nextCats = new Set(selectedAuditCategories);
+    const nextTxns = new Set(selectedTransactionIds);
+    
+    const isAdding = !nextCats.has(catId);
+    
+    if (isAdding) {
+      nextCats.add(catId);
+      // Select all transactions belonging to this category
+      decryptedExpenses.filter(e => (e.expenseCategoryId || 'misc') === catId).forEach(e => nextTxns.add(e.id));
+    } else {
+      nextCats.delete(catId);
+      // Deselect all transactions belonging to this category
+      decryptedExpenses.filter(e => (e.expenseCategoryId || 'misc') === catId).forEach(e => nextTxns.delete(e.id));
+    }
+    
+    setSelectedAuditCategories(nextCats);
+    setSelectedTransactionIds(nextTxns);
+  };
+
+  const toggleTransaction = (txnId: string) => {
+    const next = new Set(selectedTransactionIds);
+    if (next.has(txnId)) next.delete(txnId);
+    else next.add(txnId);
+    setSelectedTransactionIds(next);
+  };
 
   if (!mounted || isDecrypting) {
     return (
@@ -363,12 +393,7 @@ export default function ReportsPage() {
     fontWeight: '600'
   };
 
-  const toggleAuditCategory = (catId: string) => {
-    const next = new Set(selectedAuditCategories);
-    if (next.has(catId)) next.delete(catId);
-    else next.add(catId);
-    setSelectedAuditCategories(next);
-  };
+  const weekDiff = weeklyReport.currentWeekSpent - weeklyReport.lastWeekSpent;
 
   return (
     <AppShell>
@@ -378,12 +403,16 @@ export default function ReportsPage() {
             <div className="p-1.5 md:p-2 bg-primary/10 rounded-lg text-primary">
               <CalendarDays className="h-5 w-5 md:h-6 md:w-6" />
             </div>
-            <div>
-              <h2 className="text-lg md:text-2xl font-black tracking-tight">{format(selectedDate, 'MMMM yyyy')}</h2>
+            <div className="flex flex-col">
+              <h2 className="text-lg md:text-2xl font-black tracking-tight leading-tight">{format(selectedDate, 'MMMM yyyy')}</h2>
               <p className="text-[8px] md:text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">Reporting Period</p>
             </div>
           </div>
           <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
+            <Button variant="outline" size="sm" onClick={() => setIsAuditModalOpen(true)} className="h-8 md:h-9 px-2 md:px-4 font-black uppercase text-[9px] md:text-[10px] tracking-widest gap-2 bg-primary/5 hover:bg-primary/10 border-primary/20">
+              <History className="h-3.5 w-3.5" /> Tranc History
+            </Button>
+            <Separator orientation="vertical" className="h-6 mx-1 hidden sm:block" />
             <Button variant="outline" size="sm" onClick={() => changeMonth(-1)} className="h-8 md:h-9 px-2 md:px-3 flex-1 md:flex-initial text-[10px] md:text-xs">
               <ChevronLeft className="h-3.5 w-3.5 mr-0.5 md:mr-1" /> {format(prevDate, 'MMM')}
             </Button>
@@ -699,14 +728,35 @@ export default function ReportsPage() {
                 
                 <ScrollArea className="h-[250px] border rounded-2xl bg-muted/5">
                   <div className="p-3 space-y-2">
-                    {auditExpenses.length > 0 ? auditExpenses.map((exp, idx) => (
-                      <div key={idx} className="flex justify-between items-center p-3 rounded-xl bg-card border shadow-sm group hover:border-primary/30 transition-all">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[11px] font-bold truncate tracking-tight">{exp.description || 'Secured Item'}</p>
-                          <p className="text-[8px] text-muted-foreground uppercase font-black">{format(new Date(exp.date), 'dd MMM yyyy')}</p>
+                    {auditExpenses.length > 0 ? auditExpenses.map((exp) => (
+                      <div 
+                        key={exp.id} 
+                        className={cn(
+                          "flex justify-between items-center p-3 rounded-xl bg-card border shadow-sm group transition-all cursor-pointer",
+                          selectedTransactionIds.has(exp.id) ? "border-primary/30" : "opacity-50 grayscale border-transparent"
+                        )}
+                        onClick={() => toggleTransaction(exp.id)}
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <Checkbox 
+                            checked={selectedTransactionIds.has(exp.id)} 
+                            onCheckedChange={() => toggleTransaction(exp.id)}
+                            className="rounded-md"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] font-bold truncate tracking-tight">{exp.description || 'Secured Item'}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-[8px] text-muted-foreground uppercase font-black">{format(new Date(exp.date), 'dd MMM yyyy')}</p>
+                              <span className="text-[7px] px-1.5 py-0.5 rounded-full bg-muted/50 font-black uppercase">
+                                {decryptedCategories.find(c => c.id === exp.expenseCategoryId)?.name || 'Misc'}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                         <div className="text-right ml-4">
-                          <span className="text-xs font-black">₹{exp.amount.toLocaleString()}</span>
+                          <span className={cn("text-xs font-black", selectedTransactionIds.has(exp.id) ? "text-foreground" : "text-muted-foreground line-through")}>
+                            ₹{exp.amount.toLocaleString()}
+                          </span>
                         </div>
                       </div>
                     )) : (
