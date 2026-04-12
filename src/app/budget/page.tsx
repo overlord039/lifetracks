@@ -131,6 +131,7 @@ export default function BudgetPage() {
       .filter(c => {
         const norm = normalize(c.name);
         if (!norm || seen.has(norm)) return false;
+        seen.has(norm);
         seen.add(norm);
         return true;
       });
@@ -144,6 +145,7 @@ export default function BudgetPage() {
       .filter(c => {
         const norm = normalize(c.name);
         if (!norm || seen.has(norm)) return false;
+        seen.has(norm);
         seen.add(norm);
         return true;
       });
@@ -615,17 +617,28 @@ export default function BudgetPage() {
 
 function SustainableTodayCard({ isOverspentToday, isWithinBudget, todayStr, dailyAllocationToday, todayReport, isDailyEnabled, remainingNetPool, totalSpentThisMonth, monthName }: any) {
   if (!isDailyEnabled) {
+    const total = remainingNetPool + totalSpentThisMonth;
     return (
       <Card className="shadow-2xl transition-all duration-500 rounded-3xl border-none ring-4 ring-offset-4 ring-offset-background bg-primary text-primary-foreground ring-primary">
         <CardHeader className="pb-1 px-5 pt-5 md:px-6 md:pt-6">
           <CardTitle className="text-xl md:text-2xl font-black flex items-center gap-3 drop-shadow-md"><Coins className="h-6 w-6 md:h-7 md:h-7" /> Monthly Pool</CardTitle>
           <CardDescription className="text-inherit opacity-80 font-black text-[9px] md:text-[10px] uppercase tracking-widest mt-1">Vault Status • {monthName}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4 md:space-y-6 pt-2 px-5 md:px-6">
-          <div className="text-5xl md:text-6xl font-black tracking-tighter drop-shadow-xl">₹{remainingNetPool.toFixed(0)}</div>
-          <div className="space-y-3 md:space-y-4 pt-3 md:pt-4 border-t border-white/20">
-            <div className="flex justify-between items-center text-[10px] md:text-xs font-black opacity-90 uppercase tracking-tighter"><span>Month Spent</span><span className="text-lg md:text-xl">₹{totalSpentThisMonth.toFixed(0)}</span></div>
-            <div className="flex justify-between items-center text-[8px] md:text-[10px] font-black pt-2 md:pt-3 border-t border-white/10 uppercase tracking-widest opacity-80"><span>Remaining Cap</span><span className="text-2xl md:text-3xl tracking-tighter">₹{remainingNetPool.toFixed(0)}</span></div>
+        <CardContent className="space-y-6 pt-2 px-5 md:px-6">
+          <div className="space-y-1">
+            <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Available Balance</p>
+            <div className="text-5xl md:text-6xl font-black tracking-tighter drop-shadow-xl">₹{remainingNetPool.toFixed(0)}</div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/20">
+            <div className="space-y-1">
+              <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Monthly Pool</p>
+              <p className="text-lg font-black">₹{total.toFixed(0)}</p>
+            </div>
+            <div className="space-y-1 text-right">
+              <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Total Spent</p>
+              <p className="text-lg font-black">₹{totalSpentThisMonth.toFixed(0)}</p>
+            </div>
           </div>
         </CardContent>
         <CardFooter className="pt-0 pb-4 md:pb-5 flex justify-center px-5 md:px-6"><div className="bg-white/10 px-3 md:px-4 py-1 md:py-1.5 rounded-full text-[8px] md:text-[9px] font-black uppercase tracking-widest backdrop-blur-md border border-white/10 shadow-sm">Pool Guidance Strategy</div></CardFooter>
@@ -633,7 +646,9 @@ function SustainableTodayCard({ isOverspentToday, isWithinBudget, todayStr, dail
     );
   }
 
-  const remaining = Math.max(0, dailyAllocationToday - (todayReport?.spent || 0));
+  const spentToday = (todayReport?.spent || 0);
+  const remaining = Math.max(0, dailyAllocationToday - spentToday);
+  
   return (
     <Card className={cn(
       "shadow-2xl transition-all duration-500 rounded-3xl border-none ring-4 ring-offset-4 ring-offset-background", 
@@ -645,13 +660,29 @@ function SustainableTodayCard({ isOverspentToday, isWithinBudget, todayStr, dail
         <CardTitle className="text-xl md:text-2xl font-black flex items-center gap-3 drop-shadow-md"><Coins className="h-6 w-6 md:h-7 md:h-7" /> Safe Today</CardTitle>
         <CardDescription className="text-inherit opacity-80 font-black text-[9px] md:text-[10px] uppercase tracking-widest mt-1">{todayStr} • Daily Limit</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4 md:space-y-6 pt-2 px-5 md:px-6">
-        <div className="text-5xl md:text-6xl font-black tracking-tighter drop-shadow-xl">₹{remaining.toFixed(0)}</div>
-        <div className="space-y-3 md:space-y-4 pt-3 md:pt-4 border-t border-white/20">
-          <div className="flex justify-between items-center text-[10px] md:text-xs font-black opacity-90 uppercase tracking-tighter"><span>Private Spent</span><span className="text-lg md:text-xl">₹{(todayReport?.spent || 0).toFixed(0)}</span></div>
-          <div className="flex justify-between items-center text-[8px] md:text-[10px] font-black pt-2 md:pt-3 border-t border-white/10 uppercase tracking-widest opacity-80"><span>Remaining Cap</span><span className="text-2xl md:text-3xl tracking-tighter">₹{remaining.toFixed(0)}</span></div>
-          {isOverspentToday && <div className="pt-2 md:pt-3 flex items-center justify-center gap-2 text-[8px] md:text-[10px] font-black text-white uppercase animate-bounce bg-white/20 py-2 md:py-2.5 rounded-xl shadow-inner"><AlertTriangle className="h-3 w-3 md:h-4 md:w-4" /> Limit Exceeded by ₹{((todayReport?.spent || 0) - dailyAllocationToday).toFixed(0)}</div>}
+      <CardContent className="space-y-6 pt-2 px-5 md:px-6">
+        <div className="space-y-1">
+          <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Remaining Today</p>
+          <div className="text-5xl md:text-6xl font-black tracking-tighter drop-shadow-xl">₹{remaining.toFixed(0)}</div>
         </div>
+
+        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/20">
+          <div className="space-y-1">
+            <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Total Amount</p>
+            <p className="text-lg font-black">₹{dailyAllocationToday.toFixed(0)}</p>
+          </div>
+          <div className="space-y-1 text-right">
+            <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Spent Amount</p>
+            <p className="text-lg font-black">₹{spentToday.toFixed(0)}</p>
+          </div>
+        </div>
+
+        {isOverspentToday && (
+          <div className="mt-2 flex items-center justify-center gap-2 text-[10px] font-black text-white uppercase bg-white/20 py-3 rounded-2xl shadow-inner animate-bounce">
+            <AlertTriangle className="h-4 w-4" /> 
+            Limit Exceeded by ₹{(spentToday - dailyAllocationToday).toFixed(0)}
+          </div>
+        )}
       </CardContent>
       <CardFooter className="pt-0 pb-4 md:pb-5 flex justify-center px-5 md:px-6"><div className="bg-white/10 px-3 md:px-4 py-1 md:py-1.5 rounded-full text-[8px] md:text-[9px] font-black uppercase tracking-widest backdrop-blur-md border border-white/10 shadow-sm">Protected Vault Strategy</div></CardFooter>
     </Card>
