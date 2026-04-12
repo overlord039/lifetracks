@@ -46,12 +46,21 @@ import {
   TrendingUp,
   Minus,
   Activity,
-  Loader2
+  Loader2,
+  CheckSquare
 } from 'lucide-react';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { cn } from '@/lib/utils';
 import { decryptData, decryptNumber } from '@/lib/encryption';
 
@@ -62,6 +71,8 @@ export default function ReportsPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewType, setViewType] = useState<'weekly' | 'monthly' | 'annual'>('monthly');
   const [mounted, setMounted] = useState(false);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [selectedAuditCategories, setSelectedAuditCategories] = useState<Set<string>>(new Set());
 
   const [decryptedBudget, setDecryptedBudget] = useState<any>(null);
   const [decryptedPrevBudget, setDecryptedPrevBudget] = useState<any>(null);
@@ -167,6 +178,10 @@ export default function ReportsPage() {
           name: c.isEncrypted ? await decryptData(c.name, user.uid) : (c.name || ''),
         })));
         setDecryptedCategories(cats);
+        // Initialize audit selection if empty
+        if (selectedAuditCategories.size === 0) {
+          setSelectedAuditCategories(new Set(cats.map(c => c.id).concat(['misc'])));
+        }
       }
 
       setIsDecrypting(false);
@@ -196,6 +211,12 @@ export default function ReportsPage() {
       budgetDiff: budget - prevBudget
     };
   }, [decryptedBudget, decryptedFixed, decryptedExpenses, decryptedPrevExpenses, decryptedPrevBudget]);
+
+  const auditTotal = useMemo(() => {
+    return (decryptedExpenses || [])
+      .filter(exp => selectedAuditCategories.has(exp.expenseCategoryId || 'misc'))
+      .reduce((sum, exp) => sum + exp.amount, 0);
+  }, [decryptedExpenses, selectedAuditCategories]);
 
   const weeklyReport = useMemo(() => {
     if (!decryptedExpenses) return { currentWeekSpent: 0, lastWeekSpent: 0, weeklyData: [] };
@@ -323,7 +344,6 @@ export default function ReportsPage() {
     );
   }
 
-  // Common Tooltip Style for all charts
   const chartTooltipStyle = {
     borderRadius: '12px',
     border: '1px solid hsl(var(--border))',
@@ -333,6 +353,13 @@ export default function ReportsPage() {
     padding: '8px 12px',
     fontSize: '11px',
     fontWeight: '600'
+  };
+
+  const toggleAuditCategory = (catId: string) => {
+    const next = new Set(selectedAuditCategories);
+    if (next.has(catId)) next.delete(catId);
+    else next.add(catId);
+    setSelectedAuditCategories(next);
   };
 
   return (
@@ -471,14 +498,18 @@ export default function ReportsPage() {
             </CardFooter>
           </Card>
 
-          <Card className="shadow-md lg:col-span-1 rounded-2xl overflow-hidden">
-            <CardHeader className="pb-2 pt-4 px-4 md:px-6">
+          <Card 
+            className="shadow-md lg:col-span-1 rounded-2xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all group"
+            onClick={() => setIsAuditModalOpen(true)}
+          >
+            <CardHeader className="pb-2 pt-4 px-4 md:px-6 flex flex-row items-center justify-between">
               <CardTitle className="text-base md:text-lg flex items-center gap-2 font-black">
                 <Activity className="h-4 w-4 md:h-5 md:w-5 text-secondary-foreground" />
                 Categories
               </CardTitle>
+              <CheckSquare className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
             </CardHeader>
-            <CardContent className="h-[180px] md:h-[200px] p-0 flex items-center justify-center">
+            <CardContent className="h-[180px] md:h-[200px] p-0 flex items-center justify-center relative">
               {chartsData.categoryData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -508,6 +539,9 @@ export default function ReportsPage() {
                   No categorical data.
                 </div>
               )}
+              <div className="absolute bottom-4 left-0 right-0 text-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest bg-background/80 backdrop-blur-sm mx-auto w-fit px-2 py-0.5 rounded-full shadow-sm">Click to Audit Spends</p>
+              </div>
             </CardContent>
           </Card>
 
@@ -549,7 +583,7 @@ export default function ReportsPage() {
             <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-4 md:px-6 pt-4">
               <div>
                 <CardTitle className="text-base md:text-lg font-black">Spending Tracker</CardTitle>
-                <CardDescription className="text-[10px] uppercase font-bold tracking-tight">Visualizing your spending trends over time.</CardDescription>
+                <CardDescription className="text-[9px] md:text-[10px] uppercase font-bold tracking-tight">Visualizing your spending trends over time.</CardDescription>
               </div>
               <Tabs value={viewType} onValueChange={(v: any) => setViewType(v)} className="w-full md:w-auto">
                 <TabsList className="grid w-full grid-cols-3 md:w-[300px] h-8 p-1">
@@ -581,6 +615,77 @@ export default function ReportsPage() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={isAuditModalOpen} onOpenChange={setIsAuditModalOpen}>
+        <DialogContent className="max-w-[95vw] sm:max-w-md rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
+          <div className="bg-primary p-6 sm:p-8 text-primary-foreground relative">
+            <DialogHeader className="text-left space-y-1">
+              <DialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-2">
+                <CheckSquare className="h-6 w-6" />
+                Category Audit
+              </DialogTitle>
+              <DialogDescription className="text-xs font-bold uppercase tracking-widest text-primary-foreground/70">
+                Perform manual spend reconciliation
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          
+          <div className="p-6 sm:p-8 space-y-6">
+            <div className="space-y-3">
+              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Select to calculate partial sum</p>
+              <ScrollArea className="max-h-[40vh] pr-4">
+                <div className="space-y-2">
+                  {chartsData.categoryData.length > 0 ? chartsData.categoryData.map((cat: any) => {
+                    // Match with decryptedCategories to get ID
+                    const catId = decryptedCategories.find(c => c.name === cat.name)?.id || 'misc';
+                    const isChecked = selectedAuditCategories.has(catId);
+                    return (
+                      <div 
+                        key={catId} 
+                        className={cn(
+                          "flex items-center justify-between p-3 rounded-2xl border transition-all cursor-pointer hover:bg-muted/30",
+                          isChecked ? "bg-primary/5 border-primary/20" : "bg-card border-border opacity-60"
+                        )}
+                        onClick={() => toggleAuditCategory(catId)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Checkbox 
+                            id={`audit-${catId}`}
+                            checked={isChecked} 
+                            onCheckedChange={() => toggleAuditCategory(catId)}
+                            className="rounded-lg h-5 w-5"
+                          />
+                          <div className="flex items-center gap-2">
+                            <div className="h-2 w-2 rounded-full" style={{ backgroundColor: cat.color }} />
+                            <label htmlFor={`audit-${catId}`} className="text-xs font-black uppercase cursor-pointer">{cat.name}</label>
+                          </div>
+                        </div>
+                        <span className="text-xs font-black">₹{cat.value.toLocaleString()}</span>
+                      </div>
+                    );
+                  }) : (
+                    <p className="text-center py-10 text-muted-foreground italic text-xs">No categories recorded yet.</p>
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+
+            <div className="pt-4 border-t border-dashed">
+              <div className="p-5 bg-muted/20 rounded-3xl border text-center relative overflow-hidden group">
+                <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1 relative z-10">Total Checked Spends</p>
+                <p className="text-4xl font-black text-primary tracking-tighter relative z-10">₹{auditTotal.toLocaleString()}</p>
+                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                  <TrendingDown className="h-16 w-16 -rotate-12" />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-4 bg-muted/10 border-t flex justify-end">
+            <Button onClick={() => setIsAuditModalOpen(false)} variant="outline" className="font-black rounded-xl text-[10px] uppercase h-10 px-6">Close Audit</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }
