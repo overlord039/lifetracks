@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -54,6 +53,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Dialog,
   DialogContent,
@@ -395,7 +395,7 @@ export default function ReportsPage() {
         </div>
 
         <div className="grid gap-4 md:gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="shadow-md border-t-4 border-t-primary lg:col-span-1 rounded-2xl overflow-hidden">
+          <Card className="shadow-md border-t-4 border-t-primary rounded-2xl overflow-hidden">
             <CardHeader className="pb-2 pt-4 px-4 md:px-6">
               <CardTitle className="text-base md:text-lg flex items-center gap-2 font-black">
                 <TableProperties className="h-4 w-4 md:h-5 md:w-5 text-primary" />
