@@ -371,6 +371,18 @@ export default function ReportsPage() {
     setSelectedTransactionIds(next);
   };
 
+  const handleToggleAll = (checked: boolean) => {
+    if (checked) {
+      const allCatIds = new Set(decryptedCategories.map(c => c.id).concat(['misc']));
+      const allTxnIds = new Set(decryptedExpenses.map(e => e.id));
+      setSelectedAuditCategories(allCatIds);
+      setSelectedTransactionIds(allTxnIds);
+    } else {
+      setSelectedAuditCategories(new Set());
+      setSelectedTransactionIds(new Set());
+    }
+  };
+
   if (!mounted || isDecrypting) {
     return (
       <AppShell>
@@ -682,7 +694,18 @@ export default function ReportsPage() {
           <ScrollArea className="max-h-[75vh]">
             <div className="p-6 sm:p-8 space-y-8">
               <div className="space-y-4">
-                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Select labels to calculate partial sum</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Select labels to calculate partial sum</p>
+                  <div className="flex items-center gap-2 pr-2">
+                    <Checkbox 
+                      id="audit-select-all" 
+                      checked={selectedAuditCategories.size === (decryptedCategories.length + (decryptedExpenses.some(e => !e.expenseCategoryId) ? 1 : 0))}
+                      onCheckedChange={handleToggleAll}
+                      className="h-4 w-4 rounded border-primary/30"
+                    />
+                    <label htmlFor="audit-select-all" className="text-[10px] font-black uppercase text-primary cursor-pointer">Select All</label>
+                  </div>
+                </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {chartsData.categoryData.length > 0 ? chartsData.categoryData.map((cat: any) => {
                     const catId = decryptedCategories.find(c => c.name === cat.name)?.id || 'misc';
