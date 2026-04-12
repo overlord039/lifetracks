@@ -337,6 +337,21 @@ export default function ReportsPage() {
       });
     }
 
+    // Highlight logic: Identify min and max spent values
+    const spentValues = sData.map(d => d.spent);
+    const maxSpent = spentValues.length > 0 ? Math.max(...spentValues) : 0;
+    const minSpent = spentValues.length > 0 ? Math.min(...spentValues) : 0;
+    const hasVariation = maxSpent !== minSpent;
+
+    sData = sData.map(d => ({
+      ...d,
+      fill: (hasVariation && d.spent === maxSpent && maxSpent > 0)
+        ? "hsl(var(--destructive))"
+        : (hasVariation && d.spent === minSpent && d.spent >= 0)
+          ? "hsl(var(--secondary))"
+          : "hsl(var(--primary))"
+    }));
+
     return { spendingData: sData, categoryData: cData };
   }, [decryptedExpenses, decryptedCategories, selectedDate, viewType, weeklyReport, totals.daily]);
 
@@ -669,7 +684,11 @@ export default function ReportsPage() {
                     itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
                     labelStyle={{ color: 'hsl(var(--popover-foreground))', fontWeight: 'bold', marginBottom: '4px' }}
                   />
-                  <Bar dataKey="spent" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Actual Spend" animationDuration={1000} />
+                  <Bar dataKey="spent" radius={[4, 4, 0, 0]} name="Actual Spend" animationDuration={1000}>
+                    {chartsData.spendingData.map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
