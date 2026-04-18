@@ -217,6 +217,11 @@ export default function ReportsPage() {
         setDecryptedSalaryProfile({
           ...rawSalaryProfile,
           salary: rawSalaryProfile.isEncrypted ? await decryptNumber(rawSalaryProfile.salary, user.uid) : (rawSalaryProfile.salary || 0),
+          expensePercent: rawSalaryProfile.expensePercent ?? 50,
+          savingsPercent: rawSalaryProfile.savingsPercent ?? 20,
+          investmentPercent: rawSalaryProfile.investmentPercent ?? 20,
+          healthPercent: rawSalaryProfile.healthPercent ?? 5,
+          personalPercent: rawSalaryProfile.personalPercent ?? 5,
         });
       }
 
@@ -395,16 +400,18 @@ export default function ReportsPage() {
       });
     }
 
-    const spentValues = sData.map(d => d.spent);
-    const maxSpent = spentValues.length > 0 ? Math.max(...spentValues) : 0;
-    const minSpent = spentValues.length > 0 ? Math.min(...spentValues) : 0;
-    const hasVariation = maxSpent !== minSpent;
+    // Highlighting logic: Only highlight min/max if there's actual variation and data > 0
+    const activeEntries = sData.filter(d => d.spent > 0);
+    const spentValues = activeEntries.map(d => d.spent);
+    const maxSpent = spentValues.length > 0 ? Math.max(...spentValues) : -1;
+    const minSpent = spentValues.length > 0 ? Math.min(...spentValues) : -1;
+    const hasVariation = activeEntries.length > 1 && maxSpent !== minSpent;
 
     sData = sData.map(d => ({
       ...d,
-      fill: (hasVariation && d.spent === maxSpent && maxSpent > 0)
+      fill: (hasVariation && d.spent === maxSpent && d.spent > 0)
         ? "hsl(var(--destructive))"
-        : (hasVariation && d.spent === minSpent && d.spent >= 0)
+        : (hasVariation && d.spent === minSpent && d.spent > 0)
           ? "hsl(var(--secondary))"
           : "hsl(var(--primary))"
     }));
@@ -946,4 +953,3 @@ export default function ReportsPage() {
     </AppShell>
   );
 }
-
