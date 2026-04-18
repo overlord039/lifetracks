@@ -358,6 +358,7 @@ export default function BudgetPage() {
       description: await encryptData(newExpense.description || '', user.uid),
       amount: await encryptData(newExpense.amount, user.uid),
       expenseCategoryId: newExpense.categoryId,
+      allocationBucket: 'expense',
       date: editingExpenseId ? (decryptedExpenses?.find(e => e.id === editingExpenseId)?.date || todayStr) : todayStr,
       isEncrypted: true,
       updatedAt: new Date().toISOString()
@@ -486,7 +487,7 @@ export default function BudgetPage() {
             <Tabs value={activeInputTab} onValueChange={setActiveInputTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2 h-11 p-1 bg-muted/30 rounded-none border-b">
                 <TabsTrigger value="logger" className="rounded-none font-black text-[10px] uppercase gap-2 data-[state=active]:bg-background">
-                  <BrainCircuit className="h-3.5 w-3.5" /> Secure Logger
+                  <Wallet className="h-3.5 w-3.5" /> Expense Logger
                 </TabsTrigger>
                 <TabsTrigger value="fixed" className="rounded-none font-black text-[10px] uppercase gap-2 data-[state=active]:bg-background">
                   <ReceiptText className="h-3.5 w-3.5" /> Fixed Vault
@@ -511,7 +512,7 @@ export default function BudgetPage() {
                   </div>
                   <div className="flex gap-2">
                     <Button onClick={handleLogExpense} className={cn("flex-1 h-12 font-black shadow-md rounded-2xl text-xs", editingExpenseId && "bg-orange-500 hover:bg-orange-600")} disabled={loading}>
-                      {loading ? "Encrypting..." : editingExpenseId ? "Update Record" : "Secure Log Entry"}
+                      {loading ? "Encrypting..." : editingExpenseId ? "Update Record" : "Log Daily Expense"}
                     </Button>
                     {editingExpenseId && <Button variant="outline" className="h-12 px-4 rounded-2xl" onClick={() => { setEditingExpenseId(null); setNewExpense({ description: '', amount: '', categoryId: '' }); }}><X className="h-5 w-5" /></Button>}
                   </div>

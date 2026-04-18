@@ -91,9 +91,17 @@ export default function SalaryPlannerPage() {
     return collection(db, 'users', user.uid, 'monthlyBudgets', monthId, 'fixedExpenses');
   }, [db, user, monthId]);
 
+  const monthExpensesRef = useMemoFirebase(() => {
+    if (!db || !user || !monthId) return null;
+    return collection(db, 'users', user.uid, 'monthlyBudgets', monthId, 'expenses');
+  }, [db, user, monthId]);
+
   const { data: savedProfile } = useDoc(salaryRef);
   const { data: rawFixed } = useCollection(fixedExpensesRef);
+  const { data: rawExpenses } = useCollection(monthExpensesRef);
+  
   const [decryptedFixed, setDecryptedFixed] = useState<any[]>([]);
+  const [decryptedExpenses, setDecryptedExpenses] = useState<any[]>([]);
 
   useEffect(() => {
     const decryptProfile = async () => {
@@ -132,6 +140,19 @@ export default function SalaryPlannerPage() {
     decryptFixedData();
   }, [rawFixed, user, mounted]);
 
+  useEffect(() => {
+    const decryptExps = async () => {
+      if (rawExpenses && user && mounted) {
+        const exps = await Promise.all(rawExpenses.map(async e => ({
+          ...e,
+          amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : (e.amount || 0),
+        })));
+        setDecryptedExpenses(exps);
+      }
+    };
+    decryptExps();
+  }, [rawExpenses, user, mounted]);
+
   const committedCosts = useMemo(() => {
     const totals: Record<string, number> = { expense: 0, savings: 0, investment: 0, health: 0, personal: 0 };
     decryptedFixed.forEach(f => {
@@ -139,8 +160,12 @@ export default function SalaryPlannerPage() {
         totals[f.allocationBucket] += f.amount;
       }
     });
+    // Add dynamic daily expenses to the expense bucket
+    decryptedExpenses.forEach(e => {
+      totals.expense += e.amount;
+    });
     return totals;
-  }, [decryptedFixed]);
+  }, [decryptedFixed, decryptedExpenses]);
 
   const numSalary = parseFloat(salary) || 0;
   const numAge = parseInt(age) || 0;

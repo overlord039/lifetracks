@@ -162,6 +162,7 @@
         "splits": { "type": "object", "description": "userId -> amount map" },
         "expenseCategoryId": { "type": "string" },
         "description": { "type": "string" },
+        "allocationBucket": { "type": "string", "enum": ["expense", "savings", "investment", "health", "personal"] },
         "createdAt": { "type": "string", "format": "date-time" }
       }
     }
@@ -176,6 +177,7 @@
       { "path": "/users/{userId}/salaryProfiles/current", "definition": { "entityName": "SalaryProfile", "description": "Planner data." } },
       { "path": "/users/{userId}/monthlyBudgets/{monthId}", "definition": { "entityName": "MonthlyBudget", "description": "Monthly targets." } },
       { "path": "/users/{userId}/monthlyBudgets/{monthId}/fixedExpenses/{id}", "definition": { "entityName": "FixedExpense", "description": "Recurring month costs." } },
+      { "path": "/users/{userId}/monthlyBudgets/{monthId}/expenses/{expenseId}", "definition": { "entityName": "RoomExpense", "description": "Personal expenses." } },
       { "path": "/users/{userId}/debts/{debtId}", "definition": { "entityName": "Debt", "description": "Debt records." } },
       { "path": "/users/{userId}/learningGoals/{goalId}", "definition": { "entityName": "LearningGoal", "description": "Learning progress." } },
       { "path": "/users/{userId}/dailyDiaries/{date}", "definition": { "entityName": "DailyDiary", "description": "Diary entries." } },
