@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -28,6 +29,7 @@ export default function BudgetPage() {
   const [loading, setLoading] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [activeInputTab, setActiveInputTab] = useState('logger');
   const syncPerformed = useRef(false);
 
   const [decryptedCategories, setDecryptedCategories] = useState<any[]>([]);
@@ -122,6 +124,13 @@ export default function BudgetPage() {
     decryptAll();
   }, [rawCategories, rawBudget, rawFixed, rawExpenses, user, mounted]);
 
+  // Ensure logger tab is active when editing
+  useEffect(() => {
+    if (editingExpenseId) {
+      setActiveInputTab('logger');
+    }
+  }, [editingExpenseId]);
+
   // Case-Insensitive Deduplication for UI rendering
   const dailyCategories = useMemo(() => {
     const seen = new Set<string>();
@@ -131,7 +140,6 @@ export default function BudgetPage() {
       .filter(c => {
         const norm = normalize(c.name);
         if (!norm || seen.has(norm)) return false;
-        seen.has(norm);
         seen.add(norm);
         return true;
       });
@@ -145,7 +153,6 @@ export default function BudgetPage() {
       .filter(c => {
         const norm = normalize(c.name);
         if (!norm || seen.has(norm)) return false;
-        seen.has(norm);
         seen.add(norm);
         return true;
       });
@@ -467,57 +474,87 @@ export default function BudgetPage() {
             </CardFooter>
           </Card>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card className="shadow-lg rounded-2xl border-none ring-1 ring-border">
-              <CardHeader className="bg-muted/30 border-b py-2.5 px-4"><CardTitle className="text-sm md:text-base flex items-center gap-2 font-black"><ReceiptText className="h-4 w-4 text-primary" /> Fixed Vault</CardTitle></CardHeader>
-              <CardContent className="pt-4 md:pt-6 space-y-4 px-4">
-                <div className="flex flex-col gap-2">
-                  <Input placeholder="Item Name" value={newFixed.name} onChange={(e) => setNewFixed({ ...newFixed, name: e.target.value })} className="h-9 text-[11px]" />
-                  <div className="grid grid-cols-2 gap-2">
-                    <Select value={newFixed.categoryId} onValueChange={(v) => setNewFixed({ ...newFixed, categoryId: v })}>
-                      <SelectTrigger className="h-9 text-[11px]"><SelectValue placeholder="Category" /></SelectTrigger>
-                      <SelectContent>{fixedCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                    </Select>
-                    <Input type="number" placeholder="Amount" value={newFixed.amount} onChange={(e) => setNewFixed({ ...newFixed, amount: e.target.value })} className="h-9 text-[11px] font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+          <Card className={cn("shadow-lg rounded-2xl border-none ring-1 ring-border overflow-hidden transition-all", editingExpenseId ? "ring-2 ring-orange-400 bg-orange-50/10" : "")}>
+            <Tabs value={activeInputTab} onValueChange={setActiveInputTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 h-11 p-1 bg-muted/30 rounded-none border-b">
+                <TabsTrigger value="logger" className="rounded-none font-black text-[10px] uppercase gap-2 data-[state=active]:bg-background">
+                  <BrainCircuit className="h-3.5 w-3.5" /> Secure Logger
+                </TabsTrigger>
+                <TabsTrigger value="fixed" className="rounded-none font-black text-[10px] uppercase gap-2 data-[state=active]:bg-background">
+                  <ReceiptText className="h-3.5 w-3.5" /> Fixed Vault
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="logger" className="mt-0 p-4 md:p-6 space-y-4 animate-in fade-in slide-in-from-left-2">
+                <div className="space-y-4">
+                  <Input placeholder="Private Description..." value={newExpense.description} onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })} className="h-11 text-[11px] md:text-sm rounded-xl" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Category Label</Label>
+                      <Select value={newExpense.categoryId} onValueChange={(val) => setNewExpense({ ...newExpense, categoryId: val })}>
+                        <SelectTrigger className="h-11 text-[11px] rounded-xl"><SelectValue placeholder="Select Label" /></SelectTrigger>
+                        <SelectContent>{dailyCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Amount (₹)</Label>
+                      <Input type="number" placeholder="0.00" value={newExpense.amount} onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })} className="h-11 text-base md:text-lg font-black tracking-tighter rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                    </div>
                   </div>
-                  <Button onClick={addFixedExpense} className="w-full h-9 font-bold text-[11px]"><Plus className="h-3 w-3 mr-1" /> Add Secure Item</Button>
+                  <div className="flex gap-2">
+                    <Button onClick={handleLogExpense} className={cn("flex-1 h-12 font-black shadow-md rounded-2xl text-xs", editingExpenseId && "bg-orange-500 hover:bg-orange-600")} disabled={loading}>
+                      {loading ? "Encrypting..." : editingExpenseId ? "Update Record" : "Secure Log Entry"}
+                    </Button>
+                    {editingExpenseId && <Button variant="outline" className="h-12 px-4 rounded-2xl" onClick={() => { setEditingExpenseId(null); setNewExpense({ description: '', amount: '', categoryId: '' }); }}><X className="h-5 w-5" /></Button>}
+                  </div>
                 </div>
-                <ScrollArea className="h-[180px] md:h-[200px] border rounded-xl">
-                  <Table>
-                    <TableBody>
-                      {decryptedFixed?.length ? decryptedFixed.map((expense) => (
-                        <TableRow key={expense.id} className="h-10">
-                          <TableCell className="font-bold text-[11px] truncate max-w-[80px] md:max-w-[100px] py-2">{expense.name}</TableCell>
-                          <TableCell className="text-[11px] font-black py-2">₹{expense.amount.toLocaleString()}</TableCell>
-                          <TableCell className="w-8 text-right py-2"><Button variant="ghost" size="icon" onClick={() => deleteDocumentNonBlocking(doc(fixedExpensesRef!, expense.id))} className="h-7 w-7 text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
-                        </TableRow>
-                      )) : <TableRow><TableCell className="text-center py-8 text-[10px] italic text-muted-foreground">No secure fixed items.</TableCell></TableRow>}
-                    </TableBody>
-                  </Table>
-                </ScrollArea>
-              </CardContent>
-            </Card>
+              </TabsContent>
 
-            <Card className={cn("shadow-lg rounded-2xl transition-all border-none ring-1 ring-border", editingExpenseId ? "ring-2 ring-orange-400 bg-orange-50/10" : "")}>
-              <CardHeader className="bg-muted/30 border-b py-2.5 px-4"><CardTitle className="text-sm md:text-base flex items-center gap-2 font-black">{editingExpenseId ? <Pencil className="h-4 w-4 text-orange-500" /> : <BrainCircuit className="h-4 w-4 text-primary" />} Secure Logger</CardTitle></CardHeader>
-              <CardContent className="pt-4 md:pt-6 space-y-3 px-4">
-                <Input placeholder="Private Description..." value={newExpense.description} onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })} className="h-10 text-[11px] md:text-sm" />
-                <div className="grid grid-cols-2 gap-3">
-                  <Select value={newExpense.categoryId} onValueChange={(val) => setNewExpense({ ...newExpense, categoryId: val })}>
-                    <SelectTrigger className="h-10 text-[11px]"><SelectValue placeholder="Label" /></SelectTrigger>
-                    <SelectContent>{dailyCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}</SelectContent>
-                  </Select>
-                  <Input type="number" placeholder="₹ Amount" value={newExpense.amount} onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })} className="h-10 text-base md:text-lg font-black tracking-tighter [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+              <TabsContent value="fixed" className="mt-0 p-4 md:p-6 space-y-6 animate-in fade-in slide-in-from-right-2">
+                <div className="flex flex-col gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                    <div className="md:col-span-5">
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1 mb-1 block">Item Name</Label>
+                      <Input placeholder="Rent, Internet, etc." value={newFixed.name} onChange={(e) => setNewFixed({ ...newFixed, name: e.target.value })} className="h-10 text-[11px] rounded-xl" />
+                    </div>
+                    <div className="md:col-span-3">
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1 mb-1 block">Category</Label>
+                      <Select value={newFixed.categoryId} onValueChange={(v) => setNewFixed({ ...newFixed, categoryId: v })}>
+                        <SelectTrigger className="h-10 text-[11px] rounded-xl"><SelectValue placeholder="Label" /></SelectTrigger>
+                        <SelectContent>{fixedCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="md:col-span-4">
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1 mb-1 block">Amount (₹)</Label>
+                      <div className="flex gap-2">
+                        <Input type="number" placeholder="0.00" value={newFixed.amount} onChange={(e) => setNewFixed({ ...newFixed, amount: e.target.value })} className="h-10 text-[11px] font-black rounded-xl" />
+                        <Button onClick={addFixedExpense} size="icon" className="h-10 w-10 shrink-0 rounded-xl"><Plus className="h-4 w-4" /></Button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <Separator className="my-2" />
+                  
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Fixed Records History</p>
+                    <ScrollArea className="h-[180px] border rounded-2xl bg-muted/10">
+                      <Table>
+                        <TableBody>
+                          {decryptedFixed?.length ? decryptedFixed.map((expense) => (
+                            <TableRow key={expense.id} className="h-12 hover:bg-muted/20">
+                              <TableCell className="font-bold text-[11px] truncate max-w-[120px] py-2">{expense.name}</TableCell>
+                              <TableCell className="text-[11px] font-black py-2">₹{expense.amount.toLocaleString()}</TableCell>
+                              <TableCell className="w-8 text-right py-2"><Button variant="ghost" size="icon" onClick={() => deleteDocumentNonBlocking(doc(fixedExpensesRef!, expense.id))} className="h-8 w-8 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button></TableCell>
+                            </TableRow>
+                          )) : <TableRow><TableCell className="text-center py-12 text-[10px] italic text-muted-foreground">No secure fixed items found.</TableCell></TableRow>}
+                        </TableBody>
+                      </Table>
+                    </ScrollArea>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button onClick={handleLogExpense} className={cn("flex-1 h-10 font-black shadow-md rounded-xl text-xs", editingExpenseId && "bg-orange-500")} disabled={loading}>
-                    {loading ? "Encrypting..." : editingExpenseId ? "Update Item" : "Secure Log"}
-                  </Button>
-                  {editingExpenseId && <Button variant="outline" className="h-10 px-3 rounded-xl" onClick={() => { setEditingExpenseId(null); setNewExpense({ description: '', amount: '', categoryId: '' }); }}><X className="h-4 w-4" /></Button>}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+              </TabsContent>
+            </Tabs>
+          </Card>
 
           <Card className="shadow-lg rounded-2xl border-none ring-1 ring-border overflow-hidden">
             <CardHeader className="bg-muted/30 border-b py-3 flex flex-row items-center justify-between">
@@ -525,7 +562,7 @@ export default function BudgetPage() {
               <Badge variant="outline" className="text-[9px] font-black uppercase">{decryptedExpenses?.length || 0} Records</Badge>
             </CardHeader>
             <CardContent className="p-0">
-              <ScrollArea className="h-[250px] md:h-[300px] w-full">
+              <ScrollArea className="h-[250px] md:h-[350px] w-full">
                 <Table>
                   <TableHeader className="bg-muted/50 sticky top-0 z-10"><TableRow className="h-9"><TableHead className="text-[9px] font-black uppercase tracking-widest px-4">Date</TableHead><TableHead className="text-[9px] font-black uppercase tracking-widest px-4">Item</TableHead><TableHead className="text-[9px] font-black uppercase tracking-widest px-4">Amount</TableHead><TableHead className="w-16 text-right px-4"></TableHead></TableRow></TableHeader>
                   <TableBody>
@@ -626,17 +663,17 @@ function SustainableTodayCard({ isOverspentToday, isWithinBudget, todayStr, dail
         </CardHeader>
         <CardContent className="space-y-6 pt-2 px-5 md:px-6">
           <div className="space-y-1">
-            <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Available Balance</p>
+            <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Remaining Balance</p>
             <div className="text-5xl md:text-6xl font-black tracking-tighter drop-shadow-xl">₹{remainingNetPool.toFixed(0)}</div>
           </div>
           
           <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/20">
             <div className="space-y-1">
-              <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Monthly Pool</p>
+              <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Total Amount</p>
               <p className="text-lg font-black">₹{total.toFixed(0)}</p>
             </div>
             <div className="space-y-1 text-right">
-              <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Total Spent</p>
+              <p className="text-[8px] font-black uppercase tracking-widest opacity-60">Spent Amount</p>
               <p className="text-lg font-black">₹{totalSpentThisMonth.toFixed(0)}</p>
             </div>
           </div>
