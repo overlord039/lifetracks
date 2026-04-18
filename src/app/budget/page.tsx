@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, getDocs } from 'firebase/firestore';
-import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, Pencil, X, ShieldAlert, AlertTriangle, Lock, ShieldCheck, Activity, PiggyBank, TrendingUp, HeartPulse, Smile } from 'lucide-react';
+import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, Pencil, X, ShieldAlert, AlertTriangle, Lock, ShieldCheck, Activity, PiggyBank, TrendingUp, HeartPulse, Smile, Check } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { format, getDaysInMonth } from 'date-fns';
@@ -37,6 +37,7 @@ export default function BudgetPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [editingFixedId, setEditingFixedId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [activeInputTab, setActiveInputTab] = useState('logger');
   const syncPerformed = useRef(false);
@@ -333,7 +334,8 @@ export default function BudgetPage() {
   const addFixedExpense = async () => {
     if (!newFixed.name || !newFixed.amount || !newFixed.categoryId || !fixedExpensesRef || !user) return;
     setLoading(true);
-    addDocumentNonBlocking(fixedExpensesRef, {
+
+    const payload = {
       userId: user?.uid,
       monthlyBudgetId: monthId,
       name: await encryptData(newFixed.name, user.uid),
@@ -342,12 +344,25 @@ export default function BudgetPage() {
       allocationBucket: newFixed.allocationBucket,
       includeInBudget: true,
       isEncrypted: true,
-      createdAt: new Date().toISOString()
-    }).then(() => {
-      setNewFixed({ name: '', amount: '', categoryId: '', allocationBucket: 'expense' });
+      updatedAt: new Date().toISOString()
+    };
+
+    if (editingFixedId) {
+      updateDocumentNonBlocking(doc(fixedExpensesRef, editingFixedId), payload);
+      setEditingFixedId(null);
       setLoading(false);
-      toast({ title: "Fixed Cost Secured", description: "Record synchronized with Wealth Planner." });
-    });
+      setNewFixed({ name: '', amount: '', categoryId: '', allocationBucket: 'expense' });
+      toast({ title: "Fixed Cost Updated" });
+    } else {
+      addDocumentNonBlocking(fixedExpensesRef, {
+        ...payload,
+        createdAt: new Date().toISOString()
+      }).then(() => {
+        setNewFixed({ name: '', amount: '', categoryId: '', allocationBucket: 'expense' });
+        setLoading(false);
+        toast({ title: "Fixed Cost Secured", description: "Record synchronized with Wealth Planner." });
+      });
+    }
   };
 
   const handleLogExpense = async () => {
@@ -484,7 +499,7 @@ export default function BudgetPage() {
             </CardFooter>
           </Card>
 
-          <Card className={cn("shadow-lg rounded-2xl border-none ring-1 ring-border overflow-hidden transition-all", editingExpenseId ? "ring-2 ring-orange-400 bg-orange-50/10" : "")}>
+          <Card className={cn("shadow-lg rounded-2xl border-none ring-1 ring-border overflow-hidden transition-all", (editingExpenseId || editingFixedId) ? "ring-2 ring-orange-400 bg-orange-50/10" : "")}>
             <Tabs value={activeInputTab} onValueChange={setActiveInputTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2 h-11 p-1 bg-muted/30 rounded-none border-b">
                 <TabsTrigger value="logger" className="rounded-none font-black text-[10px] uppercase gap-2 data-[state=active]:bg-background">
@@ -570,7 +585,17 @@ export default function BudgetPage() {
                       <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1 mb-1 block">Amount (₹)</Label>
                       <div className="flex gap-2">
                         <Input type="number" placeholder="0.00" value={newFixed.amount} onChange={(e) => setNewFixed({ ...newFixed, amount: e.target.value })} className="h-10 text-[11px] font-black rounded-xl" />
-                        <Button onClick={addFixedExpense} size="icon" className="h-10 w-10 shrink-0 rounded-xl"><Plus className="h-4 w-4" /></Button>
+                        <Button onClick={addFixedExpense} size="icon" className={cn("h-10 w-10 shrink-0 rounded-xl", editingFixedId && "bg-orange-500 hover:bg-orange-600")}>
+                          {editingFixedId ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                        </Button>
+                        {editingFixedId && (
+                          <Button variant="outline" size="icon" onClick={() => {
+                            setEditingFixedId(null);
+                            setNewFixed({ name: '', amount: '', categoryId: '', allocationBucket: 'expense' });
+                          }} className="h-10 w-10 shrink-0 rounded-xl">
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -585,7 +610,7 @@ export default function BudgetPage() {
                           {decryptedFixed?.length ? decryptedFixed.map((expense) => {
                             const bucket = ALLOCATION_BUCKETS.find(b => b.id === expense.allocationBucket) || ALLOCATION_BUCKETS[0];
                             return (
-                              <TableRow key={expense.id} className="h-12 hover:bg-muted/20">
+                              <TableRow key={expense.id} className={cn("h-12 hover:bg-muted/20", editingFixedId === expense.id && "bg-orange-50/50")}>
                                 <TableCell className="font-bold text-[11px] truncate max-w-[120px] py-2">{expense.name}</TableCell>
                                 <TableCell className="py-2">
                                   <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-background/50 border border-dashed w-fit">
@@ -594,7 +619,22 @@ export default function BudgetPage() {
                                   </div>
                                 </TableCell>
                                 <TableCell className="text-[11px] font-black py-2">₹{expense.amount.toLocaleString()}</TableCell>
-                                <TableCell className="w-8 text-right py-2"><Button variant="ghost" size="icon" onClick={() => deleteDocumentNonBlocking(doc(fixedExpensesRef!, expense.id))} className="h-8 w-8 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button></TableCell>
+                                <TableCell className="w-16 text-right py-2">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button variant="ghost" size="icon" onClick={() => {
+                                      setEditingFixedId(expense.id);
+                                      setNewFixed({
+                                        name: expense.name,
+                                        amount: expense.amount.toString(),
+                                        categoryId: expense.expenseCategoryId,
+                                        allocationBucket: expense.allocationBucket || 'expense'
+                                      });
+                                    }} className="h-8 w-8 text-muted-foreground hover:text-primary">
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" onClick={() => deleteDocumentNonBlocking(doc(fixedExpensesRef!, expense.id))} className="h-8 w-8 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button>
+                                  </div>
+                                </TableCell>
                               </TableRow>
                             );
                           }) : <TableRow><TableCell className="text-center py-12 text-[10px] italic text-muted-foreground">No secure fixed items found.</TableCell></TableRow>}
