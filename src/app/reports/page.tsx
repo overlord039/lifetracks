@@ -49,7 +49,13 @@ import {
   Loader2,
   CheckSquare,
   ReceiptText,
-  History
+  History,
+  Target,
+  Wallet,
+  PiggyBank,
+  HeartPulse,
+  Smile,
+  ShieldCheck
 } from 'lucide-react';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
 import { Button } from '@/components/ui/button';
@@ -58,6 +64,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Progress } from '@/components/ui/progress';
 import {
   Dialog,
   DialogContent,
@@ -67,6 +74,14 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from '@/lib/utils';
 import { decryptData, decryptNumber } from '@/lib/encryption';
+
+const PILLAR_ICONS: Record<string, any> = {
+  expense: { icon: Wallet, color: 'text-blue-500', bg: 'bg-blue-500' },
+  savings: { icon: PiggyBank, color: 'text-green-500', bg: 'bg-green-500' },
+  investment: { icon: TrendingUp, color: 'text-orange-500', bg: 'bg-orange-500' },
+  health: { icon: HeartPulse, color: 'text-purple-500', bg: 'bg-purple-500' },
+  personal: { icon: Smile, color: 'text-pink-500', bg: 'bg-pink-500' }
+};
 
 export default function ReportsPage() {
   const { user } = useUser();
@@ -85,6 +100,7 @@ export default function ReportsPage() {
   const [decryptedExpenses, setDecryptedExpenses] = useState<any[]>([]);
   const [decryptedPrevExpenses, setDecryptedPrevExpenses] = useState<any[]>([]);
   const [decryptedCategories, setDecryptedCategories] = useState<any[]>([]);
+  const [decryptedSalaryProfile, setDecryptedSalaryProfile] = useState<any>(null);
   const [isDecrypting, setIsDecrypting] = useState(false);
 
   useEffect(() => {
@@ -131,6 +147,12 @@ export default function ReportsPage() {
   }, [firestore, user]);
   const { data: rawCategories } = useCollection(categoriesRef);
 
+  const salaryProfileRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'users', user.uid, 'salaryProfiles', 'current');
+  }, [firestore, user]);
+  const { data: rawSalaryProfile } = useDoc(salaryProfileRef);
+
   useEffect(() => {
     const decryptAll = async () => {
       if (!user || !mounted) return;
@@ -156,6 +178,7 @@ export default function ReportsPage() {
           name: f.isEncrypted ? await decryptData(f.name, user.uid) : (f.name || ''),
           amount: f.isEncrypted ? await decryptNumber(f.amount, user.uid) : (f.amount || 0),
           includeInBudget: f.includeInBudget ?? true,
+          allocationBucket: f.allocationBucket || 'expense'
         })));
         setDecryptedFixed(fixed);
       }
@@ -165,9 +188,9 @@ export default function ReportsPage() {
           ...e,
           description: e.isEncrypted ? await decryptData(e.description, user.uid) : (e.description || ''),
           amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : (e.amount || 0),
+          allocationBucket: e.allocationBucket || 'expense'
         })));
         setDecryptedExpenses(exps);
-        // Initialize all transactions as selected initially
         setSelectedTransactionIds(new Set(exps.map(e => e.id)));
       }
 
@@ -185,16 +208,22 @@ export default function ReportsPage() {
           name: c.isEncrypted ? await decryptData(c.name, user.uid) : (c.name || ''),
         })));
         setDecryptedCategories(cats);
-        // Initialize audit selection if empty
         if (selectedAuditCategories.size === 0) {
           setSelectedAuditCategories(new Set(cats.map(c => c.id).concat(['misc'])));
         }
       }
 
+      if (rawSalaryProfile) {
+        setDecryptedSalaryProfile({
+          ...rawSalaryProfile,
+          salary: rawSalaryProfile.isEncrypted ? await decryptNumber(rawSalaryProfile.salary, user.uid) : (rawSalaryProfile.salary || 0),
+        });
+      }
+
       setIsDecrypting(false);
     };
     decryptAll();
-  }, [rawBudget, rawPrevBudget, rawFixed, rawExpenses, rawPrevExpenses, rawCategories, user, mounted]);
+  }, [rawBudget, rawPrevBudget, rawFixed, rawExpenses, rawPrevExpenses, rawCategories, rawSalaryProfile, user, mounted]);
 
   const totals = useMemo(() => {
     const budget = decryptedBudget?.totalBudgetAmount || 0;
@@ -218,6 +247,35 @@ export default function ReportsPage() {
       budgetDiff: budget - prevBudget
     };
   }, [decryptedBudget, decryptedFixed, decryptedExpenses, decryptedPrevExpenses, decryptedPrevBudget]);
+
+  const allocationReport = useMemo(() => {
+    if (!decryptedSalaryProfile || !decryptedFixed || !decryptedExpenses) return null;
+
+    const salary = decryptedSalaryProfile.salary || 0;
+    const buckets = [
+      { id: 'expense', label: 'Expenses', percent: decryptedSalaryProfile.expensePercent || 50 },
+      { id: 'savings', label: 'Savings', percent: decryptedSalaryProfile.savingsPercent || 20 },
+      { id: 'investment', label: 'Investments', percent: decryptedSalaryProfile.investmentPercent || 20 },
+      { id: 'health', label: 'Health', percent: decryptedSalaryProfile.healthPercent || 5 },
+      { id: 'personal', label: 'Personal', percent: decryptedSalaryProfile.personalPercent || 5 },
+    ];
+
+    return buckets.map(b => {
+      const target = (salary * (b.percent / 100));
+      const fixedSpent = decryptedFixed.filter(f => f.allocationBucket === b.id).reduce((s, f) => s + f.amount, 0);
+      const dailySpent = decryptedExpenses.filter(e => (e.allocationBucket || 'expense') === b.id).reduce((s, e) => s + e.amount, 0);
+      const totalSpent = fixedSpent + dailySpent;
+      const utilization = target > 0 ? (totalSpent / target) * 100 : 0;
+
+      return {
+        ...b,
+        target,
+        spent: totalSpent,
+        utilization,
+        remaining: target - totalSpent
+      };
+    });
+  }, [decryptedSalaryProfile, decryptedFixed, decryptedExpenses]);
 
   const auditTotal = useMemo(() => {
     return (decryptedExpenses || [])
@@ -337,7 +395,6 @@ export default function ReportsPage() {
       });
     }
 
-    // Highlight logic: Identify min and max spent values
     const spentValues = sData.map(d => d.spent);
     const maxSpent = spentValues.length > 0 ? Math.max(...spentValues) : 0;
     const minSpent = spentValues.length > 0 ? Math.min(...spentValues) : 0;
@@ -362,19 +419,14 @@ export default function ReportsPage() {
   const toggleAuditCategory = (catId: string) => {
     const nextCats = new Set(selectedAuditCategories);
     const nextTxns = new Set(selectedTransactionIds);
-    
     const isAdding = !nextCats.has(catId);
-    
     if (isAdding) {
       nextCats.add(catId);
-      // Select all transactions belonging to this category
       decryptedExpenses.filter(e => (e.expenseCategoryId || 'misc') === catId).forEach(e => nextTxns.add(e.id));
     } else {
       nextCats.delete(catId);
-      // Deselect all transactions belonging to this category
       decryptedExpenses.filter(e => (e.expenseCategoryId || 'misc') === catId).forEach(e => nextTxns.delete(e.id));
     }
-    
     setSelectedAuditCategories(nextCats);
     setSelectedTransactionIds(nextTxns);
   };
@@ -468,23 +520,21 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent className="space-y-4 md:space-y-6 p-4 md:p-6">
               <div className="space-y-4">
-                <div className="flex justify-between items-start text-xs md:text-sm">
+                <div className="flex justify-between items-start text-xs md:sm">
                   <div className="flex flex-col">
                     <span className="text-foreground font-black uppercase text-[10px] tracking-tight">Monthly Pool</span>
                     <span className="text-muted-foreground text-[9px] font-medium leading-tight">Total target budget for this period</span>
                   </div>
                   <span className="font-black text-lg tracking-tighter">₹{totals.budget.toLocaleString()}</span>
                 </div>
-                
-                <div className="flex justify-between items-start text-xs md:text-sm">
+                <div className="flex justify-between items-start text-xs md:sm">
                   <div className="flex flex-col">
                     <span className="text-foreground font-black uppercase text-[10px] tracking-tight">Fixed Vault</span>
                     <span className="text-muted-foreground text-[9px] font-medium leading-tight">Scheduled non-negotiable costs</span>
                   </div>
                   <span className="font-bold text-destructive">₹{totals.fixed.toLocaleString()}</span>
                 </div>
-
-                <div className="flex justify-between items-start text-xs md:text-sm">
+                <div className="flex justify-between items-start text-xs md:sm">
                   <div className="flex flex-col">
                     <span className="text-foreground font-black uppercase text-[10px] tracking-tight">Daily Spends</span>
                     <span className="text-muted-foreground text-[9px] font-medium leading-tight">Cumulative records for variable labels</span>
@@ -503,9 +553,7 @@ export default function ReportsPage() {
                   </div>
                 </div>
               </div>
-
               <Separator />
-
               <div className="pt-1 md:pt-2 flex items-center justify-between">
                 <div className="flex flex-col">
                   <p className="text-[10px] font-black uppercase tracking-widest text-primary">Remaining Vault</p>
@@ -652,6 +700,73 @@ export default function ReportsPage() {
                     : `Spending is exactly same as last month.`}
                 </p>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="md:col-span-2 lg:col-span-4 shadow-xl rounded-3xl border-none ring-1 ring-border overflow-hidden">
+            <CardHeader className="bg-muted/30 border-b py-4 px-6 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-black flex items-center gap-2">
+                  <Target className="h-5 w-5 text-primary" />
+                  Strategic Income Allocation
+                </CardTitle>
+                <CardDescription className="text-[10px] font-black uppercase tracking-tight opacity-70">Wealth strategy utilization for {format(selectedDate, 'MMMM')}</CardDescription>
+              </div>
+              <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-black text-[9px] uppercase px-3 py-1">
+                Strategic Health
+              </Badge>
+            </CardHeader>
+            <CardContent className="p-6">
+              {!allocationReport ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 opacity-50 grayscale">
+                  <Target className="h-12 w-12 text-muted-foreground" />
+                  <p className="text-xs font-black uppercase tracking-widest">No strategic profile linked</p>
+                  <Button variant="outline" asChild className="rounded-xl h-9 text-[10px] font-black uppercase">
+                    <a href="/salary-planner">Configure Strategy</a>
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
+                  {allocationReport.map(pillar => {
+                    const Config = PILLAR_ICONS[pillar.id];
+                    const Icon = Config.icon;
+                    const isOverspent = pillar.utilization > 100;
+                    
+                    return (
+                      <div key={pillar.id} className="space-y-4 p-4 rounded-3xl border bg-muted/5 transition-all hover:bg-muted/10 group">
+                        <div className="flex items-center justify-between">
+                          <div className={cn("p-2 rounded-xl text-white shadow-md transition-transform group-hover:scale-110", Config.bg)}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <Badge variant={isOverspent ? "destructive" : "secondary"} className="text-[8px] font-black uppercase">
+                            {Math.round(pillar.utilization)}% Utilized
+                          </Badge>
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{pillar.label}</p>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-xl font-black tracking-tighter">₹{Math.round(pillar.spent).toLocaleString()}</span>
+                            <span className="text-[9px] font-bold text-muted-foreground opacity-60">/ ₹{Math.round(pillar.target).toLocaleString()}</span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Progress value={Math.min(100, pillar.utilization)} className={cn("h-1.5", isOverspent ? "bg-destructive/20" : "bg-muted")} />
+                          <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-tighter">
+                            <span className={cn(isOverspent ? "text-destructive" : "text-muted-foreground")}>
+                              {isOverspent ? "Allocation Exceeded" : "Strategy Capacity"}
+                            </span>
+                            <span className={cn(pillar.remaining >= 0 ? "text-primary" : "text-destructive")}>
+                              {pillar.remaining >= 0 ? `₹${Math.round(pillar.remaining).toLocaleString()} Free` : `₹${Math.abs(Math.round(pillar.remaining)).toLocaleString()} Over`}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -831,3 +946,4 @@ export default function ReportsPage() {
     </AppShell>
   );
 }
+
