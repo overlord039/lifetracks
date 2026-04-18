@@ -518,7 +518,7 @@ export default function SalaryPlannerPage() {
                       <CardTitle className="text-xs md:text-sm flex items-center gap-2 font-black">
                         <Target className="h-4 w-4 text-orange-500" />
                         Asset Matrix
-                      </Target>
+                      </CardTitle>
                       <CardDescription className="text-[8px] md:text-[9px] font-black uppercase tracking-widest opacity-60">Risk Profile: Age {numAge}</CardDescription>
                     </CardHeader>
                     <CardContent className="pt-4 md:pt-6 space-y-5 md:space-y-6 px-5 md:px-6">
