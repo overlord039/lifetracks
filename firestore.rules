@@ -46,6 +46,21 @@ service cloud.firestore {
       }
     }
 
+    // --- Collection Group Matches (Global Queries) ---
+    match /{path=**}/expenses/{expenseId} {
+      // Allow user to query all their personal expenses and shared expenses
+      allow list: if isSignedIn() && (
+        path.indexOf('/users/' + request.auth.uid + '/') >= 0 ||
+        (path.indexOf('/sharedGroups/') >= 0 && (request.auth.uid in get(/databases/$(database)/documents/sharedGroups/$(path[path.indexOf('sharedGroups') + 1])).data.memberUids))
+      );
+    }
+
+    match /{path=**}/fixedExpenses/{id} {
+      allow list: if isSignedIn() && (
+        path.indexOf('/users/' + request.auth.uid + '/') >= 0
+      );
+    }
+
     // --- User Rules ---
     match /users/{userId} {
       allow read, write: if isOwner(userId);

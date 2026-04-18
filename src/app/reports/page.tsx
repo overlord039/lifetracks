@@ -21,7 +21,7 @@ import {
   eachMonthOfInterval,
   isSameMonth
 } from 'date-fns';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, query, where, collectionGroup } from 'firebase/firestore';
 import { 
   BarChart, 
   Bar, 
@@ -101,6 +101,8 @@ export default function ReportsPage() {
   const [decryptedPrevExpenses, setDecryptedPrevExpenses] = useState<any[]>([]);
   const [decryptedCategories, setDecryptedCategories] = useState<any[]>([]);
   const [decryptedSalaryProfile, setDecryptedSalaryProfile] = useState<any>(null);
+  const [decryptedAllYearExpenses, setDecryptedAllYearExpenses] = useState<any[]>([]);
+  const [decryptedAllYearFixed, setDecryptedAllYearFixed] = useState<any[]>([]);
   const [isDecrypting, setIsDecrypting] = useState(false);
 
   useEffect(() => {
@@ -152,6 +154,19 @@ export default function ReportsPage() {
     return doc(firestore, 'users', user.uid, 'salaryProfiles', 'current');
   }, [firestore, user]);
   const { data: rawSalaryProfile } = useDoc(salaryProfileRef);
+
+  // Collection Group Queries for Annual View
+  const allExpensesYearQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return query(collectionGroup(firestore, 'expenses'), where('userId', '==', user.uid));
+  }, [firestore, user]);
+  const { data: rawAllYearExpenses } = useCollection(allExpensesYearQuery);
+
+  const allFixedYearQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return query(collectionGroup(firestore, 'fixedExpenses'), where('userId', '==', user.uid));
+  }, [firestore, user]);
+  const { data: rawAllYearFixed } = useCollection(allFixedYearQuery);
 
   useEffect(() => {
     const decryptAll = async () => {
@@ -225,10 +240,27 @@ export default function ReportsPage() {
         });
       }
 
+      if (rawAllYearExpenses) {
+        const yearExps = await Promise.all(rawAllYearExpenses.map(async e => ({
+          ...e,
+          amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : (e.amount || 0),
+        })));
+        setDecryptedAllYearExpenses(yearExps);
+      }
+
+      if (rawAllYearFixed) {
+        const yearFixed = await Promise.all(rawAllYearFixed.map(async f => ({
+          ...f,
+          amount: f.isEncrypted ? await decryptNumber(f.amount, user.uid) : (f.amount || 0),
+          includeInBudget: f.includeInBudget ?? true,
+        })));
+        setDecryptedAllYearFixed(yearFixed);
+      }
+
       setIsDecrypting(false);
     };
     decryptAll();
-  }, [rawBudget, rawPrevBudget, rawFixed, rawExpenses, rawPrevExpenses, rawCategories, rawSalaryProfile, user, mounted]);
+  }, [rawBudget, rawPrevBudget, rawFixed, rawExpenses, rawPrevExpenses, rawCategories, rawSalaryProfile, rawAllYearExpenses, rawAllYearFixed, user, mounted]);
 
   const totals = useMemo(() => {
     const budget = decryptedBudget?.totalBudgetAmount || 0;
@@ -359,10 +391,6 @@ export default function ReportsPage() {
     }));
 
     let sData: any[] = [];
-    const dailyExpensesMap: Record<string, number> = {};
-    decryptedExpenses.forEach(exp => {
-      dailyExpensesMap[exp.date] = (dailyExpensesMap[exp.date] || 0) + exp.amount;
-    });
 
     if (viewType === 'weekly') {
       sData = weeklyReport.weeklyData.map(w => ({
@@ -374,10 +402,12 @@ export default function ReportsPage() {
       const monthStart = startOfMonth(selectedDate);
       const monthEnd = endOfMonth(selectedDate);
       const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
-      const today = new Date();
+      const dailyExpensesMap: Record<string, number> = {};
+      decryptedExpenses.forEach(exp => {
+        dailyExpensesMap[exp.date] = (dailyExpensesMap[exp.date] || 0) + exp.amount;
+      });
 
       sData = days
-        .filter(d => d <= today || dailyExpensesMap[format(d, 'yyyy-MM-dd')])
         .map(d => {
           const dStr = format(d, 'yyyy-MM-dd');
           return {
@@ -390,17 +420,32 @@ export default function ReportsPage() {
       const yearEnd = endOfYear(selectedDate);
       const months = eachMonthOfInterval({ start: yearStart, end: yearEnd });
 
+      // Monthly aggregates for the entire year
+      const monthlyTotalMap: Record<string, number> = {};
+      
+      // Daily spends across all monthly budgets for the year
+      (decryptedAllYearExpenses || []).forEach(exp => {
+        const mKey = format(new Date(exp.date), 'yyyyMM');
+        monthlyTotalMap[mKey] = (monthlyTotalMap[mKey] || 0) + exp.amount;
+      });
+
+      // Fixed costs across all monthly budgets for the year
+      (decryptedAllYearFixed || []).forEach(fixed => {
+        if (fixed.includeInBudget && fixed.monthlyBudgetId) {
+          monthlyTotalMap[fixed.monthlyBudgetId] = (monthlyTotalMap[fixed.monthlyBudgetId] || 0) + fixed.amount;
+        }
+      });
+
       sData = months.map(m => {
-        const isCurrentMonth = isSameMonth(m, selectedDate);
+        const mKey = format(m, 'yyyyMM');
         return {
           name: format(m, 'MMM'),
-          spent: isCurrentMonth ? totals.daily : 0,
+          spent: monthlyTotalMap[mKey] || 0,
           fullLabel: format(m, 'MMMM yyyy')
         };
       });
     }
 
-    // Highlighting logic: Only highlight min/max if there's actual variation and data > 0
     const activeEntries = sData.filter(d => d.spent > 0);
     const spentValues = activeEntries.map(d => d.spent);
     const maxSpent = spentValues.length > 0 ? Math.max(...spentValues) : -1;
@@ -417,7 +462,7 @@ export default function ReportsPage() {
     }));
 
     return { spendingData: sData, categoryData: cData };
-  }, [decryptedExpenses, decryptedCategories, selectedDate, viewType, weeklyReport, totals.daily]);
+  }, [decryptedExpenses, decryptedCategories, decryptedAllYearExpenses, decryptedAllYearFixed, selectedDate, viewType, weeklyReport]);
 
   const changeMonth = (delta: number) => {
     setSelectedDate(prev => subMonths(prev, -delta));
@@ -711,9 +756,9 @@ export default function ReportsPage() {
           </Card>
 
           <Card className="md:col-span-2 lg:col-span-4 shadow-xl rounded-3xl border-none ring-1 ring-border overflow-hidden">
-            <CardHeader className="bg-muted/30 border-b py-4 px-6 flex flex-row items-center justify-between">
+            <CardHeader className="bg-muted/30 border-b py-4 md:py-5 px-5 md:px-8 flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-lg font-black flex items-center gap-2">
+                <CardTitle className="text-lg md:text-xl font-black flex items-center gap-2">
                   <Target className="h-5 w-5 text-primary" />
                   Strategic Income Allocation
                 </CardTitle>
@@ -820,7 +865,7 @@ export default function ReportsPage() {
 
       <Dialog open={isAuditModalOpen} onOpenChange={setIsAuditModalOpen}>
         <DialogContent className="max-w-[95vw] sm:max-w-2xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
-          <div className="bg-primary p-6 sm:p-8 text-primary-foreground relative">
+          <div className="bg-primary p-4 sm:p-8 text-primary-foreground relative">
             <DialogHeader className="text-left space-y-1">
               <DialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-2">
                 <CheckSquare className="h-6 w-6" />
@@ -832,8 +877,8 @@ export default function ReportsPage() {
             </DialogHeader>
           </div>
           
-          <ScrollArea className="max-h-[75vh]">
-            <div className="p-6 sm:p-8 space-y-8">
+          <ScrollArea className="max-h-[80vh]">
+            <div className="p-4 sm:p-8 space-y-8">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Select labels to calculate partial sum</p>

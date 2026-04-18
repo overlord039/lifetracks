@@ -502,10 +502,10 @@ export default function BudgetPage() {
           <Card className={cn("shadow-lg rounded-2xl border-none ring-1 ring-border overflow-hidden transition-all", (editingExpenseId || editingFixedId) ? "ring-2 ring-orange-400 bg-orange-50/10" : "")}>
             <Tabs value={activeInputTab} onValueChange={setActiveInputTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2 h-11 p-1 bg-muted/30 rounded-none border-b">
-                <TabsTrigger value="logger" className="rounded-none font-black text-[10px] uppercase gap-2 data-[state=active]:bg-background">
+                <TabsTrigger value="logger" className="rounded-none font-black text-[10px] uppercase gap-2 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   <Wallet className="h-3.5 w-3.5" /> Expense Logger
                 </TabsTrigger>
-                <TabsTrigger value="fixed" className="rounded-none font-black text-[10px] uppercase gap-2 data-[state=active]:bg-background">
+                <TabsTrigger value="fixed" className="rounded-none font-black text-[10px] uppercase gap-2 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   <ReceiptText className="h-3.5 w-3.5" /> Fixed Vault
                 </TabsTrigger>
               </TabsList>
