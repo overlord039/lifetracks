@@ -42,6 +42,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { encryptData, decryptData, decryptNumber } from '@/lib/encryption';
 import Link from 'next/link';
+import { Separator } from '@/components/ui/separator';
 
 const COLORS = ['#64B5F6', '#81C784', '#FFB74D', '#BA68C8', '#F06292'];
 const INV_COLORS = ['#BA68C8', '#64B5F6', '#FFD54F'];
