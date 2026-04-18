@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -10,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, getDocs } from 'firebase/firestore';
-import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, Pencil, X, ShieldAlert, AlertTriangle, Lock, ShieldCheck, Activity } from 'lucide-react';
+import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, Pencil, X, ShieldAlert, AlertTriangle, Lock, ShieldCheck, Activity, PiggyBank, TrendingUp, HeartPulse, Smile } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { format, getDaysInMonth } from 'date-fns';
@@ -21,6 +22,14 @@ import { Separator } from '@/components/ui/separator';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
 import { cn } from '@/lib/utils';
 import { encryptData, decryptData, decryptNumber } from '@/lib/encryption';
+
+const ALLOCATION_BUCKETS = [
+  { id: 'expense', label: 'Expenses', icon: Wallet, color: 'text-blue-500' },
+  { id: 'savings', label: 'Savings', icon: PiggyBank, color: 'text-green-500' },
+  { id: 'investment', label: 'Investments', icon: TrendingUp, color: 'text-orange-500' },
+  { id: 'health', label: 'Health', icon: HeartPulse, color: 'text-purple-500' },
+  { id: 'personal', label: 'Personal', icon: Smile, color: 'text-pink-500' }
+];
 
 export default function BudgetPage() {
   const { user } = useUser();
@@ -107,6 +116,7 @@ export default function BudgetPage() {
           ...f,
           name: f.isEncrypted ? await decryptData(f.name, user.uid) : (f.name || ''),
           amount: f.isEncrypted ? await decryptNumber(f.amount, user.uid) : (f.amount || 0),
+          allocationBucket: f.allocationBucket || 'expense'
         })));
         setDecryptedFixed(fixed);
       }
@@ -124,14 +134,12 @@ export default function BudgetPage() {
     decryptAll();
   }, [rawCategories, rawBudget, rawFixed, rawExpenses, user, mounted]);
 
-  // Ensure logger tab is active when editing
   useEffect(() => {
     if (editingExpenseId) {
       setActiveInputTab('logger');
     }
   }, [editingExpenseId]);
 
-  // Case-Insensitive Deduplication for UI rendering
   const dailyCategories = useMemo(() => {
     const seen = new Set<string>();
     const normalize = (s: string) => (s || '').trim().toLowerCase();
@@ -158,7 +166,6 @@ export default function BudgetPage() {
       });
   }, [decryptedCategories]);
 
-  // Unified Label Sync: Import labels from rooms to personal budget
   useEffect(() => {
     const syncRoomLabels = async () => {
       if (!user || !db || !myGroups || decryptedCategories.length === 0 || syncPerformed.current) return;
@@ -180,7 +187,7 @@ export default function BudgetPage() {
             const labelName = (d.data().name || '').trim();
             if (labelName && !personalDailyNames.has(labelName.toLowerCase())) {
               labelsToImport.push(labelName);
-              personalDailyNames.add(labelName.toLowerCase()); // Avoid duplicates in same run
+              personalDailyNames.add(labelName.toLowerCase());
             }
           });
         }
@@ -192,7 +199,7 @@ export default function BudgetPage() {
               userId: user.uid,
               name: await encryptData(name, user.uid),
               type: 'daily',
-              isPrivate: false, // Imported room labels are public by default
+              isPrivate: false,
               isEncrypted: true,
               createdAt: new Date().toISOString()
             }, { merge: true });
@@ -245,7 +252,7 @@ export default function BudgetPage() {
   const [tempInitialBudget, setTempInitialBudget] = useState('');
   const [isAddingExtra, setIsAddingExtra] = useState(false);
   const [newCategory, setNewCategory] = useState({ name: '', type: 'daily', isPrivate: false });
-  const [newFixed, setNewFixed] = useState({ name: '', amount: '', categoryId: '' });
+  const [newFixed, setNewFixed] = useState({ name: '', amount: '', categoryId: '', allocationBucket: 'expense' });
   const [newExpense, setNewExpense] = useState({ description: '', amount: '', categoryId: '' });
 
   const saveMonthlyBudget = async (updates: any) => {
@@ -286,7 +293,6 @@ export default function BudgetPage() {
   const addCategory = async () => {
     if (!newCategory.name.trim() || !categoriesRef || !user) return;
     
-    // Case-insensitive duplicate check before adding
     const isDuplicate = decryptedCategories.some(
       c => c.type === newCategory.type && (c.name || '').trim().toLowerCase() === newCategory.name.trim().toLowerCase()
     );
@@ -332,12 +338,14 @@ export default function BudgetPage() {
       name: await encryptData(newFixed.name, user.uid),
       amount: await encryptData(newFixed.amount, user.uid),
       expenseCategoryId: newFixed.categoryId,
+      allocationBucket: newFixed.allocationBucket,
       includeInBudget: true,
       isEncrypted: true,
       createdAt: new Date().toISOString()
     }).then(() => {
-      setNewFixed({ name: '', amount: '', categoryId: '' });
+      setNewFixed({ name: '', amount: '', categoryId: '', allocationBucket: 'expense' });
       setLoading(false);
+      toast({ title: "Fixed Cost Secured", description: "Record synchronized with Wealth Planner." });
     });
   };
 
@@ -513,9 +521,9 @@ export default function BudgetPage() {
               <TabsContent value="fixed" className="mt-0 p-4 md:p-6 space-y-6 animate-in fade-in slide-in-from-right-2">
                 <div className="flex flex-col gap-4">
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-                    <div className="md:col-span-5">
+                    <div className="md:col-span-4">
                       <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1 mb-1 block">Item Name</Label>
-                      <Input placeholder="Rent, Internet, etc." value={newFixed.name} onChange={(e) => setNewFixed({ ...newFixed, name: e.target.value })} className="h-10 text-[11px] rounded-xl" />
+                      <Input placeholder="Rent, SIP, etc." value={newFixed.name} onChange={(e) => setNewFixed({ ...newFixed, name: e.target.value })} className="h-10 text-[11px] rounded-xl" />
                     </div>
                     <div className="md:col-span-3">
                       <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1 mb-1 block">Category</Label>
@@ -524,7 +532,23 @@ export default function BudgetPage() {
                         <SelectContent>{fixedCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
-                    <div className="md:col-span-4">
+                    <div className="md:col-span-3">
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1 mb-1 block">Allocation Bucket</Label>
+                      <Select value={newFixed.allocationBucket} onValueChange={(v) => setNewFixed({ ...newFixed, allocationBucket: v })}>
+                        <SelectTrigger className="h-10 text-[11px] rounded-xl"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {ALLOCATION_BUCKETS.map(b => (
+                            <SelectItem key={b.id} value={b.id}>
+                              <div className="flex items-center gap-2">
+                                <b.icon className={cn("h-3 w-3", b.color)} />
+                                <span className="text-[10px] font-bold uppercase">{b.label}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="md:col-span-2">
                       <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1 mb-1 block">Amount (₹)</Label>
                       <div className="flex gap-2">
                         <Input type="number" placeholder="0.00" value={newFixed.amount} onChange={(e) => setNewFixed({ ...newFixed, amount: e.target.value })} className="h-10 text-[11px] font-black rounded-xl" />
@@ -537,16 +561,25 @@ export default function BudgetPage() {
                   
                   <div className="space-y-3">
                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Fixed Records History</p>
-                    <ScrollArea className="h-[180px] border rounded-2xl bg-muted/10">
+                    <ScrollArea className="h-[200px] border rounded-2xl bg-muted/10">
                       <Table>
                         <TableBody>
-                          {decryptedFixed?.length ? decryptedFixed.map((expense) => (
-                            <TableRow key={expense.id} className="h-12 hover:bg-muted/20">
-                              <TableCell className="font-bold text-[11px] truncate max-w-[120px] py-2">{expense.name}</TableCell>
-                              <TableCell className="text-[11px] font-black py-2">₹{expense.amount.toLocaleString()}</TableCell>
-                              <TableCell className="w-8 text-right py-2"><Button variant="ghost" size="icon" onClick={() => deleteDocumentNonBlocking(doc(fixedExpensesRef!, expense.id))} className="h-8 w-8 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button></TableCell>
-                            </TableRow>
-                          )) : <TableRow><TableCell className="text-center py-12 text-[10px] italic text-muted-foreground">No secure fixed items found.</TableCell></TableRow>}
+                          {decryptedFixed?.length ? decryptedFixed.map((expense) => {
+                            const bucket = ALLOCATION_BUCKETS.find(b => b.id === expense.allocationBucket) || ALLOCATION_BUCKETS[0];
+                            return (
+                              <TableRow key={expense.id} className="h-12 hover:bg-muted/20">
+                                <TableCell className="font-bold text-[11px] truncate max-w-[120px] py-2">{expense.name}</TableCell>
+                                <TableCell className="py-2">
+                                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-background/50 border border-dashed w-fit">
+                                    <bucket.icon className={cn("h-2.5 w-2.5", bucket.color)} />
+                                    <span className="text-[8px] font-black uppercase tracking-tighter opacity-70">{bucket.label}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-[11px] font-black py-2">₹{expense.amount.toLocaleString()}</TableCell>
+                                <TableCell className="w-8 text-right py-2"><Button variant="ghost" size="icon" onClick={() => deleteDocumentNonBlocking(doc(fixedExpensesRef!, expense.id))} className="h-8 w-8 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button></TableCell>
+                              </TableRow>
+                            );
+                          }) : <TableRow><TableCell className="text-center py-12 text-[10px] italic text-muted-foreground">No secure fixed items found.</TableCell></TableRow>}
                         </TableBody>
                       </Table>
                     </ScrollArea>

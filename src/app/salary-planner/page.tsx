@@ -9,8 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { useUser, useFirestore, useDoc, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
+import { doc, collection } from 'firebase/firestore';
 import { 
   Calculator, 
   TrendingUp, 
@@ -26,7 +26,8 @@ import {
   Target,
   Loader2,
   Pencil,
-  Check
+  Check,
+  Lock
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -78,12 +79,21 @@ export default function SalaryPlannerPage() {
   const [percents, setPercents] = useState<Percents>(DEFAULT_RATIOS);
   const [showResults, setShowResults] = useState(false);
 
+  const monthId = mounted ? format(new Date(), 'yyyyMM') : '';
+
   const salaryRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return doc(db, 'users', user.uid, 'salaryProfiles', 'current');
   }, [db, user]);
 
+  const fixedExpensesRef = useMemoFirebase(() => {
+    if (!db || !user || !monthId) return null;
+    return collection(db, 'users', user.uid, 'monthlyBudgets', monthId, 'fixedExpenses');
+  }, [db, user, monthId]);
+
   const { data: savedProfile } = useDoc(salaryRef);
+  const { data: rawFixed } = useCollection(fixedExpensesRef);
+  const [decryptedFixed, setDecryptedFixed] = useState<any[]>([]);
 
   useEffect(() => {
     const decryptProfile = async () => {
@@ -107,6 +117,30 @@ export default function SalaryPlannerPage() {
     };
     decryptProfile();
   }, [savedProfile, user, mounted]);
+
+  useEffect(() => {
+    const decryptFixedData = async () => {
+      if (rawFixed && user && mounted) {
+        const fixed = await Promise.all(rawFixed.map(async f => ({
+          ...f,
+          amount: f.isEncrypted ? await decryptNumber(f.amount, user.uid) : (f.amount || 0),
+          allocationBucket: f.allocationBucket || 'expense'
+        })));
+        setDecryptedFixed(fixed);
+      }
+    };
+    decryptFixedData();
+  }, [rawFixed, user, mounted]);
+
+  const committedCosts = useMemo(() => {
+    const totals: Record<string, number> = { expense: 0, savings: 0, investment: 0, health: 0, personal: 0 };
+    decryptedFixed.forEach(f => {
+      if (totals[f.allocationBucket] !== undefined) {
+        totals[f.allocationBucket] += f.amount;
+      }
+    });
+    return totals;
+  }, [decryptedFixed]);
 
   const numSalary = parseFloat(salary) || 0;
   const numAge = parseInt(age) || 0;
@@ -393,37 +427,58 @@ export default function SalaryPlannerPage() {
                         { id: 'investment', label: 'Investments', icon: TrendingUp, color: 'text-orange-500' },
                         { id: 'health', label: 'Health', icon: HeartPulse, color: 'text-purple-500' },
                         { id: 'personal', label: 'Personal', icon: Smile, color: 'text-pink-500' }
-                      ].map((item) => (
-                        <div key={item.id} className="space-y-2.5 md:space-y-3 group">
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                              <item.icon className={cn("h-3.5 w-3.5 md:h-4 md:w-4", item.color)} />
-                              <Label className="font-black text-[10px] md:text-[11px] uppercase tracking-tighter text-muted-foreground group-hover:text-primary transition-colors">
-                                {item.label}
-                              </Label>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <div className="flex items-center gap-1 bg-muted/30 px-2 py-0.5 rounded-lg border border-transparent focus-within:border-primary/30 transition-all">
-                                <Input 
-                                  type="number"
-                                  value={Math.round(percents[item.id as keyof Percents] * 10) / 10}
-                                  onChange={(e) => updatePercent(item.id as keyof Percents, parseFloat(e.target.value) || 0)}
-                                  className="w-10 h-6 border-none bg-transparent p-0 text-[10px] md:text-xs font-black text-right focus-visible:ring-0 shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                />
-                                <span className="text-[10px] md:text-xs font-black text-muted-foreground">%</span>
+                      ].map((item) => {
+                        const committed = committedCosts[item.id] || 0;
+                        const totalAllowed = amounts[item.id as keyof typeof amounts];
+                        const committedPercent = totalAllowed > 0 ? (committed / totalAllowed) * 100 : 0;
+                        
+                        return (
+                          <div key={item.id} className="space-y-2.5 md:space-y-3 group">
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-2">
+                                <item.icon className={cn("h-3.5 w-3.5 md:h-4 md:w-4", item.color)} />
+                                <div className="flex flex-col">
+                                  <Label className="font-black text-[10px] md:text-[11px] uppercase tracking-tighter text-muted-foreground group-hover:text-primary transition-colors">
+                                    {item.label}
+                                  </Label>
+                                  {committed > 0 && (
+                                    <span className="text-[7px] md:text-[8px] font-black uppercase text-orange-600 flex items-center gap-0.5">
+                                      <Lock className="h-2 w-2" /> ₹{committed.toLocaleString()} Locked
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              <span className="text-[10px] md:text-xs font-black tracking-tight min-w-[60px] text-right">₹{Math.round(amounts[item.id as keyof typeof amounts]).toLocaleString()}</span>
+                              <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-1 bg-muted/30 px-2 py-0.5 rounded-lg border border-transparent focus-within:border-primary/30 transition-all">
+                                  <Input 
+                                    type="number"
+                                    value={Math.round(percents[item.id as keyof Percents] * 10) / 10}
+                                    onChange={(e) => updatePercent(item.id as keyof Percents, parseFloat(e.target.value) || 0)}
+                                    className="w-10 h-6 border-none bg-transparent p-0 text-[10px] md:text-xs font-black text-right focus-visible:ring-0 shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  />
+                                  <span className="text-[10px] md:text-xs font-black text-muted-foreground">%</span>
+                                </div>
+                                <span className="text-[10px] md:text-xs font-black tracking-tight min-w-[60px] text-right">₹{Math.round(totalAllowed).toLocaleString()}</span>
+                              </div>
+                            </div>
+                            <div className="relative">
+                              <Slider 
+                                value={[percents[item.id as keyof Percents]]}
+                                max={100}
+                                step={0.5}
+                                onValueChange={([val]) => updatePercent(item.id as keyof Percents, val)}
+                                className="h-1.5 md:h-2"
+                              />
+                              {committedPercent > 0 && (
+                                <div 
+                                  className="absolute top-0 h-1.5 md:h-2 bg-orange-600/30 rounded-full pointer-events-none"
+                                  style={{ width: `${Math.min(100, committedPercent)}%` }}
+                                />
+                              )}
                             </div>
                           </div>
-                          <Slider 
-                            value={[percents[item.id as keyof Percents]]}
-                            max={100}
-                            step={0.5}
-                            onValueChange={([val]) => updatePercent(item.id as keyof Percents, val)}
-                            className="h-1.5 md:h-2"
-                          />
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                     <div className="md:col-span-2 flex flex-col items-center justify-center p-2 md:p-4">
                       <div className="w-full h-[200px] md:h-[250px] relative">
@@ -463,7 +518,7 @@ export default function SalaryPlannerPage() {
                       <CardTitle className="text-xs md:text-sm flex items-center gap-2 font-black">
                         <Target className="h-4 w-4 text-orange-500" />
                         Asset Matrix
-                      </CardTitle>
+                      </Target>
                       <CardDescription className="text-[8px] md:text-[9px] font-black uppercase tracking-widest opacity-60">Risk Profile: Age {numAge}</CardDescription>
                     </CardHeader>
                     <CardContent className="pt-4 md:pt-6 space-y-5 md:space-y-6 px-5 md:px-6">
@@ -511,11 +566,11 @@ export default function SalaryPlannerPage() {
                     <CardContent className="pt-4 md:pt-6 space-y-4 md:space-y-5 px-5 md:px-6 max-h-[300px] md:max-h-[350px] overflow-y-auto pb-6">
                       <div className="space-y-3 md:space-y-4">
                         <h4 className="text-[8px] md:text-[9px] font-black uppercase text-primary border-b pb-1">Core Allocation</h4>
-                        <StrategyDesc label="Expenses" text="Daily living costs like rent, food, travel, and bills." />
-                        <StrategyDesc label="Savings" text="Emergency fund for unexpected situations." />
-                        <StrategyDesc label="Investments" text="Capital used to grow long-term wealth." />
-                        <StrategyDesc label="Health" text="Medical, insurance, and fitness expenses." />
-                        <StrategyDesc label="Personal" text="Entertainment, hobbies, and lifestyle spending." />
+                        <StrategyDesc committed={committedCosts.expense} label="Expenses" text="Daily living costs like rent, food, travel, and bills." />
+                        <StrategyDesc committed={committedCosts.savings} label="Savings" text="Emergency fund for unexpected situations." />
+                        <StrategyDesc committed={committedCosts.investment} label="Investments" text="Capital used to grow long-term wealth." />
+                        <StrategyDesc committed={committedCosts.health} label="Health" text="Medical, insurance, and fitness expenses." />
+                        <StrategyDesc committed={committedCosts.personal} label="Personal" text="Entertainment, hobbies, and lifestyle spending." />
                       </div>
                     </CardContent>
                   </Card>
@@ -529,10 +584,15 @@ export default function SalaryPlannerPage() {
   );
 }
 
-function StrategyDesc({ label, text }: any) {
+function StrategyDesc({ label, text, committed }: any) {
   return (
     <div className="space-y-0.5 md:space-y-1">
-      <p className="text-[9px] md:text-[10px] font-black uppercase text-foreground">{label}</p>
+      <div className="flex items-center justify-between">
+        <p className="text-[9px] md:text-[10px] font-black uppercase text-foreground">{label}</p>
+        {committed > 0 && (
+          <span className="text-[7px] font-black uppercase text-orange-600">₹{committed.toLocaleString()} Locked</span>
+        )}
+      </div>
       <p className="text-[9px] md:text-[10px] text-muted-foreground leading-snug font-medium italic">{text}</p>
     </div>
   );

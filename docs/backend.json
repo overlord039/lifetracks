@@ -46,6 +46,37 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       }
     },
+    "MonthlyBudget": {
+      "title": "MonthlyBudget",
+      "type": "object",
+      "description": "Financial targets for a specific month.",
+      "properties": {
+        "userId": { "type": "string" },
+        "month": { "type": "number" },
+        "year": { "type": "number" },
+        "totalBudgetAmount": { "type": "string", "description": "Encrypted total" },
+        "baseBudgetAmount": { "type": "string", "description": "Encrypted base" },
+        "extraBudgetAmount": { "type": "string", "description": "Encrypted extra" },
+        "isWeekendExtraBudgetEnabled": { "type": "boolean" },
+        "isDailyLimitEnabled": { "type": "boolean" },
+        "isEncrypted": { "type": "boolean" }
+      }
+    },
+    "FixedExpense": {
+      "title": "FixedExpense",
+      "type": "object",
+      "description": "Recurring monthly costs.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string", "description": "Encrypted name" },
+        "amount": { "type": "string", "description": "Encrypted amount" },
+        "expenseCategoryId": { "type": "string" },
+        "allocationBucket": { "type": "string", "enum": ["expense", "savings", "investment", "health", "personal"] },
+        "includeInBudget": { "type": "boolean" },
+        "isEncrypted": { "type": "boolean" }
+      }
+    },
     "Debt": {
       "title": "Debt",
       "type": "object",
@@ -143,6 +174,8 @@
       { "path": "/users/{userId}", "definition": { "entityName": "User", "description": "User profile." } },
       { "path": "/users/{userId}/expenseCategories/{catId}", "definition": { "entityName": "ExpenseCategory", "description": "Personal labels." } },
       { "path": "/users/{userId}/salaryProfiles/current", "definition": { "entityName": "SalaryProfile", "description": "Planner data." } },
+      { "path": "/users/{userId}/monthlyBudgets/{monthId}", "definition": { "entityName": "MonthlyBudget", "description": "Monthly targets." } },
+      { "path": "/users/{userId}/monthlyBudgets/{monthId}/fixedExpenses/{id}", "definition": { "entityName": "FixedExpense", "description": "Recurring month costs." } },
       { "path": "/users/{userId}/debts/{debtId}", "definition": { "entityName": "Debt", "description": "Debt records." } },
       { "path": "/users/{userId}/learningGoals/{goalId}", "definition": { "entityName": "LearningGoal", "description": "Learning progress." } },
       { "path": "/users/{userId}/dailyDiaries/{date}", "definition": { "entityName": "DailyDiary", "description": "Diary entries." } },
