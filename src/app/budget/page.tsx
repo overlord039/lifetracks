@@ -126,6 +126,7 @@ export default function BudgetPage() {
           ...e,
           description: e.isEncrypted ? await decryptData(e.description, user.uid) : (e.description || ''),
           amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : (e.amount || 0),
+          allocationBucket: e.allocationBucket || 'expense'
         })));
         setDecryptedExpenses(exps);
       }
@@ -253,7 +254,7 @@ export default function BudgetPage() {
   const [isAddingExtra, setIsAddingExtra] = useState(false);
   const [newCategory, setNewCategory] = useState({ name: '', type: 'daily', isPrivate: false });
   const [newFixed, setNewFixed] = useState({ name: '', amount: '', categoryId: '', allocationBucket: 'expense' });
-  const [newExpense, setNewExpense] = useState({ description: '', amount: '', categoryId: '' });
+  const [newExpense, setNewExpense] = useState({ description: '', amount: '', categoryId: '', allocationBucket: 'expense' });
 
   const saveMonthlyBudget = async (updates: any) => {
     if (!monthlyBudgetRef || !user) return;
@@ -358,7 +359,7 @@ export default function BudgetPage() {
       description: await encryptData(newExpense.description || '', user.uid),
       amount: await encryptData(newExpense.amount, user.uid),
       expenseCategoryId: newExpense.categoryId,
-      allocationBucket: 'expense',
+      allocationBucket: newExpense.allocationBucket,
       date: editingExpenseId ? (decryptedExpenses?.find(e => e.id === editingExpenseId)?.date || todayStr) : todayStr,
       isEncrypted: true,
       updatedAt: new Date().toISOString()
@@ -369,7 +370,7 @@ export default function BudgetPage() {
     } else {
       addDocumentNonBlocking(expensesRef, { ...expenseData, createdAt: new Date().toISOString() });
     }
-    setNewExpense({ description: '', amount: '', categoryId: '' });
+    setNewExpense({ description: '', amount: '', categoryId: '', allocationBucket: 'expense' });
     setLoading(false);
   };
 
@@ -497,12 +498,28 @@ export default function BudgetPage() {
               <TabsContent value="logger" className="mt-0 p-4 md:p-6 space-y-4 animate-in fade-in slide-in-from-left-2">
                 <div className="space-y-4">
                   <Input placeholder="Private Description..." value={newExpense.description} onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })} className="h-11 text-[11px] md:text-sm rounded-xl" />
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Category Label</Label>
                       <Select value={newExpense.categoryId} onValueChange={(val) => setNewExpense({ ...newExpense, categoryId: val })}>
                         <SelectTrigger className="h-11 text-[11px] rounded-xl"><SelectValue placeholder="Select Label" /></SelectTrigger>
                         <SelectContent>{dailyCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Strategy Pillar</Label>
+                      <Select value={newExpense.allocationBucket} onValueChange={(val) => setNewExpense({ ...newExpense, allocationBucket: val })}>
+                        <SelectTrigger className="h-11 text-[11px] rounded-xl"><SelectValue placeholder="Select Pillar" /></SelectTrigger>
+                        <SelectContent>
+                          {ALLOCATION_BUCKETS.map(b => (
+                            <SelectItem key={b.id} value={b.id}>
+                              <div className="flex items-center gap-2">
+                                <b.icon className={cn("h-3 w-3", b.color)} />
+                                <span className="text-[10px] font-bold uppercase">{b.label}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
@@ -512,9 +529,9 @@ export default function BudgetPage() {
                   </div>
                   <div className="flex gap-2">
                     <Button onClick={handleLogExpense} className={cn("flex-1 h-12 font-black shadow-md rounded-2xl text-xs", editingExpenseId && "bg-orange-500 hover:bg-orange-600")} disabled={loading}>
-                      {loading ? "Encrypting..." : editingExpenseId ? "Update Record" : "Log Daily Expense"}
+                      {loading ? "Encrypting..." : editingExpenseId ? "Update Record" : "Log Daily Spent"}
                     </Button>
-                    {editingExpenseId && <Button variant="outline" className="h-12 px-4 rounded-2xl" onClick={() => { setEditingExpenseId(null); setNewExpense({ description: '', amount: '', categoryId: '' }); }}><X className="h-5 w-5" /></Button>}
+                    {editingExpenseId && <Button variant="outline" className="h-12 px-4 rounded-2xl" onClick={() => { setEditingExpenseId(null); setNewExpense({ description: '', amount: '', categoryId: '', allocationBucket: 'expense' }); }}><X className="h-5 w-5" /></Button>}
                   </div>
                 </div>
               </TabsContent>
@@ -603,10 +620,15 @@ export default function BudgetPage() {
                     {decryptedExpenses?.length ? [...decryptedExpenses].sort((a,b) => b.date.localeCompare(a.date)).map((exp) => (
                       <TableRow key={exp.id} className={cn("h-11 text-[11px] hover:bg-muted/30", editingExpenseId === exp.id && "bg-orange-50/50")}>
                         <TableCell className="text-muted-foreground font-bold px-4">{format(new Date(exp.date), 'dd MMM')}</TableCell>
-                        <TableCell className="font-bold truncate max-w-[100px] md:max-w-[150px] px-4">{exp.description || '[Protected]'}</TableCell>
+                        <TableCell className="font-bold truncate max-w-[100px] md:max-w-[150px] px-4">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="truncate">{exp.description || '[Protected]'}</span>
+                            <span className="text-[7px] uppercase font-black text-primary/70">{exp.allocationBucket}</span>
+                          </div>
+                        </TableCell>
                         <TableCell className="font-black text-xs px-4">₹{exp.amount}</TableCell>
                         <TableCell className="text-right flex items-center justify-end gap-1 h-11 pr-4">
-                          <Button variant="ghost" size="icon" onClick={() => { setEditingExpenseId(exp.id); setNewExpense({ description: exp.description || '', amount: exp.amount.toString(), categoryId: exp.expenseCategoryId }); }} className="h-7 w-7"><Pencil className="h-3.5 w-3.5" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => { setEditingExpenseId(exp.id); setNewExpense({ description: exp.description || '', amount: exp.amount.toString(), categoryId: exp.expenseCategoryId, allocationBucket: exp.allocationBucket || 'expense' }); }} className="h-7 w-7"><Pencil className="h-3.5 w-3.5" /></Button>
                           <Button variant="ghost" size="icon" onClick={() => deleteDocumentNonBlocking(doc(expensesRef!, exp.id))} className="h-7 w-7 text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
                         </TableCell>
                       </TableRow>

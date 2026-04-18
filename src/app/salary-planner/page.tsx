@@ -146,6 +146,7 @@ export default function SalaryPlannerPage() {
         const exps = await Promise.all(rawExpenses.map(async e => ({
           ...e,
           amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : (e.amount || 0),
+          allocationBucket: e.allocationBucket || 'expense'
         })));
         setDecryptedExpenses(exps);
       }
@@ -155,15 +156,22 @@ export default function SalaryPlannerPage() {
 
   const committedCosts = useMemo(() => {
     const totals: Record<string, number> = { expense: 0, savings: 0, investment: 0, health: 0, personal: 0 };
+    
+    // Sum fixed recurring costs
     decryptedFixed.forEach(f => {
       if (totals[f.allocationBucket] !== undefined) {
         totals[f.allocationBucket] += f.amount;
       }
     });
-    // Add dynamic daily expenses to the expense bucket
+    
+    // Sum daily dynamic spends across ALL buckets
     decryptedExpenses.forEach(e => {
-      totals.expense += e.amount;
+      const bucket = e.allocationBucket || 'expense';
+      if (totals[bucket] !== undefined) {
+        totals[bucket] += e.amount;
+      }
     });
+    
     return totals;
   }, [decryptedFixed, decryptedExpenses]);
 
@@ -445,7 +453,7 @@ export default function SalaryPlannerPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="grid gap-6 md:gap-8 md:grid-cols-5 p-5 md:p-8">
-                    <div className="md:col-span-3 space-y-5 md:space-y-6">
+                    <div className="md:col-span-3 space-y-8 md:space-y-10">
                       {[
                         { id: 'expense', label: 'Expenses', icon: Wallet, color: 'text-blue-500' },
                         { id: 'savings', label: 'Savings', icon: PiggyBank, color: 'text-green-500' },
@@ -456,50 +464,68 @@ export default function SalaryPlannerPage() {
                         const committed = committedCosts[item.id] || 0;
                         const totalAllowed = amounts[item.id as keyof typeof amounts];
                         const committedPercent = totalAllowed > 0 ? (committed / totalAllowed) * 100 : 0;
+                        const isOverspent = committed > totalAllowed;
                         
                         return (
-                          <div key={item.id} className="space-y-2.5 md:space-y-3 group">
-                            <div className="flex justify-between items-center">
+                          <div key={item.id} className="space-y-3 group">
+                            <div className="flex justify-between items-end">
                               <div className="flex items-center gap-2">
-                                <item.icon className={cn("h-3.5 w-3.5 md:h-4 md:w-4", item.color)} />
+                                <item.icon className={cn("h-4 w-4 md:h-5 md:w-5", item.color)} />
                                 <div className="flex flex-col">
-                                  <Label className="font-black text-[10px] md:text-[11px] uppercase tracking-tighter text-muted-foreground group-hover:text-primary transition-colors">
+                                  <Label className="font-black text-[11px] md:text-[13px] uppercase tracking-tighter group-hover:text-primary transition-colors">
                                     {item.label}
                                   </Label>
-                                  {committed > 0 && (
-                                    <span className="text-[7px] md:text-[8px] font-black uppercase text-orange-600 flex items-center gap-0.5">
-                                      <Lock className="h-2 w-2" /> ₹{committed.toLocaleString()} Locked
+                                  <div className="flex items-center gap-2">
+                                    <span className={cn(
+                                      "text-[9px] md:text-[10px] font-black tracking-tight",
+                                      isOverspent ? "text-destructive" : "text-primary"
+                                    )}>
+                                      ₹{committed.toLocaleString()} Spent
                                     </span>
-                                  )}
+                                    <Separator orientation="vertical" className="h-2" />
+                                    <span className="text-[9px] md:text-[10px] font-bold text-muted-foreground">₹{Math.round(totalAllowed).toLocaleString()} Cap</span>
+                                  </div>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-1 bg-muted/30 px-2 py-0.5 rounded-lg border border-transparent focus-within:border-primary/30 transition-all">
+                              <div className="flex flex-col items-end">
+                                <div className="flex items-center gap-1 bg-muted/30 px-2 py-0.5 rounded-lg">
                                   <Input 
                                     type="number"
                                     value={Math.round(percents[item.id as keyof Percents] * 10) / 10}
                                     onChange={(e) => updatePercent(item.id as keyof Percents, parseFloat(e.target.value) || 0)}
-                                    className="w-10 h-6 border-none bg-transparent p-0 text-[10px] md:text-xs font-black text-right focus-visible:ring-0 shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    className="w-10 h-6 border-none bg-transparent p-0 text-[10px] md:text-xs font-black text-right focus-visible:ring-0 shadow-none [appearance:textfield]"
                                   />
                                   <span className="text-[10px] md:text-xs font-black text-muted-foreground">%</span>
                                 </div>
-                                <span className="text-[10px] md:text-xs font-black tracking-tight min-w-[60px] text-right">₹{Math.round(totalAllowed).toLocaleString()}</span>
                               </div>
                             </div>
-                            <div className="relative">
-                              <Slider 
-                                value={[percents[item.id as keyof Percents]]}
-                                max={100}
-                                step={0.5}
-                                onValueChange={([val]) => updatePercent(item.id as keyof Percents, val)}
-                                className="h-1.5 md:h-2"
-                              />
-                              {committedPercent > 0 && (
+                            
+                            <div className="space-y-1.5">
+                              <div className="relative pt-1">
+                                <Slider 
+                                  value={[percents[item.id as keyof Percents]]}
+                                  max={100}
+                                  step={0.5}
+                                  onValueChange={([val]) => updatePercent(item.id as keyof Percents, val)}
+                                  className="h-1.5 md:h-2"
+                                />
                                 <div 
-                                  className="absolute top-0 h-1.5 md:h-2 bg-orange-600/30 rounded-full pointer-events-none"
+                                  className={cn(
+                                    "absolute top-1 h-1.5 md:h-2 rounded-full pointer-events-none transition-all duration-700",
+                                    isOverspent ? "bg-destructive/40" : "bg-primary/30"
+                                  )}
                                   style={{ width: `${Math.min(100, committedPercent)}%` }}
                                 />
-                              )}
+                              </div>
+                              <div className="flex justify-between items-center px-1">
+                                <span className="text-[7px] md:text-[8px] font-black uppercase text-muted-foreground tracking-widest">Strategy Utilization</span>
+                                <span className={cn(
+                                  "text-[9px] font-black",
+                                  isOverspent ? "text-destructive" : "text-primary"
+                                )}>
+                                  {Math.round(committedPercent)}%
+                                </span>
+                              </div>
                             </div>
                           </div>
                         );
