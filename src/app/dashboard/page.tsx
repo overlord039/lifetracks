@@ -152,16 +152,21 @@ export default function Dashboard() {
   }, [decryptedBudget, decryptedExpenses, decryptedFixed, now, mounted]);
 
   const todayReport = budgetReport?.[todayStr];
-  const dailyBaseAllowance = (todayReport?.baseBudget || 0) + (todayReport?.extraBudget || 0) + (todayReport?.carryForwardFromYesterday || 0);
+  
+  // Logic: Show the static base allocation in the top card as requested
+  const baseAllocation = todayReport?.baseBudget || 0;
+  
+  // Logic: Show the rolling balance as "Safe to Spend"
+  const rollingAllowance = (todayReport?.baseBudget || 0) + (todayReport?.extraBudget || 0) + (todayReport?.carryForwardFromYesterday || 0);
   const spentToday = todayReport?.spent || 0;
-  const remaining = Math.max(0, dailyBaseAllowance - spentToday);
+  const remaining = Math.max(0, rollingAllowance - spentToday);
 
   const goalsProgress = learningGoals?.length ? Math.round((learningGoals.filter(g => (g.completedCount || 0) >= (g.target || 0)).length / learningGoals.length) * 100) : 0;
 
   const totalOwed = useMemo(() => decryptedDebts?.filter(d => !d.isPaid).reduce((sum, d) => sum + d.amount, 0) || 0, [decryptedDebts]);
 
-  const isOverspent = spentToday > dailyBaseAllowance;
-  const isWithinBudget = spentToday <= dailyBaseAllowance && spentToday > 0;
+  const isOverspent = spentToday > rollingAllowance;
+  const isWithinBudget = spentToday <= rollingAllowance && spentToday > 0;
 
   const hasActiveGoals = !!(learningGoals && learningGoals.length > 0);
 
@@ -178,12 +183,12 @@ export default function Dashboard() {
 
   return (
     <AppShell>
-      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3 xl:grid-cols-4">
         <DashboardCard 
           href="/budget"
           title="Daily Allowance"
-          value={`₹${dailyBaseAllowance.toFixed(0)}`}
-          subtext="Available today"
+          value={`₹${baseAllocation.toFixed(0)}`}
+          subtext="Base Allocation"
           icon={<DollarSign className="w-4 h-4" />}
           variant="primary"
         />
