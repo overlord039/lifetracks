@@ -6,7 +6,7 @@ import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { format } from 'date-fns';
-import { collection, doc, query, where } from 'firebase/firestore';
+import { collection, doc } from 'firebase/firestore';
 import { 
   TrendingUp, 
   CheckCircle2, 
@@ -16,14 +16,13 @@ import {
   TrendingDown,
   Loader2,
   ShieldCheck,
-  Users,
   HandCoins
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { decryptData, decryptNumber } from '@/lib/encryption';
+import { decryptNumber } from '@/lib/encryption';
 
 export default function Dashboard() {
   const { user } = useUser();
@@ -34,7 +33,6 @@ export default function Dashboard() {
   const [decryptedFixed, setDecryptedFixed] = useState<any[]>([]);
   const [decryptedExpenses, setDecryptedExpenses] = useState<any[]>([]);
   const [decryptedDebts, setDecryptedDebts] = useState<any[]>([]);
-  const [decryptedGroups, setDecryptedGroups] = useState<any[]>([]);
   const [isDecrypting, setIsDecrypting] = useState(false);
 
   useEffect(() => {
@@ -81,12 +79,6 @@ export default function Dashboard() {
   }, [firestore, user]);
   const { data: rawDebts } = useCollection(debtsRef);
 
-  const groupsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return query(collection(firestore, 'sharedGroups'), where('memberUids', 'array-contains', user.uid));
-  }, [firestore, user]);
-  const { data: rawGroups } = useCollection(groupsQuery);
-
   useEffect(() => {
     const decryptAll = async () => {
       if (!user || !mounted) return;
@@ -127,18 +119,10 @@ export default function Dashboard() {
         setDecryptedDebts(debts);
       }
 
-      if (rawGroups) {
-        const groups = await Promise.all(rawGroups.map(async g => ({
-          ...g,
-          name: g.isEncrypted ? await decryptData(g.name, user.uid) : g.name
-        })));
-        setDecryptedGroups(groups);
-      }
-
       setIsDecrypting(false);
     };
     decryptAll();
-  }, [rawBudget, rawFixed, rawExpenses, rawDebts, rawGroups, user, mounted]);
+  }, [rawBudget, rawFixed, rawExpenses, rawDebts, user, mounted]);
 
   const budgetReport = useMemo(() => {
     if (!decryptedBudget || !mounted) return null;
@@ -177,9 +161,6 @@ export default function Dashboard() {
 
   const totalOwed = useMemo(() => decryptedDebts?.filter(d => !d.isPaid).reduce((sum, d) => sum + d.amount, 0) || 0, [decryptedDebts]);
 
-  const manualRoomsCount = useMemo(() => decryptedGroups.filter(g => g.isManual).length, [decryptedGroups]);
-  const sharedRoomsCount = decryptedGroups.length - manualRoomsCount;
-
   const isOverspent = spentToday > dailyBaseAllowance;
   const isWithinBudget = spentToday <= dailyBaseAllowance && spentToday > 0;
 
@@ -196,7 +177,7 @@ export default function Dashboard() {
 
   return (
     <AppShell>
-      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3 xl:grid-cols-5">
         <DashboardCard 
           href="/budget"
           title="Daily Allowance"
@@ -215,23 +196,16 @@ export default function Dashboard() {
           variant={isOverspent ? "destructive" : isWithinBudget ? "secondary" : "default"}
         />
 
-        <DashboardCard 
-          href="/split-pay"
-          title="Shared Spaces"
-          value={`${decryptedGroups.length}`}
-          subtext={`${sharedRoomsCount} Shared • ${manualRoomsCount} Manual`}
-          icon={<Users className="w-4 h-4" />}
-          variant="default"
-        />
-
-        <DashboardCard 
-          href="/debts"
-          title="Debt Vault"
-          value={`₹${totalOwed.toFixed(0)}`}
-          subtext="Receivable total"
-          icon={<HandCoins className="w-4 h-4" />}
-          variant="default"
-        />
+        {totalOwed > 0 && (
+          <DashboardCard 
+            href="/debts"
+            title="Debt Vault"
+            value={`₹${totalOwed.toFixed(0)}`}
+            subtext="Receivable total"
+            icon={<HandCoins className="w-4 h-4" />}
+            variant="default"
+          />
+        )}
 
         <DashboardCard 
           href="/learning"
