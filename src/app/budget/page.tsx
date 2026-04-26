@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, getDocs } from 'firebase/firestore';
-import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, Pencil, X, ShieldAlert, AlertTriangle, Lock, ShieldCheck, Activity, PiggyBank, TrendingUp, HeartPulse, Smile, Check } from 'lucide-react';
+import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, Pencil, X, ShieldAlert, AlertTriangle, Lock, ShieldCheck, Activity, PiggyBank, TrendingUp, HeartPulse, Smile, Check, Tag } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { format, getDaysInMonth } from 'date-fns';
@@ -141,14 +141,15 @@ export default function BudgetPage() {
   // Aggregate Sync Effect
   useEffect(() => {
     const syncAggregates = async () => {
-      if (!user || !monthlyBudgetRef || isDecrypting || !mounted) return;
+      if (!user || !monthlyBudgetRef || isDecrypting || !mounted || !decryptedBudget) return;
       
       const spent = decryptedExpenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
       const fixedSpent = decryptedFixed?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
       
-      const prevSpent = decryptedBudget?.actualSpent || 0;
-      const prevFixed = decryptedBudget?.actualFixedSpent || 0;
+      const prevSpent = decryptedBudget.actualSpent || 0;
+      const prevFixed = decryptedBudget.actualFixedSpent || 0;
 
+      // Only update if difference is significant to avoid unnecessary writes
       if (Math.abs(spent - prevSpent) > 0.01 || Math.abs(fixedSpent - prevFixed) > 0.01) {
         setDocumentNonBlocking(monthlyBudgetRef, {
           actualSpent: await encryptData(spent.toString(), user.uid),
@@ -159,7 +160,7 @@ export default function BudgetPage() {
     };
     
     syncAggregates();
-  }, [decryptedExpenses, decryptedFixed, decryptedBudget, user, monthlyBudgetRef, isDecrypting, mounted]);
+  }, [decryptedExpenses, decryptedFixed, decryptedBudget?.actualSpent, decryptedBudget?.actualFixedSpent, user, monthlyBudgetRef, isDecrypting, mounted]);
 
   useEffect(() => {
     if (editingExpenseId) {
@@ -167,24 +168,10 @@ export default function BudgetPage() {
     }
   }, [editingExpenseId]);
 
-  const dailyCategories = useMemo(() => {
+  const allCategories = useMemo(() => {
     const seen = new Set<string>();
     const normalize = (s: string) => (s || '').trim().toLowerCase();
     return (decryptedCategories || [])
-      .filter(c => c.type === 'daily')
-      .filter(c => {
-        const norm = normalize(c.name);
-        if (!norm || seen.has(norm)) return false;
-        seen.add(norm);
-        return true;
-      });
-  }, [decryptedCategories]);
-
-  const fixedCategories = useMemo(() => {
-    const seen = new Set<string>();
-    const normalize = (s: string) => (s || '').trim().toLowerCase();
-    return (decryptedCategories || [])
-      .filter(c => c.type === 'fixed')
       .filter(c => {
         const norm = normalize(c.name);
         if (!norm || seen.has(norm)) return false;
@@ -199,10 +186,8 @@ export default function BudgetPage() {
       
       syncPerformed.current = true;
       try {
-        const personalDailyNames = new Set(
-          decryptedCategories
-            .filter(c => c.type === 'daily')
-            .map(c => (c.name || '').trim().toLowerCase())
+        const personalNames = new Set(
+          decryptedCategories.map(c => (c.name || '').trim().toLowerCase())
         );
         
         const labelsToImport: string[] = [];
@@ -212,9 +197,9 @@ export default function BudgetPage() {
           const snap = await getDocs(roomCatsRef);
           snap.forEach(d => {
             const labelName = (d.data().name || '').trim();
-            if (labelName && !personalDailyNames.has(labelName.toLowerCase())) {
+            if (labelName && !personalNames.has(labelName.toLowerCase())) {
               labelsToImport.push(labelName);
-              personalDailyNames.add(labelName.toLowerCase());
+              personalNames.add(labelName.toLowerCase());
             }
           });
         }
@@ -324,14 +309,14 @@ export default function BudgetPage() {
     if (!newCategory.name.trim() || !categoriesRef || !user) return;
     
     const isDuplicate = decryptedCategories.some(
-      c => c.type === newCategory.type && (c.name || '').trim().toLowerCase() === newCategory.name.trim().toLowerCase()
+      c => (c.name || '').trim().toLowerCase() === newCategory.name.trim().toLowerCase()
     );
 
     if (isDuplicate) {
       toast({ 
         variant: "destructive", 
         title: "Label Exists", 
-        description: `"${newCategory.name}" is already defined in your ${newCategory.type} vault.` 
+        description: `"${newCategory.name}" is already defined in your vault.` 
       });
       return;
     }
@@ -360,7 +345,10 @@ export default function BudgetPage() {
   };
 
   const addFixedExpense = async () => {
-    if (!newFixed.name || !newFixed.amount || !newFixed.categoryId || !fixedExpensesRef || !user) return;
+    if (!newFixed.name || !newFixed.amount || !newFixed.categoryId || !fixedExpensesRef || !user) {
+      toast({ variant: "destructive", title: "Missing Fields", description: "Name, Amount, and Label are required for Fixed costs." });
+      return;
+    }
     setLoading(true);
 
     const payload = {
@@ -394,7 +382,10 @@ export default function BudgetPage() {
   };
 
   const handleLogExpense = async () => {
-    if (!newExpense.amount || !newExpense.categoryId || !user || !expensesRef) return;
+    if (!newExpense.amount || !newExpense.categoryId || !user || !expensesRef) {
+      toast({ variant: "destructive", title: "Missing Fields", description: "Amount and Label are required." });
+      return;
+    }
     setLoading(true);
     const expenseData = {
       userId: user.uid,
@@ -542,7 +533,7 @@ export default function BudgetPage() {
                       <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Category Label</Label>
                       <Select value={newExpense.categoryId} onValueChange={(val) => setNewExpense({ ...newExpense, categoryId: val })}>
                         <SelectTrigger className="h-11 text-[11px] rounded-xl"><SelectValue placeholder="Select Label" /></SelectTrigger>
-                        <SelectContent>{dailyCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}</SelectContent>
+                        <SelectContent>{allCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
@@ -586,7 +577,7 @@ export default function BudgetPage() {
                       <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1 mb-1 block">Category</Label>
                       <Select value={newFixed.categoryId} onValueChange={(v) => setNewFixed({ ...newFixed, categoryId: v })}>
                         <SelectTrigger className="h-10 text-[11px] rounded-xl"><SelectValue placeholder="Label" /></SelectTrigger>
-                        <SelectContent>{fixedCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                        <SelectContent>{allCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
                     <div className="md:col-span-3">
@@ -633,9 +624,15 @@ export default function BudgetPage() {
                         <TableBody>
                           {decryptedFixed?.length ? decryptedFixed.map((expense) => {
                             const bucket = ALLOCATION_BUCKETS.find(b => b.id === expense.allocationBucket) || ALLOCATION_BUCKETS[0];
+                            const catName = allCategories.find(c => c.id === expense.expenseCategoryId)?.name || 'Misc';
                             return (
                               <TableRow key={expense.id} className={cn("h-12 hover:bg-muted/20", editingFixedId === expense.id && "bg-orange-50/50")}>
-                                <TableCell className="font-bold text-[11px] truncate max-w-[120px] py-2">{expense.name}</TableCell>
+                                <TableCell className="py-2">
+                                  <div className="flex flex-col">
+                                    <span className="font-bold text-[11px] truncate max-w-[120px]">{expense.name}</span>
+                                    <span className="text-[7px] uppercase font-black text-muted-foreground flex items-center gap-1"><Tag className="h-2 w-2" /> {catName}</span>
+                                  </div>
+                                </TableCell>
                                 <TableCell className="py-2">
                                   <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-background/50 border border-dashed w-fit">
                                     <bucket.icon className={cn("h-2.5 w-2.5", bucket.color)} />
@@ -687,7 +684,10 @@ export default function BudgetPage() {
                         <TableCell className="font-bold truncate max-w-[100px] md:max-w-[150px] px-4">
                           <div className="flex flex-col gap-0.5">
                             <span className="truncate">{exp.description || '[Protected]'}</span>
-                            <span className="text-[7px] uppercase font-black text-primary/70">{exp.allocationBucket}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[7px] uppercase font-black text-primary/70">{exp.allocationBucket}</span>
+                              <span className="text-[7px] uppercase font-black text-muted-foreground">{allCategories.find(c => c.id === exp.expenseCategoryId)?.name || 'Misc'}</span>
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell className="font-black text-xs px-4">₹{exp.amount}</TableCell>
@@ -738,7 +738,7 @@ export default function BudgetPage() {
                 </div>
 
                 <TabsContent value="daily" className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-right-2">
-                  {dailyCategories.map(c => (
+                  {decryptedCategories.filter(c => c.type === 'daily').map(c => (
                     <div key={c.id} className="flex items-center gap-1.5 pl-2 pr-1 py-1 bg-primary/10 text-primary rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-tighter border border-primary/20 whitespace-nowrap">
                       <button 
                         onClick={() => toggleCategoryPrivacy(c.id, c.isPrivate)}
@@ -756,7 +756,7 @@ export default function BudgetPage() {
                   ))}
                 </TabsContent>
                 <TabsContent value="fixed" className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-left-2">
-                  {fixedCategories.map(c => (
+                  {decryptedCategories.filter(c => c.type === 'fixed').map(c => (
                     <div key={c.id} className="flex items-center gap-1.5 pl-3 pr-1 py-1 bg-secondary/20 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-tighter border border-secondary/30 whitespace-nowrap">
                       {c.name}
                       <button onClick={() => deleteDocumentNonBlocking(doc(categoriesRef!, c.id))} className="ml-1 text-destructive p-0.5 hover:bg-destructive/10 rounded-full transition-colors"><Trash2 className="h-3 w-3" /></button>

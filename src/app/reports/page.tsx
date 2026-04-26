@@ -21,7 +21,7 @@ import {
   eachMonthOfInterval,
   isSameMonth
 } from 'date-fns';
-import { collection, doc, query, where, collectionGroup } from 'firebase/firestore';
+import { collection, doc, query, where } from 'firebase/firestore';
 import { 
   BarChart, 
   Bar, 
@@ -729,6 +729,10 @@ export default function ReportsPage() {
                     ? `Saved ₹${Math.abs(totals.dailyDiff).toLocaleString()} vs ${format(prevDate, 'MMM')}.`
                     : `Spending is exactly same as last month.`}
                 </p>
+                <div className="flex items-center gap-2 mt-2">
+                   <ShieldCheck className="h-3 w-3 text-green-600" />
+                   <span className="text-[8px] font-black uppercase text-green-600">Secure Vault Data</span>
+                </div>
               </div>
             </CardContent>
           </Card>
