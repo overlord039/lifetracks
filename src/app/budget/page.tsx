@@ -21,6 +21,13 @@ import { Separator } from '@/components/ui/separator';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
 import { cn } from '@/lib/utils';
 import { encryptData, decryptData, decryptNumber } from '@/lib/encryption';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 const ALLOCATION_BUCKETS = [
   { id: 'expense', label: 'Expenses', icon: Wallet, color: 'text-blue-500' },
@@ -39,6 +46,7 @@ export default function BudgetPage() {
   const [editingFixedId, setEditingFixedId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [activeInputTab, setActiveInputTab] = useState('logger');
+  const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const syncPerformed = useRef(false);
 
   const [decryptedCategories, setDecryptedCategories] = useState<any[]>([]);
@@ -671,40 +679,17 @@ export default function BudgetPage() {
             </Tabs>
           </Card>
 
-          <Card className="shadow-lg rounded-2xl border-none ring-1 ring-border overflow-hidden">
-            <CardHeader className="bg-muted/30 border-b py-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2 font-black"><History className="h-4 w-4 text-primary" /> Activity History</CardTitle>
-              <Badge variant="outline" className="text-[9px] font-black uppercase">{decryptedExpenses?.length || 0} Records</Badge>
-            </CardHeader>
-            <CardContent className="p-0">
-              <ScrollArea className="h-[250px] md:h-[350px] w-full">
-                <Table>
-                  <TableHeader className="bg-muted/50 sticky top-0 z-10"><TableRow className="h-9"><TableHead className="text-[9px] font-black uppercase tracking-widest px-4">Date</TableHead><TableHead className="text-[9px] font-black uppercase tracking-widest px-4">Item</TableHead><TableHead className="text-[9px] font-black uppercase tracking-widest px-4">Amount</TableHead><TableHead className="w-16 text-right px-4"></TableHead></TableRow></TableHeader>
-                  <TableBody>
-                    {decryptedExpenses?.length ? [...decryptedExpenses].sort((a,b) => b.date.localeCompare(a.date)).map((exp) => (
-                      <TableRow key={exp.id} className={cn("h-11 text-[11px] hover:bg-muted/30", editingExpenseId === exp.id && "bg-orange-50/50")}>
-                        <TableCell className="text-muted-foreground font-bold px-4">{format(new Date(exp.date), 'dd MMM')}</TableCell>
-                        <TableCell className="font-bold truncate max-w-[100px] md:max-w-[150px] px-4">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="truncate">{exp.description || '[Protected]'}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[7px] uppercase font-black text-primary/70">{exp.allocationBucket}</span>
-                              <span className="text-[7px] uppercase font-black text-muted-foreground">{allCategories.find(c => c.id === exp.expenseCategoryId)?.name || 'Misc'}</span>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-black text-xs px-4">₹{exp.amount}</TableCell>
-                        <TableCell className="text-right flex items-center justify-end gap-1 h-11 pr-4">
-                          <Button variant="ghost" size="icon" onClick={() => { setEditingExpenseId(exp.id); setNewExpense({ description: exp.description || '', amount: exp.amount.toString(), categoryId: exp.expenseCategoryId, allocationBucket: exp.allocationBucket || 'expense' }); }} className="h-7 w-7"><Pencil className="h-3.5 w-3.5" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => deleteDocumentNonBlocking(doc(expensesRef!, exp.id))} className="h-7 w-7 text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
-                        </TableCell>
-                      </TableRow>
-                    )) : <TableRow><TableCell colSpan={4} className="text-center py-16 text-muted-foreground italic text-[11px]">No secure activity recorded.</TableCell></TableRow>}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
-            </CardContent>
-          </Card>
+          <Button 
+            variant="outline" 
+            onClick={() => setIsActivityModalOpen(true)}
+            className="w-full h-14 rounded-2xl font-black gap-3 shadow-sm border-dashed border-2 hover:bg-primary/5 hover:border-primary/30 transition-all group"
+          >
+            <History className="h-5 w-5 text-primary group-hover:rotate-[-30deg] transition-transform" />
+            <span className="flex-1 text-left">View Activity History</span>
+            <Badge variant="secondary" className="text-[10px] font-black uppercase bg-primary/10 text-primary px-3">
+              {decryptedExpenses?.length || 0} Records
+            </Badge>
+          </Button>
         </div>
 
         <div className="lg:col-span-4 flex flex-col gap-4">
@@ -729,7 +714,7 @@ export default function BudgetPage() {
                   </div>
                   {newCategory.type === 'daily' && (
                     <div className="flex items-center justify-between px-1">
-                      <Label className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-1.5">
+                      <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
                         <Lock className="h-3 w-3" /> Isolation Mode (Private)
                       </Label>
                       <Switch 
@@ -771,6 +756,84 @@ export default function BudgetPage() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={isActivityModalOpen} onOpenChange={setIsActivityModalOpen}>
+        <DialogContent className="max-w-3xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="bg-muted/30 border-b py-4 px-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <DialogTitle className="text-base flex items-center gap-2 font-black">
+                  <History className="h-5 w-5 text-primary" />
+                  Transaction Ledger
+                </DialogTitle>
+                <DialogDescription className="text-[10px] uppercase font-bold tracking-tight">Comprehensive history of your secured spends</DialogDescription>
+              </div>
+              <Badge variant="outline" className="text-[10px] font-black uppercase px-3 py-1 bg-background">
+                {decryptedExpenses?.length || 0} Total Records
+              </Badge>
+            </div>
+          </DialogHeader>
+          <div className="p-0">
+            <ScrollArea className="h-[60vh] w-full">
+              <Table>
+                <TableHeader className="bg-muted/50 sticky top-0 z-10">
+                  <TableRow className="h-10">
+                    <TableHead className="text-[10px] font-black uppercase tracking-widest px-6">Date</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase tracking-widest px-6">Item Details</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase tracking-widest px-6">Amount</TableHead>
+                    <TableHead className="w-20 text-right px-6"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {decryptedExpenses?.length ? [...decryptedExpenses].sort((a,b) => b.date.localeCompare(a.date)).map((exp) => (
+                    <TableRow key={exp.id} className={cn("h-14 text-[12px] hover:bg-muted/30 group", editingExpenseId === exp.id && "bg-orange-50/50")}>
+                      <TableCell className="text-muted-foreground font-black px-6">{format(new Date(exp.date), 'dd MMM yyyy')}</TableCell>
+                      <TableCell className="px-6">
+                        <div className="flex flex-col gap-1">
+                          <span className="font-bold truncate max-w-[200px] text-sm">{exp.description || '[Protected]'}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[8px] uppercase font-black px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/10">{exp.allocationBucket}</span>
+                            <span className="text-[8px] uppercase font-black px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-muted-foreground/10">
+                              {allCategories.find(c => c.id === exp.expenseCategoryId)?.name || 'Misc'}
+                            </span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-black text-sm px-6">₹{exp.amount.toLocaleString()}</TableCell>
+                      <TableCell className="text-right px-6">
+                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="icon" onClick={() => { 
+                            setEditingExpenseId(exp.id); 
+                            setNewExpense({ description: exp.description || '', amount: exp.amount.toString(), categoryId: exp.expenseCategoryId, allocationBucket: exp.allocationBucket || 'expense' }); 
+                            setIsActivityModalOpen(false);
+                          }} className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors">
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => deleteDocumentNonBlocking(doc(expensesRef!, exp.id))} className="h-8 w-8 hover:bg-destructive/10 text-destructive transition-colors">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )) : (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-24">
+                        <div className="flex flex-col items-center gap-3 opacity-30 grayscale">
+                          <History className="h-12 w-12" />
+                          <p className="text-sm font-black uppercase tracking-widest">No secure activity recorded.</p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          </div>
+          <div className="p-4 border-t bg-muted/10 flex justify-end">
+            <Button variant="secondary" onClick={() => setIsActivityModalOpen(false)} className="rounded-xl font-black h-9 text-[10px] uppercase px-6">Close Ledger</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }
