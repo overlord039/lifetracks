@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -350,8 +349,8 @@ export default function BudgetPage() {
   };
 
   const addFixedExpense = async () => {
-    if (!newFixed.name || !newFixed.amount || !newFixed.categoryId || !fixedExpensesRef || !user) {
-      toast({ variant: "destructive", title: "Missing Fields", description: "Name, Amount, and Label are required for Fixed costs." });
+    if (!newFixed.amount || !newFixed.categoryId || !fixedExpensesRef || !user) {
+      toast({ variant: "destructive", title: "Missing Fields", description: "Amount and Label are required for Fixed costs." });
       return;
     }
     setLoading(true);
@@ -359,7 +358,7 @@ export default function BudgetPage() {
     const payload = {
       userId: user?.uid,
       monthlyBudgetId: monthId,
-      name: await encryptData(newFixed.name, user.uid),
+      name: await encryptData(newFixed.name || 'Recurring Cost', user.uid),
       amount: await encryptData(newFixed.amount, user.uid),
       expenseCategoryId: newFixed.categoryId,
       allocationBucket: newFixed.allocationBucket,
@@ -578,7 +577,7 @@ export default function BudgetPage() {
               <TabsContent value="fixed" className="mt-0 p-4 md:p-6 space-y-4 animate-in fade-in slide-in-from-right-2">
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Item Name</Label>
+                    <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Item Name (Optional)</Label>
                     <Input placeholder="Rent, SIP, Insurance, etc. ..." value={newFixed.name} onChange={(e) => setNewFixed({ ...newFixed, name: e.target.value })} className="h-11 text-[11px] md:text-sm rounded-xl" />
                   </div>
                   
