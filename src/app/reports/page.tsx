@@ -10,18 +10,16 @@ import {
   startOfMonth, 
   endOfMonth, 
   eachDayOfInterval, 
-  subMonths,
-  startOfWeek,
-  endOfWeek,
   eachWeekOfInterval,
   isSameWeek,
+  subMonths,
   subWeeks,
   startOfYear,
   endOfYear,
   eachMonthOfInterval,
-  isSameMonth
+  endOfWeek
 } from 'date-fns';
-import { collection, doc, query, where } from 'firebase/firestore';
+import { collection, doc } from 'firebase/firestore';
 import { 
   BarChart, 
   Bar, 
@@ -57,7 +55,6 @@ import {
   Smile,
   ShieldCheck
 } from 'lucide-react';
-import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -374,7 +371,7 @@ export default function ReportsPage() {
     const cData = Object.entries(categoryTotals).map(([name, value], idx) => ({
       name,
       value,
-      color: [`#64B5F6`, `#A5D6A7`, `#FFB74D`, `#BA68C8`, `#F06292`][idx % 5]
+      color: CHART_COLORS[idx % CHART_COLORS.length]
     }));
 
     let sData: any[] = [];
@@ -490,6 +487,8 @@ export default function ReportsPage() {
       </AppShell>
     );
   }
+
+  const CHART_COLORS = ['#64B5F6', '#A5D6A7', '#FFB74D', '#BA68C8', '#F06292'];
 
   const chartTooltipStyle = {
     borderRadius: '12px',
@@ -850,35 +849,36 @@ export default function ReportsPage() {
       </div>
 
       <Dialog open={isAuditModalOpen} onOpenChange={setIsAuditModalOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-2xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
-          <div className="bg-primary p-4 sm:p-8 text-primary-foreground relative">
+        <DialogContent className="max-w-[98vw] md:max-w-6xl rounded-none md:rounded-2xl p-0 overflow-hidden border shadow-2xl h-[95vh] md:h-[90vh] flex flex-col">
+          <div className="bg-primary p-4 sm:p-6 text-primary-foreground relative shrink-0">
             <DialogHeader className="text-left space-y-1">
               <DialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-2">
                 <CheckSquare className="h-6 w-6" />
                 Category Audit
               </DialogTitle>
               <DialogDescription className="text-xs font-bold uppercase tracking-widest text-primary-foreground/70">
-                Perform manual spend reconciliation
+                Perform manual spend reconciliation and detailed transactional review
               </DialogDescription>
             </DialogHeader>
           </div>
           
-          <ScrollArea className="max-h-[80vh]">
-            <div className="p-4 sm:p-8 space-y-8">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Select labels to calculate partial sum</p>
-                  <div className="flex items-center gap-2 pr-2">
-                    <Checkbox 
-                      id="audit-select-all" 
-                      checked={decryptedExpenses.length > 0 && selectedTransactionIds.size === decryptedExpenses.length}
-                      onCheckedChange={handleToggleAll}
-                      className="h-4 w-4 rounded border-primary/30"
-                    />
-                    <label htmlFor="audit-select-all" className="text-[10px] font-black uppercase text-primary cursor-pointer">Select All</label>
-                  </div>
+          <div className="flex-1 min-h-0 flex flex-col md:flex-row bg-background">
+            {/* Sidebar: Categories */}
+            <div className="w-full md:w-1/3 border-r flex flex-col">
+              <div className="p-4 border-b bg-muted/5 flex items-center justify-between shrink-0">
+                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Labels to Tally</p>
+                <div className="flex items-center gap-2">
+                  <Checkbox 
+                    id="audit-select-all" 
+                    checked={decryptedExpenses.length > 0 && selectedTransactionIds.size === decryptedExpenses.length}
+                    onCheckedChange={handleToggleAll}
+                    className="h-4 w-4 rounded border-primary/30"
+                  />
+                  <label htmlFor="audit-select-all" className="text-[10px] font-black uppercase text-primary cursor-pointer">All</label>
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
+              </div>
+              <ScrollArea className="flex-1">
+                <div className="p-4 grid gap-2">
                   {chartsData.categoryData.length > 0 ? chartsData.categoryData.map((cat: any) => {
                     const catId = decryptedCategories.find(c => c.name === cat.name)?.id || 'misc';
                     const isChecked = selectedAuditCategories.has(catId);
@@ -886,8 +886,8 @@ export default function ReportsPage() {
                       <div 
                         key={catId} 
                         className={cn(
-                          "flex items-center justify-between p-3 rounded-2xl border transition-all cursor-pointer hover:bg-muted/30",
-                          isChecked ? "bg-primary/5 border-primary/20" : "bg-card border-border opacity-60"
+                          "flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer hover:bg-muted/30",
+                          isChecked ? "bg-primary/5 border-primary/20 shadow-sm" : "bg-card border-border opacity-60"
                         )}
                         onClick={() => toggleAuditCategory(catId)}
                       >
@@ -900,84 +900,93 @@ export default function ReportsPage() {
                           />
                           <div className="flex items-center gap-2">
                             <div className="h-2 w-2 rounded-full" style={{ backgroundColor: cat.color }} />
-                            <label htmlFor={`audit-${catId}`} className="text-[10px] font-black uppercase cursor-pointer truncate max-w-[100px]">{cat.name}</label>
+                            <label htmlFor={`audit-${catId}`} className="text-[10px] font-black uppercase cursor-pointer truncate max-w-[120px]">{cat.name}</label>
                           </div>
                         </div>
                         <span className="text-[10px] font-black">₹{cat.value.toLocaleString()}</span>
                       </div>
                     );
                   }) : (
-                    <p className="text-center py-10 text-muted-foreground italic text-xs col-span-2">No categories recorded yet.</p>
+                    <p className="text-center py-10 text-muted-foreground italic text-xs">No labels recorded.</p>
                   )}
                 </div>
-              </div>
+              </ScrollArea>
+            </div>
 
-              <div className="space-y-4 pt-4 border-t border-dashed">
-                <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
-                    <ReceiptText className="h-3.5 w-3.5" />
-                    Detailed line items
-                  </p>
-                  <Badge variant="outline" className="text-[8px] font-black uppercase">{auditExpenses.length} Records</Badge>
-                </div>
-                
-                <ScrollArea className="h-[250px] border rounded-2xl bg-muted/5">
-                  <div className="p-3 space-y-2">
-                    {auditExpenses.length > 0 ? auditExpenses.map((exp) => (
-                      <div 
-                        key={exp.id} 
-                        className={cn(
-                          "flex justify-between items-center p-3 rounded-xl bg-card border shadow-sm group transition-all cursor-pointer",
-                          selectedTransactionIds.has(exp.id) ? "border-primary/30" : "opacity-50 grayscale border-transparent"
-                        )}
-                        onClick={() => toggleTransaction(exp.id)}
-                      >
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <Checkbox 
-                            checked={selectedTransactionIds.has(exp.id)} 
-                            onCheckedChange={() => toggleTransaction(exp.id)}
-                            className="rounded-md"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[11px] font-bold truncate tracking-tight">{exp.description || 'Secured Item'}</p>
-                            <div className="flex items-center gap-2">
-                              <p className="text-[8px] text-muted-foreground uppercase font-black">{format(new Date(exp.date), 'dd MMM yyyy')}</p>
-                              <span className="text-[7px] px-1.5 py-0.5 rounded-full bg-muted/50 font-black uppercase">
-                                {decryptedCategories.find(c => c.id === exp.expenseCategoryId)?.name || 'Misc'}
-                              </span>
-                            </div>
+            {/* Main Content: Transactions */}
+            <div className="flex-1 flex flex-col min-h-0 bg-muted/5">
+              <div className="p-4 border-b bg-card flex items-center justify-between shrink-0">
+                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
+                  <ReceiptText className="h-3.5 w-3.5" />
+                  Line Item Ledger
+                </p>
+                <Badge variant="outline" className="text-[8px] font-black uppercase">{auditExpenses.length} Entries</Badge>
+              </div>
+              
+              <ScrollArea className="flex-1">
+                <div className="p-4 space-y-2">
+                  {auditExpenses.length > 0 ? auditExpenses.map((exp) => (
+                    <div 
+                      key={exp.id} 
+                      className={cn(
+                        "flex justify-between items-center p-4 rounded-xl bg-card border shadow-sm group transition-all cursor-pointer",
+                        selectedTransactionIds.has(exp.id) ? "border-primary/40 ring-1 ring-primary/10" : "opacity-50 grayscale border-transparent"
+                      )}
+                      onClick={() => toggleTransaction(exp.id)}
+                    >
+                      <div className="flex items-center gap-4 min-w-0 flex-1">
+                        <Checkbox 
+                          checked={selectedTransactionIds.has(exp.id)} 
+                          onCheckedChange={() => toggleTransaction(exp.id)}
+                          className="rounded-md h-5 w-5"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-black truncate tracking-tight">{exp.description || 'Secured Item'}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <p className="text-[8px] text-muted-foreground uppercase font-black">{format(new Date(exp.date), 'dd MMM yyyy')}</p>
+                            <span className="text-[7px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-black uppercase border border-primary/10">
+                              {decryptedCategories.find(c => c.id === exp.expenseCategoryId)?.name || 'Misc'}
+                            </span>
                           </div>
                         </div>
-                        <div className="text-right ml-4">
-                          <span className={cn("text-xs font-black", selectedTransactionIds.has(exp.id) ? "text-foreground" : "text-muted-foreground line-through")}>
-                            ₹{exp.amount.toLocaleString()}
-                          </span>
-                        </div>
                       </div>
-                    )) : (
-                      <div className="flex flex-col items-center justify-center py-16 opacity-30 grayscale space-y-2">
-                        <ReceiptText className="h-8 w-8" />
-                        <p className="text-[10px] font-black uppercase tracking-widest">No detailed items found.</p>
+                      <div className="text-right ml-4">
+                        <span className={cn("text-sm font-black", selectedTransactionIds.has(exp.id) ? "text-foreground" : "text-muted-foreground line-through opacity-30")}>
+                          ₹{exp.amount.toLocaleString()}
+                        </span>
                       </div>
-                    )}
+                    </div>
+                  )) : (
+                    <div className="flex flex-col items-center justify-center py-32 opacity-30 grayscale space-y-3">
+                      <div className="p-4 bg-muted rounded-full">
+                        <ReceiptText className="h-10 w-10" />
+                      </div>
+                      <p className="text-xs font-black uppercase tracking-widest">Select a label to view ledger</p>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+              
+              {/* Summary Footer for the main pane */}
+              <div className="p-4 border-t bg-card shrink-0">
+                <div className="p-6 bg-primary/5 rounded-2xl border border-dashed border-primary/30 flex items-center justify-between relative overflow-hidden group">
+                  <div className="relative z-10">
+                    <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1">Reconciled Partial Sum</p>
+                    <p className="text-4xl font-black text-primary tracking-tighter">₹{auditTotal.toLocaleString()}</p>
                   </div>
-                </ScrollArea>
-              </div>
-
-              <div className="pt-4 border-t border-dashed">
-                <div className="p-5 bg-muted/20 rounded-3xl border text-center relative overflow-hidden group">
-                  <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1 relative z-10">Total Checked Spends</p>
-                  <p className="text-4xl font-black text-primary tracking-tighter relative z-10">₹{auditTotal.toLocaleString()}</p>
-                  <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                    <TrendingDown className="h-16 w-16 -rotate-12" />
+                  <div className="text-right relative z-10">
+                    <Badge className="bg-primary text-white font-black text-[10px] uppercase px-4 py-1 rounded-lg">
+                      {selectedTransactionIds.size} Items Verified
+                    </Badge>
                   </div>
+                  <TrendingDown className="absolute top-1/2 -right-4 -translate-y-1/2 h-24 w-24 text-primary/[0.03] -rotate-12 pointer-events-none" />
                 </div>
               </div>
             </div>
-          </ScrollArea>
+          </div>
           
-          <div className="p-4 bg-muted/10 border-t flex justify-end">
-            <Button onClick={() => setIsAuditModalOpen(false)} variant="outline" className="font-black rounded-xl text-[10px] uppercase h-10 px-6">Close Audit</Button>
+          <div className="p-4 bg-muted/20 border-t flex justify-end shrink-0">
+            <Button onClick={() => setIsAuditModalOpen(false)} variant="outline" className="font-black rounded-xl text-[10px] uppercase h-10 px-8 bg-background shadow-sm">Close Audit Workspace</Button>
           </div>
         </DialogContent>
       </Dialog>
