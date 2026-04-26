@@ -742,7 +742,7 @@ export default function ReportsPage() {
                 <CardTitle className="text-lg md:text-xl font-black flex items-center gap-2">
                   <Target className="h-5 w-5 text-primary" />
                   Strategic Income Allocation
-                </CardTitle>
+                </Target>
                 <CardDescription className="text-[10px] font-black uppercase tracking-tight opacity-70">Wealth strategy utilization for {format(selectedDate, 'MMMM')}</CardDescription>
               </div>
               <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-black text-[9px] uppercase px-3 py-1">
@@ -980,18 +980,21 @@ export default function ReportsPage() {
               </ScrollArea>
               
               {/* Summary Footer for the main pane */}
-              <div className="p-4 border-t bg-card shrink-0">
-                <div className="p-6 bg-primary/5 rounded-2xl border border-dashed border-primary/30 flex items-center justify-between relative overflow-hidden group">
+              <div className="p-4 border-t bg-card shrink-0 flex items-center justify-between px-6">
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Total</span>
+                  <p className="text-[8px] font-bold text-muted-foreground/60 uppercase">Audit Workspace Sum</p>
+                </div>
+                <div className="bg-primary/5 px-4 py-2 rounded-2xl border border-dashed border-primary/20 flex items-center gap-4 relative overflow-hidden group shadow-inner min-w-[180px] justify-between mr-2">
                   <div className="relative z-10">
-                    <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1">Reconciled Partial Sum</p>
-                    <p className="text-4xl font-black text-primary tracking-tighter">₹{auditTotal.toLocaleString()}</p>
+                    <p className="text-2xl font-black text-primary tracking-tighter">₹{auditTotal.toLocaleString()}</p>
                   </div>
                   <div className="text-right relative z-10">
-                    <Badge className="bg-primary text-white font-black text-[10px] uppercase px-4 py-1 rounded-lg">
-                      {selectedTransactionIds.size} Items Verified
+                    <Badge className="bg-primary text-white font-black text-[8px] uppercase px-2 py-0.5 rounded-lg border-none shadow-sm">
+                      {selectedTransactionIds.size} Verified
                     </Badge>
                   </div>
-                  <TrendingDown className="absolute top-1/2 -right-4 -translate-y-1/2 h-24 w-24 text-primary/[0.03] -rotate-12 pointer-events-none" />
+                  <TrendingDown className="absolute top-1/2 -right-3 -translate-y-1/2 h-12 w-12 text-primary/[0.04] -rotate-12 pointer-events-none" />
                 </div>
               </div>
             </div>
