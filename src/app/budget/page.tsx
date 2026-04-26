@@ -434,10 +434,6 @@ export default function BudgetPage() {
     <AppShell>
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-12">
         <div className="lg:col-span-8 flex flex-col gap-4">
-          <div className="lg:hidden">
-            <SustainableTodayCard isOverspentToday={isOverspentToday} isWithinBudget={isWithinBudget} todayStr={todayStr} dailyAllocationToday={dailyAllocationToday} todayReport={todayReport} isDailyEnabled={isDailyEnabled} remainingNetPool={remainingNetPool} totalSpentThisMonth={totalSpentThisMonth} monthName={monthName} />
-          </div>
-
           <Card className="shadow-lg border-t-4 border-t-primary rounded-2xl overflow-hidden">
             <CardHeader className="bg-muted/30 pb-3 md:pb-4 px-4 md:px-6">
               <CardTitle className="flex items-center gap-2 text-base md:text-lg font-black tracking-tight"><Wallet className="h-5 w-5 text-primary" /> Monthly Vault</CardTitle>
