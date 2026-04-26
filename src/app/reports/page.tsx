@@ -80,7 +80,7 @@ const PILLAR_ICONS: Record<string, any> = {
   personal: { icon: Smile, color: 'text-pink-500', bg: 'bg-pink-500' }
 };
 
-const CHART_COLORS = ['#64B5F6', '#A5D6A7', '#FFB74D', '#BA68C8', '#F06292'];
+const CHART_COLORS = ['#64B5F6', '#81C784', '#FFB74D', '#BA68C8', '#F06292', '#4DB6AC', '#FF8A65'];
 
 const chartTooltipStyle = {
   borderRadius: '12px',
@@ -942,7 +942,7 @@ export default function ReportsPage() {
               <ScrollArea className="flex-1 flex flex-col bg-muted/[0.02]">
                 <div className="p-4 sm:p-6 flex-1 flex flex-col">
                   {auditExpenses.length > 0 ? (
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                       {auditExpenses.map((exp) => (
                         <div 
                           key={exp.id} 
