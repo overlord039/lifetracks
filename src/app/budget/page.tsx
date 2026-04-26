@@ -149,7 +149,6 @@ export default function BudgetPage() {
       const prevSpent = decryptedBudget.actualSpent || 0;
       const prevFixed = decryptedBudget.actualFixedSpent || 0;
 
-      // Only update if difference is significant to avoid unnecessary writes
       if (Math.abs(spent - prevSpent) > 0.01 || Math.abs(fixedSpent - prevFixed) > 0.01) {
         setDocumentNonBlocking(monthlyBudgetRef, {
           actualSpent: await encryptData(spent.toString(), user.uid),
@@ -167,6 +166,12 @@ export default function BudgetPage() {
       setActiveInputTab('logger');
     }
   }, [editingExpenseId]);
+
+  useEffect(() => {
+    if (editingFixedId) {
+      setActiveInputTab('fixed');
+    }
+  }, [editingFixedId]);
 
   const allCategories = useMemo(() => {
     const seen = new Set<string>();
@@ -366,7 +371,6 @@ export default function BudgetPage() {
     if (editingFixedId) {
       updateDocumentNonBlocking(doc(fixedExpensesRef, editingFixedId), payload);
       setEditingFixedId(null);
-      setLoading(false);
       setNewFixed({ name: '', amount: '', categoryId: '', allocationBucket: 'expense' });
       toast({ title: "Fixed Cost Updated" });
     } else {
@@ -375,10 +379,10 @@ export default function BudgetPage() {
         createdAt: new Date().toISOString()
       }).then(() => {
         setNewFixed({ name: '', amount: '', categoryId: '', allocationBucket: 'expense' });
-        setLoading(false);
         toast({ title: "Fixed Cost Secured", description: "Record synchronized with Wealth Planner." });
       });
     }
+    setLoading(false);
   };
 
   const handleLogExpense = async () => {
@@ -401,8 +405,10 @@ export default function BudgetPage() {
     if (editingExpenseId) {
       updateDocumentNonBlocking(doc(expensesRef, editingExpenseId), expenseData);
       setEditingExpenseId(null);
+      toast({ title: "Daily Spent Updated" });
     } else {
       addDocumentNonBlocking(expensesRef, { ...expenseData, createdAt: new Date().toISOString() });
+      toast({ title: "Daily Spent Logged" });
     }
     setNewExpense({ description: '', amount: '', categoryId: '', allocationBucket: 'expense' });
     setLoading(false);
@@ -527,7 +533,10 @@ export default function BudgetPage() {
               
               <TabsContent value="logger" className="mt-0 p-4 md:p-6 space-y-4 animate-in fade-in slide-in-from-left-2">
                 <div className="space-y-4">
-                  <Input placeholder="Private Description..." value={newExpense.description} onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })} className="h-11 text-[11px] md:text-sm rounded-xl" />
+                  <div className="space-y-2">
+                    <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Private Description</Label>
+                    <Input placeholder="What was this for?..." value={newExpense.description} onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })} className="h-11 text-[11px] md:text-sm rounded-xl" />
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Category Label</Label>
@@ -566,24 +575,25 @@ export default function BudgetPage() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="fixed" className="mt-0 p-4 md:p-6 space-y-6 animate-in fade-in slide-in-from-right-2">
-                <div className="flex flex-col gap-4">
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-                    <div className="md:col-span-4">
-                      <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1 mb-1 block">Item Name</Label>
-                      <Input placeholder="Rent, SIP, etc." value={newFixed.name} onChange={(e) => setNewFixed({ ...newFixed, name: e.target.value })} className="h-10 text-[11px] rounded-xl" />
-                    </div>
-                    <div className="md:col-span-3">
-                      <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1 mb-1 block">Category</Label>
-                      <Select value={newFixed.categoryId} onValueChange={(v) => setNewFixed({ ...newFixed, categoryId: v })}>
-                        <SelectTrigger className="h-10 text-[11px] rounded-xl"><SelectValue placeholder="Label" /></SelectTrigger>
-                        <SelectContent>{allCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+              <TabsContent value="fixed" className="mt-0 p-4 md:p-6 space-y-4 animate-in fade-in slide-in-from-right-2">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Item Name</Label>
+                    <Input placeholder="Rent, SIP, Insurance, etc. ..." value={newFixed.name} onChange={(e) => setNewFixed({ ...newFixed, name: e.target.value })} className="h-11 text-[11px] md:text-sm rounded-xl" />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Category Label</Label>
+                      <Select value={newFixed.categoryId} onValueChange={(val) => setNewFixed({ ...newFixed, categoryId: val })}>
+                        <SelectTrigger className="h-11 text-[11px] rounded-xl"><SelectValue placeholder="Select Label" /></SelectTrigger>
+                        <SelectContent>{allCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
-                    <div className="md:col-span-3">
-                      <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1 mb-1 block">Allocation Bucket</Label>
-                      <Select value={newFixed.allocationBucket} onValueChange={(v) => setNewFixed({ ...newFixed, allocationBucket: v })}>
-                        <SelectTrigger className="h-10 text-[11px] rounded-xl"><SelectValue /></SelectTrigger>
+                    <div className="space-y-2">
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Strategy Pillar</Label>
+                      <Select value={newFixed.allocationBucket} onValueChange={(val) => setNewFixed({ ...newFixed, allocationBucket: val })}>
+                        <SelectTrigger className="h-11 text-[11px] rounded-xl"><SelectValue placeholder="Select Pillar" /></SelectTrigger>
                         <SelectContent>
                           {ALLOCATION_BUCKETS.map(b => (
                             <SelectItem key={b.id} value={b.id}>
@@ -596,25 +606,19 @@ export default function BudgetPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="md:col-span-2">
-                      <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1 mb-1 block">Amount (₹)</Label>
-                      <div className="flex gap-2">
-                        <Input type="number" placeholder="0.00" value={newFixed.amount} onChange={(e) => setNewFixed({ ...newFixed, amount: e.target.value })} className="h-10 text-[11px] font-black rounded-xl" />
-                        <Button onClick={addFixedExpense} size="icon" className={cn("h-10 w-10 shrink-0 rounded-xl", editingFixedId && "bg-orange-500 hover:bg-orange-600")}>
-                          {editingFixedId ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                        </Button>
-                        {editingFixedId && (
-                          <Button variant="outline" size="icon" onClick={() => {
-                            setEditingFixedId(null);
-                            setNewFixed({ name: '', amount: '', categoryId: '', allocationBucket: 'expense' });
-                          }} className="h-10 w-10 shrink-0 rounded-xl">
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
+                    <div className="space-y-2">
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Amount (₹)</Label>
+                      <Input type="number" placeholder="0.00" value={newFixed.amount} onChange={(e) => setNewFixed({ ...newFixed, amount: e.target.value })} className="h-11 text-base md:text-lg font-black tracking-tighter rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                     </div>
                   </div>
                   
+                  <div className="flex gap-2">
+                    <Button onClick={addFixedExpense} className={cn("flex-1 h-12 font-black shadow-md rounded-2xl text-xs", editingFixedId && "bg-orange-500 hover:bg-orange-600")} disabled={loading}>
+                      {loading ? "Encrypting..." : editingFixedId ? "Update Fixed Cost" : "Secure Fixed Record"}
+                    </Button>
+                    {editingFixedId && <Button variant="outline" className="h-12 px-4 rounded-2xl" onClick={() => { setEditingFixedId(null); setNewFixed({ name: '', amount: '', categoryId: '', allocationBucket: 'expense' }); }}><X className="h-5 w-5" /></Button>}
+                  </div>
+
                   <Separator className="my-2" />
                   
                   <div className="space-y-3">
