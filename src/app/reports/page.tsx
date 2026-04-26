@@ -742,7 +742,7 @@ export default function ReportsPage() {
                 <CardTitle className="text-lg md:text-xl font-black flex items-center gap-2">
                   <Target className="h-5 w-5 text-primary" />
                   Strategic Income Allocation
-                </Target>
+                </CardTitle>
                 <CardDescription className="text-[10px] font-black uppercase tracking-tight opacity-70">Wealth strategy utilization for {format(selectedDate, 'MMMM')}</CardDescription>
               </div>
               <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-black text-[9px] uppercase px-3 py-1">
