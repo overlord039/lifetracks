@@ -790,7 +790,7 @@ export default function BudgetPage() {
                       <TableCell className="text-muted-foreground font-black px-6">{format(new Date(exp.date), 'dd MMM yyyy')}</TableCell>
                       <TableCell className="px-6">
                         <div className="flex flex-col gap-1">
-                          <span className="font-bold truncate max-w-[200px] text-sm">{exp.description || '[Protected]'}</span>
+                          <span className="font-bold truncate max-w-[200px] text-sm">{exp.description || 'Secured Item'}</span>
                           <div className="flex items-center gap-2">
                             <span className="text-[8px] uppercase font-black px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/10">{exp.allocationBucket}</span>
                             <span className="text-[8px] uppercase font-black px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-muted-foreground/10">
