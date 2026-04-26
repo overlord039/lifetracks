@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -78,6 +77,19 @@ const PILLAR_ICONS: Record<string, any> = {
   investment: { icon: TrendingUp, color: 'text-orange-500', bg: 'bg-orange-500' },
   health: { icon: HeartPulse, color: 'text-purple-500', bg: 'bg-purple-500' },
   personal: { icon: Smile, color: 'text-pink-500', bg: 'bg-pink-500' }
+};
+
+const CHART_COLORS = ['#64B5F6', '#A5D6A7', '#FFB74D', '#BA68C8', '#F06292'];
+
+const chartTooltipStyle = {
+  borderRadius: '12px',
+  border: '1px solid hsl(var(--border))',
+  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+  backgroundColor: 'hsl(var(--popover))',
+  color: 'hsl(var(--popover-foreground))',
+  padding: '8px 12px',
+  fontSize: '11px',
+  fontWeight: '600'
 };
 
 export default function ReportsPage() {
@@ -487,19 +499,6 @@ export default function ReportsPage() {
       </AppShell>
     );
   }
-
-  const CHART_COLORS = ['#64B5F6', '#A5D6A7', '#FFB74D', '#BA68C8', '#F06292'];
-
-  const chartTooltipStyle = {
-    borderRadius: '12px',
-    border: '1px solid hsl(var(--border))',
-    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-    backgroundColor: 'hsl(var(--popover))',
-    color: 'hsl(var(--popover-foreground))',
-    padding: '8px 12px',
-    fontSize: '11px',
-    fontWeight: '600'
-  };
 
   const weekDiff = weeklyReport.currentWeekSpent - weeklyReport.lastWeekSpent;
 
