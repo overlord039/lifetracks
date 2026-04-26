@@ -15,7 +15,8 @@ import {
   TrendingDown,
   Loader2,
   ShieldCheck,
-  HandCoins
+  HandCoins,
+  Users
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
@@ -203,8 +204,8 @@ export default function Dashboard() {
 
         {totalOwed > 0 && (
           <DashboardCard 
-            href="/debts"
-            title="Debt Vault"
+            href="/split-pay"
+            title="Split & Debt"
             value={`₹${totalOwed.toFixed(0)}`}
             subtext="Receivable total"
             icon={<HandCoins className="w-4 h-4" />}

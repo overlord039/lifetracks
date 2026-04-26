@@ -35,7 +35,11 @@ import {
   BrainCircuit,
   LayoutGrid,
   X,
-  Pencil
+  Pencil,
+  HandCoins,
+  Circle,
+  CheckCircle,
+  Info
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -70,7 +74,7 @@ import {
   Tooltip, 
   Legend 
 } from 'recharts';
-import { encryptData, decryptData } from '@/lib/encryption';
+import { encryptData, decryptData, decryptNumber } from '@/lib/encryption';
 import { categorizeExpense } from '@/ai/flows/categorize-expense-flow';
 import { format } from 'date-fns';
 
@@ -126,6 +130,69 @@ export default function SplitPayPage() {
 
   // Unified Label Sync state
   const [decryptedPersonalCategories, setDecryptedPersonalCategories] = useState<any[]>([]);
+
+  // Personal Debts Logic
+  const [newDebt, setNewDebt] = useState({ debtorName: '', amount: '', description: '' });
+  const [decryptedDebts, setDecryptedDebts] = useState<any[]>([]);
+  const [isDecryptingDebts, setIsDecryptingDebts] = useState(false);
+
+  const debtsRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return collection(db, 'users', user.uid, 'debts');
+  }, [db, user]);
+
+  const { data: rawDebts, isLoading: isRawDebtsLoading } = useCollection(debtsRef);
+
+  useEffect(() => {
+    const decryptAllDebts = async () => {
+      if (!rawDebts || !user) {
+        setDecryptedDebts(rawDebts || []);
+        return;
+      }
+      setIsDecryptingDebts(true);
+      const decrypted = await Promise.all(rawDebts.map(async (debt) => ({
+        ...debt,
+        debtorName: debt.isEncrypted ? await decryptData(debt.debtorName, user.uid) : debt.debtorName,
+        amount: debt.isEncrypted ? await decryptNumber(debt.amount, user.uid) : debt.amount,
+        description: debt.isEncrypted ? await decryptData(debt.description, user.uid) : debt.description,
+      })));
+      setDecryptedDebts(decrypted);
+      setIsDecryptingDebts(false);
+    };
+    decryptAllDebts();
+  }, [rawDebts, user]);
+
+  const addDebt = async () => {
+    if (!newDebt.debtorName || !newDebt.amount || !debtsRef || !user) return;
+    const encryptedPayload = {
+      userId: user?.uid,
+      debtorName: await encryptData(newDebt.debtorName, user.uid),
+      amount: await encryptData(newDebt.amount, user.uid),
+      description: await encryptData(newDebt.description, user.uid),
+      isPaid: false,
+      isEncrypted: true,
+      createdAt: new Date().toISOString()
+    };
+    addDocumentNonBlocking(debtsRef, encryptedPayload);
+    setNewDebt({ debtorName: '', amount: '', description: '' });
+    toast({ title: "Debt Record Secured" });
+  };
+
+  const togglePaid = (id: string, currentStatus: boolean) => {
+    if (!debtsRef) return;
+    updateDocumentNonBlocking(doc(debtsRef, id), { 
+      isPaid: !currentStatus,
+      updatedAt: new Date().toISOString()
+    });
+  };
+
+  const deleteDebt = (id: string) => {
+    if (!debtsRef) return;
+    deleteDocumentNonBlocking(doc(debtsRef, id));
+    toast({ title: "Debt record removed" });
+  };
+
+  const totalOwed = decryptedDebts?.filter(d => !d.isPaid).reduce((sum, d) => sum + d.amount, 0) || 0;
 
   // Sync manual members based on count input
   useEffect(() => {
@@ -615,7 +682,6 @@ export default function SplitPayPage() {
       const syncToPersonalBudget = async () => {
         const monthId = format(new Date(), 'yyyyMM');
         const personalExpensesRef = collection(db, 'users', user.uid, 'monthlyBudgets', monthId, 'expenses');
-        const personalCategoriesRef = collection(db, 'users', user.uid, 'expenseCategories');
         const todayStr = format(new Date(), 'yyyy-MM-dd');
         
         const roomCatName = (roomCategories?.find(c => c.id === expenseCategoryId)?.name || 'Room Bill').trim();
@@ -632,7 +698,7 @@ export default function SplitPayPage() {
         if (match) {
           targetPersonalCatId = match.id;
         } else {
-          const newCatRef = doc(personalCategoriesRef);
+          const newCatRef = doc(personalCategoriesRef!);
           targetPersonalCatId = newCatRef.id;
           setDocumentNonBlocking(newCatRef, {
             userId: user.uid,
@@ -704,7 +770,7 @@ export default function SplitPayPage() {
     toast({ title: "Code Copied" });
   };
 
-  if (isGroupsLoading || isDecryptingGroups) {
+  if (isGroupsLoading || isDecryptingGroups || isRawDebtsLoading || isDecryptingDebts) {
     return (
       <AppShell>
         <div className="flex h-[60vh] w-full items-center justify-center flex-col gap-4">
@@ -718,88 +784,210 @@ export default function SplitPayPage() {
   return (
     <AppShell>
       {!selectedGroupId ? (
-        <div className="max-w-4xl mx-auto space-y-8">
-          <div className="flex flex-col items-center text-center space-y-4">
-            <div className="p-4 bg-primary/10 rounded-3xl text-primary shadow-inner">
-              <Users className="w-10 h-10" />
+        <div className="max-w-6xl mx-auto space-y-8">
+          <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-primary/10 rounded-2xl text-primary shadow-inner">
+                <Users className="w-8 h-8" />
+              </div>
+              <div>
+                <h2 className="text-3xl font-black tracking-tighter">Split & Debt Ledger</h2>
+                <p className="text-muted-foreground font-medium">Manage shared expenses and personal receivables in one place.</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-3xl font-black tracking-tighter">Collaborative Split</h2>
-              <p className="text-muted-foreground font-medium px-4">Create or join rooms for shared expenses with real-time updates.</p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3 w-full max-sm:px-4 max-w-sm pt-4">
-              <Button onClick={() => setIsCreateModalOpen(true)} className="flex-1 h-12 rounded-2xl font-black gap-2 shadow-lg">
-                <Plus className="h-5 w-5" /> Collaborative Room
-              </Button>
-              <Button onClick={() => setIsManualRoomModalOpen(true)} variant="secondary" className="flex-1 h-12 rounded-2xl font-black gap-2">
-                <Calculator className="h-5 w-5" /> Manual Room
-              </Button>
-              <Button onClick={() => setIsJoiningModalOpen(true)} variant="outline" className="flex-1 h-12 rounded-2xl font-black gap-2">
-                <Share2 className="h-5 w-5" /> Join Room
-              </Button>
-            </div>
-          </div>
+          </header>
 
-          <div className="grid gap-4 sm:grid-cols-2 px-2">
-            {decryptedGroups?.map(group => {
-              const members = Array.isArray(group.members) ? group.members : [];
-              return (
-                <Card 
-                  key={group.id} 
-                  className={cn(
-                    "group cursor-pointer hover:ring-2 transition-all rounded-3xl border-none ring-1 overflow-hidden relative",
-                    group.isManual 
-                      ? "ring-secondary/30 bg-secondary/[0.03] hover:ring-secondary/60" 
-                      : "ring-border bg-card hover:ring-primary/50"
-                  )}
-                  onClick={() => setSelectedGroupId(group.id)}
-                >
-                  <CardHeader className={cn("pb-4", group.isManual ? "bg-secondary/20" : "bg-muted/30")}>
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1 min-w-0 pr-8">
-                        <div className="flex items-center gap-2 mb-1">
-                          {group.isManual ? <Calculator className="h-3.5 w-3.5 text-secondary-foreground" /> : <Users className="h-3.5 w-3.5 text-primary" />}
-                          <CardTitle className="text-xl font-black tracking-tight truncate">{group.name}</CardTitle>
-                        </div>
-                        <CardDescription className={cn(
-                          "text-[10px] uppercase font-black tracking-widest",
-                          group.isManual ? "text-secondary-foreground font-bold" : "text-primary"
-                        )}>
-                          {group.isManual ? "Manual Ledger" : `Join Code: ${group.id}`}
-                        </CardDescription>
-                      </div>
-                      <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors mt-1 shrink-0" />
-                    </div>
-                    {group.createdBy === user?.uid && (
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="absolute right-12 top-6 h-8 w-8 text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setRoomToDelete(group.id);
-                        }}
+          <Tabs defaultValue="shared" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 h-12 p-1 bg-muted rounded-2xl mb-8">
+              <TabsTrigger value="shared" className="rounded-xl font-black text-xs gap-2"><Users className="h-4 w-4" /> Shared Ledgers</TabsTrigger>
+              <TabsTrigger value="personal" className="rounded-xl font-black text-xs gap-2"><HandCoins className="h-4 w-4" /> Personal Ledger</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="shared" className="animate-in fade-in slide-in-from-left-2">
+              <div className="grid gap-6">
+                <div className="flex flex-col sm:flex-row gap-3 w-full pt-4">
+                  <Button onClick={() => setIsCreateModalOpen(true)} className="flex-1 h-14 rounded-2xl font-black gap-2 shadow-lg text-base">
+                    <Plus className="h-5 w-5" /> Initialize Shared Room
+                  </Button>
+                  <Button onClick={() => setIsManualRoomModalOpen(true)} variant="secondary" className="flex-1 h-14 rounded-2xl font-black gap-2 text-base">
+                    <Calculator className="h-5 w-5" /> Launch Manual Ledger
+                  </Button>
+                  <Button onClick={() => setIsJoiningModalOpen(true)} variant="outline" className="flex-1 h-14 rounded-2xl font-black gap-2 text-base">
+                    <Share2 className="h-5 w-5" /> Join Existing Room
+                  </Button>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 px-1">
+                  {decryptedGroups?.map(group => {
+                    const members = Array.isArray(group.members) ? group.members : [];
+                    return (
+                      <Card 
+                        key={group.id} 
+                        className={cn(
+                          "group cursor-pointer hover:ring-2 transition-all rounded-3xl border-none ring-1 overflow-hidden relative",
+                          group.isManual 
+                            ? "ring-secondary/30 bg-secondary/[0.03] hover:ring-secondary/60" 
+                            : "ring-border bg-card hover:ring-primary/50"
+                        )}
+                        onClick={() => setSelectedGroupId(group.id)}
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
+                        <CardHeader className={cn("pb-4", group.isManual ? "bg-secondary/20" : "bg-muted/30")}>
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1 min-w-0 pr-8">
+                              <div className="flex items-center gap-2 mb-1">
+                                {group.isManual ? <Calculator className="h-3.5 w-3.5 text-secondary-foreground" /> : <Users className="h-3.5 w-3.5 text-primary" />}
+                                <CardTitle className="text-xl font-black tracking-tight truncate">{group.name}</CardTitle>
+                              </div>
+                              <CardDescription className={cn(
+                                "text-[10px] uppercase font-black tracking-widest",
+                                group.isManual ? "text-secondary-foreground font-bold" : "text-primary"
+                              )}>
+                                {group.isManual ? "Standalone Mode" : `Join Code: ${group.id}`}
+                              </CardDescription>
+                            </div>
+                            <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors mt-1 shrink-0" />
+                          </div>
+                          {group.createdBy === user?.uid && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="absolute right-12 top-6 h-8 w-8 text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRoomToDelete(group.id);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </CardHeader>
+                        <CardContent className="pt-4 flex items-center justify-between">
+                          <div className="flex -space-x-2">
+                            {members.slice(0, 4).map((m: any) => (
+                              <div key={m.userId} title={m.userName} className={cn(
+                                "h-8 w-8 rounded-full border-2 border-background flex items-center justify-center text-[10px] font-black text-white",
+                                group.isManual ? "bg-secondary" : "bg-primary"
+                              )}>{(m.userName || 'U')[0].toUpperCase()}</div>
+                            ))}
+                            {members.length > 4 && <div className="h-8 w-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[8px] font-black">+{members.length - 4}</div>}
+                          </div>
+                          <Badge variant={group.isManual ? "secondary" : "default"} className={cn("font-black text-[10px] uppercase", group.isManual && "bg-secondary/20 text-secondary-foreground")}>{members.length} Members</Badge>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="personal" className="animate-in fade-in slide-in-from-right-2">
+              <div className="space-y-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4">
+                  <div className="bg-primary/10 px-6 py-4 rounded-3xl border border-primary/20 flex flex-col items-center md:items-start w-full md:w-auto shadow-sm">
+                    <p className="text-[10px] font-black uppercase text-primary tracking-widest mb-1">Total Receivable</p>
+                    <p className="text-3xl font-black text-primary tracking-tighter">₹{totalOwed.toLocaleString()}</p>
+                  </div>
+                </div>
+
+                <Card className="shadow-xl rounded-3xl border-none ring-1 ring-border overflow-hidden">
+                  <CardHeader className="bg-muted/30 border-b">
+                    <CardTitle className="text-base font-black flex items-center gap-2">
+                      <UserPlus className="h-5 w-5 text-primary" />
+                      Secure New Receivable
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent className="pt-4 flex items-center justify-between">
-                    <div className="flex -space-x-2">
-                      {members.slice(0, 4).map((m: any) => (
-                        <div key={m.userId} title={m.userName} className={cn(
-                          "h-8 w-8 rounded-full border-2 border-background flex items-center justify-center text-[10px] font-black text-white",
-                          group.isManual ? "bg-secondary" : "bg-primary"
-                        )}>{(m.userName || 'U')[0].toUpperCase()}</div>
-                      ))}
-                      {members.length > 4 && <div className="h-8 w-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[8px] font-black">+{members.length - 4}</div>}
+                  <CardContent className="pt-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-2">
+                        <Label className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">Debtor Name</Label>
+                        <Input placeholder="Private Identity..." value={newDebt.debtorName} onChange={e => setNewDebt({...newDebt, debtorName: e.target.value})} className="h-11 rounded-xl" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">Amount (₹)</Label>
+                        <Input type="number" placeholder="0.00" value={newDebt.amount} onChange={e => setNewDebt({...newDebt, amount: e.target.value})} className="h-11 rounded-xl font-black text-lg" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">Confidential Notes</Label>
+                        <Input placeholder="e.g. For dinner last Friday" value={newDebt.description} onChange={e => setNewDebt({...newDebt, description: e.target.value})} className="h-11 rounded-xl" />
+                      </div>
                     </div>
-                    <Badge variant={group.isManual ? "secondary" : "default"} className={cn("font-black text-[10px] uppercase", group.isManual && "bg-secondary/20 text-secondary-foreground")}>{members.length} Members</Badge>
+                    <Button onClick={addDebt} className="w-full mt-8 h-12 rounded-2xl font-black shadow-lg text-base">
+                      <Plus className="mr-2 h-5 w-5" /> Secure Debt Record
+                    </Button>
                   </CardContent>
                 </Card>
-              );
-            })}
-          </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-black flex items-center gap-2 pl-2">
+                    <Info className="h-4 w-4 text-primary" />
+                    Vault Records
+                  </h3>
+                  
+                  <div className="grid gap-3">
+                    {decryptedDebts?.length === 0 ? (
+                      <Card className="p-20 border-dashed border-2 flex flex-col items-center justify-center opacity-40 grayscale space-y-4 rounded-3xl">
+                        <HandCoins className="h-12 w-12" />
+                        <p className="text-sm font-black uppercase tracking-widest">Ledger is empty</p>
+                      </Card>
+                    ) : (
+                      decryptedDebts?.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((debt) => (
+                        <div 
+                          key={debt.id} 
+                          className={cn(
+                            "group flex flex-col sm:flex-row sm:items-center justify-between p-5 rounded-3xl border transition-all duration-300 shadow-sm gap-4 relative overflow-hidden",
+                            debt.isPaid ? "bg-muted/30 border-muted opacity-60" : "bg-card border-border hover:border-primary/50 hover:shadow-md ring-1 ring-transparent hover:ring-primary/10"
+                          )}
+                        >
+                          <div className="flex items-center gap-4 relative z-10">
+                            <button 
+                              onClick={() => togglePaid(debt.id, debt.isPaid)}
+                              className={cn(
+                                "p-2 rounded-xl transition-all duration-300 flex-shrink-0",
+                                debt.isPaid ? "text-green-600 bg-green-100 shadow-inner" : "text-muted-foreground hover:text-primary hover:bg-primary/10 bg-muted/20"
+                              )}
+                            >
+                              {debt.isPaid ? <CheckCircle className="h-6 w-6" /> : <Circle className="h-6 w-6" />}
+                            </button>
+                            <div className="min-w-0">
+                              <h4 className={cn(
+                                "font-black text-xl truncate tracking-tight",
+                                debt.isPaid && "line-through text-muted-foreground opacity-70"
+                              )}>
+                                {debt.debtorName}
+                              </h4>
+                              <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest flex items-center gap-2">
+                                {debt.description || "Secured Note"} <Separator orientation="vertical" className="h-2" /> {new Date(debt.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto relative z-10">
+                            <div className="text-right">
+                              <p className={cn(
+                                "text-2xl font-black tracking-tighter",
+                                debt.isPaid ? "text-muted-foreground line-through opacity-50" : "text-primary"
+                              )}>
+                                ₹{debt.amount.toLocaleString()}
+                              </p>
+                              {debt.isPaid && <span className="text-[8px] font-black uppercase text-green-600 tracking-widest">Reconciled</span>}
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => deleteDebt(debt.id)}
+                              className="text-destructive h-10 w-10 rounded-xl hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-5 w-5" />
+                            </Button>
+                          </div>
+                          {!debt.isPaid && <HandCoins className="absolute -right-4 -bottom-4 h-24 w-24 text-primary/[0.03] -rotate-12 pointer-events-none" />}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       ) : (
         <div className="max-w-6xl mx-auto space-y-6">
