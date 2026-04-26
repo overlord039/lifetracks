@@ -166,7 +166,7 @@ export default function SplitPayPage() {
     if (!newDebt.debtorName || !newDebt.amount || !debtsRef || !user) return;
     const encryptedPayload = {
       userId: user?.uid,
-      debtorName: await encryptData(newDebt.debtorName, user.uid),
+      debtorName: await encryptData(newDebt.debtorName.trim().toUpperCase(), user.uid),
       amount: await encryptData(newDebt.amount, user.uid),
       description: await encryptData(newDebt.description, user.uid),
       isPaid: false,
@@ -204,7 +204,7 @@ export default function SplitPayPage() {
       if (prev.length < count) {
         const added = Array.from({ length: count - prev.length }, (_, i) => ({
           id: Math.random().toString(),
-          name: `Member ${prev.length + i + 1}`,
+          name: `MEMBER ${prev.length + i + 1}`,
           share: ''
         }));
         return [...prev, ...added];
@@ -219,7 +219,7 @@ export default function SplitPayPage() {
     return doc(db, 'users', user.uid);
   }, [db, user]);
   const { data: userProfile } = useDoc(userProfileRef);
-  const userName = userProfile?.displayName || user?.email?.split('@')[0] || 'Anonymous';
+  const userName = userProfile?.displayName || user?.email?.split('@')[0] || 'ANONYMOUS';
 
   const myGroupsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -291,7 +291,7 @@ export default function SplitPayPage() {
   // Case-Insensitive Deduplication for room categories
   const filteredRoomCategories = useMemo(() => {
     const seen = new Set<string>();
-    const normalize = (s: string) => (s || '').trim().toLowerCase();
+    const normalize = (s: string) => (s || '').trim().toUpperCase();
     return (roomCategories || []).filter(c => {
       const norm = normalize(c.name);
       if (!norm || seen.has(norm)) return false;
@@ -300,23 +300,22 @@ export default function SplitPayPage() {
     });
   }, [roomCategories]);
 
-  // Unified Label Sync: Push personal public labels to the room (case-insensitive)
+  // Unified Label Sync: Push personal public labels to the room
   useEffect(() => {
     const syncLabelsToRoom = async () => {
       if (!user || !activeGroup || decryptedPersonalCategories.length === 0 || !roomCategories || !roomCategoriesRef) return;
       
       const publicLabels = decryptedPersonalCategories.filter(c => c.type === 'daily' && !c.isPrivate);
-      const existingNames = new Set(roomCategories.map(c => (c.name || '').trim().toLowerCase()));
+      const existingNames = new Set(roomCategories.map(c => (c.name || '').trim().toUpperCase()));
 
       for (const label of publicLabels) {
-        const labelName = (label.name || '').trim();
-        if (labelName && !existingNames.has(labelName.toLowerCase())) {
+        const normalizedName = (label.name || '').trim().toUpperCase();
+        if (normalizedName && !existingNames.has(normalizedName)) {
           addDocumentNonBlocking(roomCategoriesRef, {
-            name: labelName,
+            name: normalizedName,
             createdAt: new Date().toISOString()
           });
-          // Update local set to prevent redundant writes in same effect cycle
-          existingNames.add(labelName.toLowerCase());
+          existingNames.add(normalizedName);
         }
       }
     };
@@ -360,7 +359,7 @@ export default function SplitPayPage() {
         existingCategories: roomCategories.map(c => c.name)
       });
       
-      const normalize = (s: string) => (s || '').trim().toLowerCase();
+      const normalize = (s: string) => (s || '').trim().toUpperCase();
       const suggestedNorm = normalize(result.suggestedCategoryName);
       
       if (result.isNewCategorySuggested) {
@@ -370,7 +369,7 @@ export default function SplitPayPage() {
           setExpenseCategoryId(alreadyExists.id);
         } else {
           const docRef = await addDocumentNonBlocking(roomCategoriesRef, {
-            name: result.suggestedCategoryName,
+            name: suggestedNorm,
             createdAt: new Date().toISOString()
           });
           if (docRef) setExpenseCategoryId(docRef.id);
@@ -410,7 +409,7 @@ export default function SplitPayPage() {
         shareMap[uid] = (shareMap[uid] || 0) + (share as number);
       });
 
-      const catName = roomCategories?.find(c => c.id === exp.expenseCategoryId)?.name || 'Unlabeled';
+      const catName = roomCategories?.find(c => c.id === exp.expenseCategoryId)?.name || 'UNLABELED';
       categoryTotals[catName] = (categoryTotals[catName] || 0) + exp.amount;
     });
 
@@ -497,7 +496,7 @@ export default function SplitPayPage() {
     
     const newRoom = {
       id: roomId,
-      name: await encryptData(roomName.trim(), user.uid),
+      name: await encryptData(roomName.trim().toUpperCase(), user.uid),
       createdBy: user.uid,
       creatorName: userName,
       memberUids: [user.uid],
@@ -524,12 +523,12 @@ export default function SplitPayPage() {
     // Convert manualMembers to room members with virtual IDs
     const roomMembers = manualMembers.map((m, idx) => ({
       userId: idx === 0 && m.name.toLowerCase() === 'me' ? user.uid : `virtual_${Math.random().toString(36).substring(2, 7)}`,
-      userName: m.name
+      userName: m.name.toUpperCase()
     }));
 
     const newRoom = {
       id: roomId,
-      name: await encryptData(manualRoomName.trim(), user.uid),
+      name: await encryptData(manualRoomName.trim().toUpperCase(), user.uid),
       createdBy: user.uid,
       creatorName: userName,
       memberUids: [user.uid], // Only creator can edit by default
@@ -554,7 +553,7 @@ export default function SplitPayPage() {
     if (activeGroup.createdBy !== user.uid) return;
     
     updateDocumentNonBlocking(doc(db, 'sharedGroups', activeGroup.id), {
-      name: await encryptData(editedRoomName.trim(), user.uid),
+      name: await encryptData(editedRoomName.trim().toUpperCase(), user.uid),
       updatedAt: new Date().toISOString()
     });
     
@@ -567,7 +566,7 @@ export default function SplitPayPage() {
     if (activeGroup.createdBy !== user.uid) return;
 
     const updatedMembers = activeGroup.members.map((m: any) => 
-      m.userId === targetUserId ? { ...m, userName: editedMemberName.trim() } : m
+      m.userId === targetUserId ? { ...m, userName: editedMemberName.trim().toUpperCase() } : m
     );
 
     updateDocumentNonBlocking(doc(db, 'sharedGroups', activeGroup.id), {
@@ -582,11 +581,11 @@ export default function SplitPayPage() {
 
   const handleAddMemberManually = async () => {
     if (!activeGroup || !newMemberName.trim() || !db || !user) return;
-    if (activeGroup.createdBy !== user.uid) return;
+    if (targetRoomAdminCheck()) return;
 
     const newMember = {
       userId: `virtual_${Math.random().toString(36).substring(2, 7)}`,
-      userName: newMemberName.trim()
+      userName: newMemberName.trim().toUpperCase()
     };
 
     updateDocumentNonBlocking(doc(db, 'sharedGroups', activeGroup.id), {
@@ -596,6 +595,14 @@ export default function SplitPayPage() {
     setNewMemberName('');
     setIsAddMemberModalOpen(false);
     toast({ title: "Member Added", description: `${newMember.userName} added to ledger.` });
+  };
+
+  const targetRoomAdminCheck = () => {
+     if (activeGroup && user?.uid !== activeGroup.createdBy) {
+       toast({ variant: "destructive", title: "Access Denied", description: "Only the Room Admin can modify members." });
+       return true;
+     }
+     return false;
   };
 
   const handleJoinRoom = async () => {
@@ -617,24 +624,22 @@ export default function SplitPayPage() {
   };
 
   const addRoomCategory = async () => {
-    if (!newRoomCategoryName.trim() || !roomCategoriesRef) return;
+    const normalizedName = newRoomCategoryName.trim().toUpperCase();
+    if (!normalizedName || !roomCategoriesRef) return;
     
-    // Case-insensitive check
-    const normalize = (s: string) => (s || '').trim().toLowerCase();
-    const newNorm = normalize(newRoomCategoryName);
-    const alreadyExists = roomCategories?.some(c => normalize(c.name) === newNorm);
+    const alreadyExists = roomCategories?.some(c => (c.name || '').trim().toUpperCase() === normalizedName);
     
     if (alreadyExists) {
       toast({ 
         variant: "destructive", 
         title: "Label Exists", 
-        description: `"${newRoomCategoryName}" is already defined in this room.` 
+        description: `"${normalizedName}" is already defined in this room.` 
       });
       return;
     }
 
     addDocumentNonBlocking(roomCategoriesRef, {
-      name: newRoomCategoryName.trim(),
+      name: normalizedName,
       createdAt: new Date().toISOString()
     });
     setNewRoomCategoryName('');
@@ -662,12 +667,12 @@ export default function SplitPayPage() {
     if (!expenseAmt || !paidBy || !activeGroup || !user || !expensesRef || !splitValidation.isValid) return;
     const amt = parseFloat(expenseAmt);
     const members = Array.isArray(activeGroup.members) ? activeGroup.members : [];
-    const paidByName = members.find((m: any) => m.userId === paidBy)?.userName || 'Unknown';
+    const paidByName = members.find((m: any) => m.userId === paidBy)?.userName || 'UNKNOWN';
 
     addDocumentNonBlocking(expensesRef, {
       roomId: activeGroup.id,
       amount: amt,
-      description: expenseDesc || 'Expense',
+      description: expenseDesc.toUpperCase() || 'EXPENSE',
       paidBy,
       paidByName,
       expenseCategoryId,
@@ -684,15 +689,14 @@ export default function SplitPayPage() {
         const personalExpensesRef = collection(db, 'users', user.uid, 'monthlyBudgets', monthId, 'expenses');
         const todayStr = format(new Date(), 'yyyy-MM-dd');
         
-        const roomCatName = (roomCategories?.find(c => c.id === expenseCategoryId)?.name || 'Room Bill').trim();
-        const personalDesc = `Room: ${activeGroup.name} - ${expenseDesc || roomCatName}`;
+        const roomCatName = (roomCategories?.find(c => c.id === expenseCategoryId)?.name || 'ROOM BILL').trim().toUpperCase();
+        const personalDesc = `ROOM: ${activeGroup.name} - ${expenseDesc.toUpperCase() || roomCatName}`;
         
         let targetPersonalCatId = '';
-        // Case-insensitive match for unified labels
         const match = decryptedPersonalCategories?.find(pc => 
           pc.type === 'daily' && 
           !pc.isPrivate && 
-          (pc.name || '').trim().toLowerCase() === roomCatName.toLowerCase()
+          (pc.name || '').trim().toUpperCase() === roomCatName
         );
         
         if (match) {
@@ -739,7 +743,7 @@ export default function SplitPayPage() {
   const handleSettle = (fromId: string, fromName: string, toId: string, amount: number) => {
     if (!settlementsRef || !activeGroup) return;
     const members = Array.isArray(activeGroup.members) ? activeGroup.members : [];
-    const toName = members.find((m: any) => m.userId === toId)?.userName || 'Unknown';
+    const toName = members.find((m: any) => m.userId === toId)?.userName || 'UNKNOWN';
     
     addDocumentNonBlocking(settlementsRef, {
       roomId: activeGroup.id,
@@ -754,7 +758,7 @@ export default function SplitPayPage() {
   };
 
   const handleManualAddMember = () => {
-    setManualMembers([...manualMembers, { id: Math.random().toString(), name: `Member ${manualMembers.length + 1}`, share: '' }]);
+    setManualMembers([...manualMembers, { id: Math.random().toString(), name: `MEMBER ${manualMembers.length + 1}`, share: '' }]);
     setManualMemberCount((manualMembers.length + 1).toString());
   };
 
@@ -900,7 +904,7 @@ export default function SplitPayPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="space-y-2">
                         <Label className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">Debtor Name</Label>
-                        <Input placeholder="Private Identity..." value={newDebt.debtorName} onChange={e => setNewDebt({...newDebt, debtorName: e.target.value})} className="h-11 rounded-xl" />
+                        <Input placeholder="Private Identity..." value={newDebt.debtorName} onChange={e => setNewDebt({...newDebt, debtorName: e.target.value})} className="h-11 rounded-xl uppercase font-bold" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">Amount (₹)</Label>
@@ -991,7 +995,7 @@ export default function SplitPayPage() {
         </div>
       ) : (
         <div className="max-w-6xl mx-auto space-y-6">
-          <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <header className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon" onClick={() => setSelectedGroupId(null)} className="h-10 w-10 rounded-xl">
                 <ArrowLeft className="h-5 w-5" />
@@ -1003,7 +1007,7 @@ export default function SplitPayPage() {
                       <Input 
                         value={editedRoomName} 
                         onChange={(e) => setEditedRoomName(e.target.value)}
-                        className="h-8 w-48 font-black text-xl bg-muted/20 border-primary/20 focus:ring-primary/20"
+                        className="h-8 w-48 font-black text-xl bg-muted/20 border-primary/20 focus:ring-primary/20 uppercase"
                         autoFocus
                         onKeyDown={(e) => e.key === 'Enter' && handleUpdateRoomName()}
                       />
@@ -1088,7 +1092,7 @@ export default function SplitPayPage() {
                           <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Description (Optional)</Label>
                             <div className="flex gap-2">
-                              <Input placeholder="What was this for?" value={expenseDesc} onChange={e => setExpenseDesc(e.target.value)} className="h-11 rounded-xl" />
+                              <Input placeholder="What was this for?" value={expenseDesc} onChange={e => setExpenseDesc(e.target.value)} className="h-11 rounded-xl uppercase font-bold" />
                               <Button variant="outline" size="icon" className="h-11 w-11 shrink-0 rounded-xl" onClick={handleAICategorize} disabled={isAIThinking || !expenseDesc}>
                                 {isAIThinking ? <Loader2 className="h-4 w-4 animate-spin" /> : <BrainCircuit className="h-4 w-4 text-primary" />}
                               </Button>
@@ -1437,7 +1441,7 @@ export default function SplitPayPage() {
           <div className="py-6 space-y-4">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest">Room Name</Label>
-              <Input placeholder="e.g. Trip to Ladakh" value={roomName} onChange={e => setRoomName(e.target.value)} className="h-12 rounded-2xl" />
+              <Input placeholder="e.g. TRIP TO LADAKH" value={roomName} onChange={e => setRoomName(e.target.value)} className="h-12 rounded-2xl uppercase font-bold" />
             </div>
           </div>
           <DialogFooter>
@@ -1457,7 +1461,7 @@ export default function SplitPayPage() {
           <div className="py-6 space-y-4">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-center block">Room Code</Label>
-              <Input placeholder="ABC123XY" value={joinCode} onChange={e => setJoinCode(e.target.value)} className="h-14 rounded-2xl text-2xl font-black text-center tracking-widest" />
+              <Input placeholder="ABC123XY" value={joinCode} onChange={e => setJoinCode(e.target.value)} className="h-14 rounded-2xl text-2xl font-black text-center tracking-widest uppercase" />
             </div>
           </div>
           <DialogFooter>
@@ -1483,10 +1487,10 @@ export default function SplitPayPage() {
                 <div className="space-y-4">
                   <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Manual Room Name</Label>
                   <Input 
-                    placeholder="e.g. Household Bills" 
+                    placeholder="e.g. HOUSEHOLD BILLS" 
                     value={manualRoomName} 
                     onChange={e => setManualRoomName(e.target.value)} 
-                    className="h-14 rounded-2xl font-black text-lg tracking-tight bg-muted/20" 
+                    className="h-14 rounded-2xl font-black text-lg tracking-tight bg-muted/20 uppercase" 
                   />
                 </div>
                 <div className="space-y-4">
@@ -1517,7 +1521,7 @@ export default function SplitPayPage() {
                           newMembers[idx].name = e.target.value;
                           setManualMembers(newMembers);
                         }}
-                        className="h-12 rounded-xl font-bold text-sm flex-1"
+                        className="h-12 rounded-xl font-bold text-sm flex-1 uppercase"
                       />
                       <Button variant="ghost" size="icon" onClick={() => handleManualRemoveMember(member.id)} className="h-12 w-12 text-destructive/50 hover:text-destructive hover:bg-destructive/10 rounded-xl">
                         <X className="h-4 w-4" />
@@ -1551,10 +1555,10 @@ export default function SplitPayPage() {
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest">Member Name</Label>
               <Input 
-                placeholder="e.g. John Doe" 
+                placeholder="e.g. JOHN DOE" 
                 value={newMemberName} 
                 onChange={e => setNewMemberName(e.target.value)} 
-                className="h-12 rounded-2xl" 
+                className="h-12 rounded-2xl uppercase font-bold" 
                 autoFocus
                 onKeyDown={(e) => e.key === 'Enter' && handleAddMemberManually()}
               />
