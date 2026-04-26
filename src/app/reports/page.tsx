@@ -53,7 +53,8 @@ import {
   HeartPulse,
   Smile,
   ShieldCheck,
-  BarChart as BarChartIcon
+  BarChart as BarChartIcon,
+  Download
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -71,6 +72,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from '@/lib/utils';
 import { decryptData, decryptNumber } from '@/lib/encryption';
+import { useToast } from '@/hooks/use-toast';
 
 const PILLAR_ICONS: Record<string, any> = {
   expense: { icon: Wallet, color: 'text-blue-500', bg: 'bg-blue-500' },
@@ -96,6 +98,7 @@ const chartTooltipStyle = {
 export default function ReportsPage() {
   const { user } = useUser();
   const firestore = useFirestore();
+  const { toast } = useToast();
   
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewType, setViewType] = useState<'weekly' | 'monthly' | 'annual'>('monthly');
@@ -490,6 +493,38 @@ export default function ReportsPage() {
     }
   };
 
+  const downloadAuditCsv = () => {
+    const verifiedExpenses = (decryptedExpenses || []).filter(exp => selectedTransactionIds.has(exp.id));
+    
+    if (verifiedExpenses.length === 0) {
+      toast({ title: "No Data", description: "Select transactions from the audit ledger to export." });
+      return;
+    }
+
+    const headers = ['Date', 'Description', 'Category', 'Pillar', 'Amount (₹)'];
+    const rows = verifiedExpenses.sort((a,b) => b.date.localeCompare(a.date)).map(exp => {
+      const catName = decryptedCategories.find(c => c.id === exp.expenseCategoryId)?.name || 'MISC';
+      return [
+        exp.date,
+        `"${(exp.description || 'SECURED ITEM').replace(/"/g, '""')}"`,
+        `"${catName.replace(/"/g, '""')}"`,
+        exp.allocationBucket || 'expense',
+        exp.amount
+      ];
+    });
+
+    const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `LifeTrack_Audit_${format(selectedDate, 'yyyyMM')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: "Audit Exported", description: "CSV has been saved to your downloads." });
+  };
+
   if (!mounted || isDecrypting) {
     return (
       <AppShell>
@@ -850,7 +885,7 @@ export default function ReportsPage() {
 
       <Dialog open={isAuditModalOpen} onOpenChange={setIsAuditModalOpen}>
         <DialogContent className="max-w-[98vw] md:max-w-6xl rounded-none md:rounded-2xl p-0 overflow-hidden border shadow-2xl h-[95vh] md:h-[90vh] flex flex-col">
-          <div className="bg-primary p-4 sm:p-6 text-primary-foreground relative shrink-0">
+          <div className="bg-primary p-4 sm:p-6 text-primary-foreground relative shrink-0 flex items-center justify-between">
             <DialogHeader className="text-left space-y-1">
               <DialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-2">
                 <CheckSquare className="h-6 w-6" />
@@ -860,6 +895,13 @@ export default function ReportsPage() {
                 Perform manual spend reconciliation and detailed transactional review
               </DialogDescription>
             </DialogHeader>
+            <Button 
+              variant="outline" 
+              onClick={downloadAuditCsv}
+              className="bg-white/10 border-white/20 hover:bg-white/20 text-white font-black uppercase text-[10px] tracking-widest h-10 px-4 rounded-xl gap-2"
+            >
+              <Download className="h-4 w-4" /> Download Audit
+            </Button>
           </div>
           
           <div className="flex-1 min-h-0 flex flex-col md:flex-row bg-background">
