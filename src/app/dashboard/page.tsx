@@ -106,6 +106,7 @@ export default function Dashboard() {
         const exps = await Promise.all(rawExpenses.map(async e => ({
           ...e,
           amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : (e.amount || 0),
+          date: e.date || '',
         })));
         setDecryptedExpenses(exps);
       }
@@ -153,13 +154,11 @@ export default function Dashboard() {
 
   const todayReport = budgetReport?.[todayStr];
   
-  // Logic: Show the static base allocation in the top card as requested
   const baseAllocation = todayReport?.baseBudget || 0;
-  
-  // Logic: Show the rolling balance as "Safe to Spend"
-  const rollingAllowance = (todayReport?.baseBudget || 0) + (todayReport?.extraBudget || 0) + (todayReport?.carryForwardFromYesterday || 0);
   const spentToday = todayReport?.spent || 0;
+  const rollingAllowance = (todayReport?.baseBudget || 0) + (todayReport?.extraBudget || 0) + (todayReport?.carryForwardFromYesterday || 0);
   const remaining = Math.max(0, rollingAllowance - spentToday);
+  const baseRemaining = baseAllocation - spentToday;
 
   const goalsProgress = learningGoals?.length ? Math.round((learningGoals.filter(g => (g.completedCount || 0) >= (g.target || 0)).length / learningGoals.length) * 100) : 0;
 
@@ -241,47 +240,51 @@ export default function Dashboard() {
                   <TrendingUp className="w-4 h-4 text-primary" />
                   Budget Insight
                 </CardTitle>
-                <CardDescription className="text-[9px] md:text-[10px] font-medium uppercase tracking-tight">Real-time health check</CardDescription>
+                <CardDescription className="text-[9px] md:text-[10px] font-medium uppercase tracking-tight">Real-time performance metrics</CardDescription>
               </CardHeader>
               <CardContent className="p-4 md:p-6 space-y-4 md:space-y-6">
                 <div className={cn(
-                  "p-4 md:p-5 rounded-2xl border transition-all flex items-center justify-between",
-                  remaining > 0 
+                  "p-4 md:p-5 rounded-2xl border transition-all grid grid-cols-2 gap-4",
+                  baseRemaining >= 0 
                     ? 'bg-green-50/50 border-green-100 dark:bg-green-950/20 dark:border-green-900/30' 
                     : 'bg-red-50/50 border-red-100 dark:bg-red-950/20 dark:border-red-900/30'
                 )}>
-                  <div className="flex items-center gap-3 md:gap-4">
+                  <div className="flex items-center gap-3">
                     <div className={cn(
-                      "p-2 md:p-3 rounded-xl shadow-sm",
-                      remaining > 0 
+                      "p-2 rounded-xl shadow-sm",
+                      baseRemaining >= 0 
                         ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400' 
                         : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400'
                     )}>
-                      {remaining > 0 ? <TrendingUp className="w-5 h-5 md:w-6 md:h-6" /> : <TrendingDown className="w-5 h-5 md:w-6 md:h-6" />}
+                      {baseRemaining >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
                     </div>
                     <div>
-                      <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground tracking-widest">Safe to Spend</p>
-                      <p className="text-2xl md:text-3xl font-black tracking-tighter">₹{remaining.toFixed(0)}</p>
+                      <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground tracking-widest">Base Remaining</p>
+                      <p className={cn(
+                        "text-xl md:text-2xl font-black tracking-tighter",
+                        baseRemaining >= 0 ? "text-green-700" : "text-red-700"
+                      )}>₹{baseRemaining.toFixed(0)}</p>
                     </div>
                   </div>
-                  <ShieldCheck className={cn(
-                    "w-6 h-6 md:w-8 md:h-8 opacity-20",
-                    remaining > 0 ? "text-green-600" : "text-red-600"
-                  )} />
+
+                  <div className="flex flex-col justify-center items-end border-l border-dashed border-muted-foreground/20 pl-4">
+                    <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground tracking-widest">Spent Today</p>
+                    <p className="text-xl md:text-2xl font-black tracking-tighter">₹{spentToday.toFixed(0)}</p>
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-0.5 md:space-y-1">
-                    <p className="text-[8px] md:text-[10px] font-bold text-muted-foreground uppercase">Base Allocation</p>
-                    <p className="text-xs md:text-sm font-black">₹{todayReport?.baseBudget.toFixed(0)}</p>
+                    <p className="text-[8px] md:text-[10px] font-bold text-muted-foreground uppercase">Base Target</p>
+                    <p className="text-xs md:text-sm font-black">₹{baseAllocation.toFixed(0)}</p>
                   </div>
                   <div className="space-y-0.5 md:space-y-1 text-right">
-                    <p className="text-[8px] md:text-[10px] font-bold text-muted-foreground uppercase">Roll-over</p>
+                    <p className="text-[8px] md:text-[10px] font-bold text-muted-foreground uppercase">Total Safe</p>
                     <p className={cn(
                       "text-xs md:text-sm font-black",
-                      (todayReport?.carryForwardFromYesterday || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                      remaining > 0 ? 'text-green-600' : 'text-red-600'
                     )}>
-                      {(todayReport?.carryForwardFromYesterday || 0) >= 0 ? '+' : ''}₹{todayReport?.carryForwardFromYesterday.toFixed(0)}
+                      ₹{remaining.toFixed(0)}
                     </p>
                   </div>
                 </div>
