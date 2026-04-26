@@ -108,6 +108,8 @@ export default function BudgetPage() {
           totalBudgetAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.totalBudgetAmount, user.uid) : (rawBudget.totalBudgetAmount || 0),
           baseBudgetAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.baseBudgetAmount, user.uid) : (rawBudget.baseBudgetAmount || 0),
           extraBudgetAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.extraBudgetAmount, user.uid) : (rawBudget.extraBudgetAmount || 0),
+          actualSpent: rawBudget.isEncrypted ? await decryptNumber(rawBudget.actualSpent, user.uid) : (rawBudget.actualSpent || 0),
+          actualFixedSpent: rawBudget.isEncrypted ? await decryptNumber(rawBudget.actualFixedSpent, user.uid) : (rawBudget.actualFixedSpent || 0),
           isDailyLimitEnabled: rawBudget.isDailyLimitEnabled ?? true,
         });
       }
@@ -135,6 +137,29 @@ export default function BudgetPage() {
     };
     decryptAll();
   }, [rawCategories, rawBudget, rawFixed, rawExpenses, user, mounted]);
+
+  // Aggregate Sync Effect
+  useEffect(() => {
+    const syncAggregates = async () => {
+      if (!user || !monthlyBudgetRef || isDecrypting || !mounted) return;
+      
+      const spent = decryptedExpenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
+      const fixedSpent = decryptedFixed?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
+      
+      const prevSpent = decryptedBudget?.actualSpent || 0;
+      const prevFixed = decryptedBudget?.actualFixedSpent || 0;
+
+      if (Math.abs(spent - prevSpent) > 0.01 || Math.abs(fixedSpent - prevFixed) > 0.01) {
+        setDocumentNonBlocking(monthlyBudgetRef, {
+          actualSpent: await encryptData(spent.toString(), user.uid),
+          actualFixedSpent: await encryptData(fixedSpent.toString(), user.uid),
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      }
+    };
+    
+    syncAggregates();
+  }, [decryptedExpenses, decryptedFixed, decryptedBudget, user, monthlyBudgetRef, isDecrypting, mounted]);
 
   useEffect(() => {
     if (editingExpenseId) {
@@ -263,6 +288,9 @@ export default function BudgetPage() {
     if (updates.totalBudgetAmount !== undefined) encryptedUpdates.totalBudgetAmount = await encryptData(updates.totalBudgetAmount, user.uid);
     if (updates.baseBudgetAmount !== undefined) encryptedUpdates.baseBudgetAmount = await encryptData(updates.baseBudgetAmount, user.uid);
     if (updates.extraBudgetAmount !== undefined) encryptedUpdates.extraBudgetAmount = await encryptData(updates.extraBudgetAmount, user.uid);
+    if (updates.actualSpent !== undefined) encryptedUpdates.actualSpent = await encryptData(updates.actualSpent.toString(), user.uid);
+    if (updates.actualFixedSpent !== undefined) encryptedUpdates.actualFixedSpent = await encryptData(updates.actualFixedSpent.toString(), user.uid);
+
     setDocumentNonBlocking(monthlyBudgetRef, {
       ...encryptedUpdates,
       userId: user.uid,

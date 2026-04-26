@@ -57,6 +57,8 @@
         "totalBudgetAmount": { "type": "string", "description": "Encrypted total" },
         "baseBudgetAmount": { "type": "string", "description": "Encrypted base" },
         "extraBudgetAmount": { "type": "string", "description": "Encrypted extra" },
+        "actualSpent": { "type": "string", "description": "Encrypted total actual spent" },
+        "actualFixedSpent": { "type": "string", "description": "Encrypted total actual fixed spent" },
         "isWeekendExtraBudgetEnabled": { "type": "boolean" },
         "isDailyLimitEnabled": { "type": "boolean" },
         "isEncrypted": { "type": "boolean" }

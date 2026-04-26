@@ -101,8 +101,7 @@ export default function ReportsPage() {
   const [decryptedPrevExpenses, setDecryptedPrevExpenses] = useState<any[]>([]);
   const [decryptedCategories, setDecryptedCategories] = useState<any[]>([]);
   const [decryptedSalaryProfile, setDecryptedSalaryProfile] = useState<any>(null);
-  const [decryptedAllYearExpenses, setDecryptedAllYearExpenses] = useState<any[]>([]);
-  const [decryptedAllYearFixed, setDecryptedAllYearFixed] = useState<any[]>([]);
+  const [decryptedAllBudgets, setDecryptedAllBudgets] = useState<any[]>([]);
   const [isDecrypting, setIsDecrypting] = useState(false);
 
   useEffect(() => {
@@ -155,18 +154,11 @@ export default function ReportsPage() {
   }, [firestore, user]);
   const { data: rawSalaryProfile } = useDoc(salaryProfileRef);
 
-  // Collection Group Queries for Annual View
-  const allExpensesYearQuery = useMemoFirebase(() => {
+  const allBudgetsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    return query(collectionGroup(firestore, 'expenses'), where('userId', '==', user.uid));
+    return collection(firestore, 'users', user.uid, 'monthlyBudgets');
   }, [firestore, user]);
-  const { data: rawAllYearExpenses } = useCollection(allExpensesYearQuery);
-
-  const allFixedYearQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return query(collectionGroup(firestore, 'fixedExpenses'), where('userId', '==', user.uid));
-  }, [firestore, user]);
-  const { data: rawAllYearFixed } = useCollection(allFixedYearQuery);
+  const { data: rawAllBudgets } = useCollection(allBudgetsQuery);
 
   useEffect(() => {
     const decryptAll = async () => {
@@ -177,6 +169,8 @@ export default function ReportsPage() {
         setDecryptedBudget({
           ...rawBudget,
           totalBudgetAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.totalBudgetAmount, user.uid) : (rawBudget.totalBudgetAmount || 0),
+          actualSpent: rawBudget.isEncrypted ? await decryptNumber(rawBudget.actualSpent, user.uid) : (rawBudget.actualSpent || 0),
+          actualFixedSpent: rawBudget.isEncrypted ? await decryptNumber(rawBudget.actualFixedSpent, user.uid) : (rawBudget.actualFixedSpent || 0),
         });
       }
 
@@ -240,27 +234,20 @@ export default function ReportsPage() {
         });
       }
 
-      if (rawAllYearExpenses) {
-        const yearExps = await Promise.all(rawAllYearExpenses.map(async e => ({
-          ...e,
-          amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : (e.amount || 0),
+      if (rawAllBudgets) {
+        const budgets = await Promise.all(rawAllBudgets.map(async b => ({
+          ...b,
+          actualSpent: b.isEncrypted ? await decryptNumber(b.actualSpent, user.uid) : (b.actualSpent || 0),
+          actualFixedSpent: b.isEncrypted ? await decryptNumber(b.actualFixedSpent, user.uid) : (b.actualFixedSpent || 0),
+          totalBudgetAmount: b.isEncrypted ? await decryptNumber(b.totalBudgetAmount, user.uid) : (b.totalBudgetAmount || 0),
         })));
-        setDecryptedAllYearExpenses(yearExps);
-      }
-
-      if (rawAllYearFixed) {
-        const yearFixed = await Promise.all(rawAllYearFixed.map(async f => ({
-          ...f,
-          amount: f.isEncrypted ? await decryptNumber(f.amount, user.uid) : (f.amount || 0),
-          includeInBudget: f.includeInBudget ?? true,
-        })));
-        setDecryptedAllYearFixed(yearFixed);
+        setDecryptedAllBudgets(budgets);
       }
 
       setIsDecrypting(false);
     };
     decryptAll();
-  }, [rawBudget, rawPrevBudget, rawFixed, rawExpenses, rawPrevExpenses, rawCategories, rawSalaryProfile, rawAllYearExpenses, rawAllYearFixed, user, mounted]);
+  }, [rawBudget, rawPrevBudget, rawFixed, rawExpenses, rawPrevExpenses, rawCategories, rawSalaryProfile, rawAllBudgets, user, mounted]);
 
   const totals = useMemo(() => {
     const budget = decryptedBudget?.totalBudgetAmount || 0;
@@ -420,27 +407,18 @@ export default function ReportsPage() {
       const yearEnd = endOfYear(selectedDate);
       const months = eachMonthOfInterval({ start: yearStart, end: yearEnd });
 
-      // Monthly aggregates for the entire year
-      const monthlyTotalMap: Record<string, number> = {};
-      
-      // Daily spends across all monthly budgets for the year
-      (decryptedAllYearExpenses || []).forEach(exp => {
-        const mKey = format(new Date(exp.date), 'yyyyMM');
-        monthlyTotalMap[mKey] = (monthlyTotalMap[mKey] || 0) + exp.amount;
-      });
-
-      // Fixed costs across all monthly budgets for the year
-      (decryptedAllYearFixed || []).forEach(fixed => {
-        if (fixed.includeInBudget && fixed.monthlyBudgetId) {
-          monthlyTotalMap[fixed.monthlyBudgetId] = (monthlyTotalMap[fixed.monthlyBudgetId] || 0) + fixed.amount;
-        }
+      const budgetMap: Record<string, any> = {};
+      (decryptedAllBudgets || []).forEach(b => {
+        budgetMap[b.id] = b;
       });
 
       sData = months.map(m => {
         const mKey = format(m, 'yyyyMM');
+        const b = budgetMap[mKey];
         return {
           name: format(m, 'MMM'),
-          spent: monthlyTotalMap[mKey] || 0,
+          spent: (b?.actualSpent || 0) + (b?.actualFixedSpent || 0),
+          budgeted: b?.totalBudgetAmount || 0,
           fullLabel: format(m, 'MMMM yyyy')
         };
       });
@@ -462,7 +440,7 @@ export default function ReportsPage() {
     }));
 
     return { spendingData: sData, categoryData: cData };
-  }, [decryptedExpenses, decryptedCategories, decryptedAllYearExpenses, decryptedAllYearFixed, selectedDate, viewType, weeklyReport]);
+  }, [decryptedExpenses, decryptedCategories, decryptedAllBudgets, selectedDate, viewType, weeklyReport]);
 
   const changeMonth = (delta: number) => {
     setSelectedDate(prev => subMonths(prev, -delta));
@@ -856,6 +834,10 @@ export default function ReportsPage() {
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
                   </Bar>
+                  {viewType === 'annual' && (
+                    <Bar dataKey="budgeted" radius={[4, 4, 0, 0]} name="Target Budget" fill="hsl(var(--muted))" fillOpacity={0.3} animationDuration={1000} />
+                  )}
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', paddingTop: '10px' }} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
