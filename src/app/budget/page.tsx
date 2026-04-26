@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, getDocs } from 'firebase/firestore';
-import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, Pencil, X, ShieldAlert, AlertTriangle, Lock, ShieldCheck, Activity, PiggyBank, TrendingUp, HeartPulse, Smile, Check, Tag } from 'lucide-react';
+import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, Pencil, X, ShieldAlert, AlertTriangle, Lock, ShieldCheck, Activity, PiggyBank, TrendingUp, HeartPulse, Smile, Check, Tag, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { format, getDaysInMonth } from 'date-fns';
@@ -422,6 +422,44 @@ export default function BudgetPage() {
     setLoading(false);
   };
 
+  const downloadActivityCsv = () => {
+    if (!decryptedExpenses || decryptedExpenses.length === 0) {
+      toast({ title: "No Data", description: "No records found to export for this month." });
+      return;
+    }
+
+    // Headers
+    const headers = ['Date', 'Description', 'Category', 'Pillar', 'Amount (₹)'];
+    
+    // Rows
+    const rows = [...decryptedExpenses].sort((a,b) => b.date.localeCompare(a.date)).map(exp => {
+      const catName = allCategories.find(c => c.id === exp.expenseCategoryId)?.name || 'MISC';
+      return [
+        exp.date,
+        `"${(exp.description || 'SECURED ITEM').replace(/"/g, '""')}"`,
+        `"${catName.replace(/"/g, '""')}"`,
+        exp.allocationBucket,
+        exp.amount
+      ];
+    });
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `LifeTrack_Activity_${monthId}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: "Export Complete", description: "CSV has been saved to your downloads." });
+  };
+
   if (!mounted || isDecrypting) {
     return (
       <AppShell>
@@ -769,9 +807,20 @@ export default function BudgetPage() {
                 </DialogTitle>
                 <DialogDescription className="text-[10px] uppercase font-bold tracking-tight">Comprehensive history of your secured spends</DialogDescription>
               </div>
-              <Badge variant="outline" className="text-[10px] font-black uppercase px-3 py-1 bg-background">
-                {decryptedExpenses?.length || 0} Total Records
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={downloadActivityCsv}
+                  className="h-8 px-3 text-[10px] font-black uppercase gap-2 bg-background shadow-sm hover:bg-primary/5"
+                >
+                  <Download className="h-3.5 w-3.5 text-primary" />
+                  Export CSV
+                </Button>
+                <Badge variant="outline" className="text-[10px] font-black uppercase px-3 py-1 bg-background h-8">
+                  {decryptedExpenses?.length || 0} Total Records
+                </Badge>
+              </div>
             </div>
           </DialogHeader>
           <div className="p-0">
