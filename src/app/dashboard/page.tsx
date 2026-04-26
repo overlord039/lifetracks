@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -164,6 +163,8 @@ export default function Dashboard() {
   const isOverspent = spentToday > dailyBaseAllowance;
   const isWithinBudget = spentToday <= dailyBaseAllowance && spentToday > 0;
 
+  const hasActiveGoals = !!(learningGoals && learningGoals.length > 0);
+
   if (!mounted || isDecrypting) {
     return (
       <AppShell>
@@ -227,7 +228,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid gap-4 md:gap-6 mt-4 md:mt-6 lg:grid-cols-12">
-        <div className="lg:col-span-7 space-y-4 md:space-y-6">
+        <div className={cn("space-y-4 md:space-y-6", hasActiveGoals ? "lg:col-span-7" : "lg:col-span-12")}>
           <Link href="/reports" className="block group">
             <Card className="shadow-lg overflow-hidden border-none ring-1 ring-border group-hover:ring-primary/30 transition-all duration-300 rounded-2xl">
               <CardHeader className="bg-muted/30 border-b py-3 md:py-4 px-4 md:px-6">
@@ -284,35 +285,32 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        <div className="lg:col-span-5">
-          <Link href="/learning" className="block group h-full">
-            <Card className="shadow-lg h-full border-none ring-1 ring-border group-hover:ring-primary/30 transition-all duration-300 rounded-2xl">
-              <CardHeader className="bg-muted/30 border-b py-3 md:py-4 px-4 md:px-6">
-                <CardTitle className="text-sm md:text-base font-black">Active Skills</CardTitle>
-                <CardDescription className="text-[9px] md:text-[10px] font-medium uppercase tracking-tight">Daily Progress tracker</CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 md:p-6 space-y-3 md:space-y-4">
-                {learningGoals?.length ? learningGoals.slice(0, 4).map((goal) => {
-                  const p = Math.min(100, Math.round(((goal.completedCount || 0) / (goal.target || 1)) * 100));
-                  return (
-                    <div key={goal.id} className="space-y-1.5">
-                      <div className="flex justify-between items-center text-[10px] md:text-[11px] font-black uppercase tracking-tighter">
-                        <span className="truncate max-w-[70%]">{goal.skill}</span>
-                        <span className="text-muted-foreground">{p}%</span>
+        {hasActiveGoals && (
+          <div className="lg:col-span-5">
+            <Link href="/learning" className="block group h-full">
+              <Card className="shadow-lg h-full border-none ring-1 ring-border group-hover:ring-primary/30 transition-all duration-300 rounded-2xl">
+                <CardHeader className="bg-muted/30 border-b py-3 md:py-4 px-4 md:px-6">
+                  <CardTitle className="text-sm md:text-base font-black">Active Skills</CardTitle>
+                  <CardDescription className="text-[9px] md:text-[10px] font-medium uppercase tracking-tight">Daily Progress tracker</CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 md:p-6 space-y-3 md:space-y-4">
+                  {learningGoals!.slice(0, 4).map((goal) => {
+                    const p = Math.min(100, Math.round(((goal.completedCount || 0) / (goal.target || 1)) * 100));
+                    return (
+                      <div key={goal.id} className="space-y-1.5">
+                        <div className="flex justify-between items-center text-[10px] md:text-[11px] font-black uppercase tracking-tighter">
+                          <span className="truncate max-w-[70%]">{goal.skill}</span>
+                          <span className="text-muted-foreground">{p}%</span>
+                        </div>
+                        <Progress value={p} className="h-1 md:h-1.5" />
                       </div>
-                      <Progress value={p} className="h-1 md:h-1.5" />
-                    </div>
-                  );
-                }) : (
-                  <div className="flex flex-col items-center justify-center py-10 text-center opacity-40 grayscale">
-                    <BookOpen className="h-8 w-8 mb-2" />
-                    <p className="text-[9px] font-black uppercase">No active goals</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </Link>
-        </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+        )}
       </div>
     </AppShell>
   );
