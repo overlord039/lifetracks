@@ -20,7 +20,7 @@ import {
 } from 'date-fns';
 import { collection, doc } from 'firebase/firestore';
 import { 
-  BarChart, 
+  BarChart as RechartsBarChart, 
   Bar, 
   XAxis, 
   YAxis, 
@@ -52,7 +52,8 @@ import {
   PiggyBank,
   HeartPulse,
   Smile,
-  ShieldCheck
+  ShieldCheck,
+  BarChart
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -613,7 +614,7 @@ export default function ReportsPage() {
             <CardContent className="space-y-4 p-4 md:p-6">
               <div className="h-[80px] md:h-[100px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={weeklyReport.weeklyData}>
+                  <RechartsBarChart data={weeklyReport.weeklyData}>
                     <Bar dataKey="spent" fill="#FFB74D" radius={[2, 2, 0, 0]} />
                     <Tooltip 
                       contentStyle={chartTooltipStyle}
@@ -621,7 +622,7 @@ export default function ReportsPage() {
                       labelClassName="text-[10px] font-bold text-popover-foreground"
                       itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
                     />
-                  </BarChart>
+                  </RechartsBarChart>
                 </ResponsiveContainer>
               </div>
               <div className="pt-1 md:pt-2">
@@ -818,7 +819,7 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent className="h-[250px] md:h-[400px] pt-4 -ml-4 md:ml-0 p-4 md:p-6">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartsData.spendingData} margin={{ left: -10, right: 10, bottom: 0 }}>
+                <RechartsBarChart data={chartsData.spendingData} margin={{ left: -10, right: 10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} stroke="hsl(var(--muted-foreground))" />
                   <XAxis dataKey="name" fontSize={9} tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
                   <YAxis fontSize={9} tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
@@ -840,7 +841,7 @@ export default function ReportsPage() {
                     <Bar dataKey="budgeted" radius={[4, 4, 0, 0]} name="Target Budget" fill="hsl(var(--muted))" fillOpacity={0.3} animationDuration={1000} />
                   )}
                   <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', paddingTop: '10px' }} />
-                </BarChart>
+                </RechartsBarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
@@ -922,45 +923,57 @@ export default function ReportsPage() {
                 <Badge variant="outline" className="text-[8px] font-black uppercase">{auditExpenses.length} Entries</Badge>
               </div>
               
-              <ScrollArea className="flex-1">
-                <div className="p-4 space-y-2">
-                  {auditExpenses.length > 0 ? auditExpenses.map((exp) => (
-                    <div 
-                      key={exp.id} 
-                      className={cn(
-                        "flex justify-between items-center p-4 rounded-xl bg-card border shadow-sm group transition-all cursor-pointer",
-                        selectedTransactionIds.has(exp.id) ? "border-primary/40 ring-1 ring-primary/10" : "opacity-50 grayscale border-transparent"
-                      )}
-                      onClick={() => toggleTransaction(exp.id)}
-                    >
-                      <div className="flex items-center gap-4 min-w-0 flex-1">
-                        <Checkbox 
-                          checked={selectedTransactionIds.has(exp.id)} 
-                          onCheckedChange={() => toggleTransaction(exp.id)}
-                          className="rounded-md h-5 w-5"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-black truncate tracking-tight">{exp.description || 'Secured Item'}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <p className="text-[8px] text-muted-foreground uppercase font-black">{format(new Date(exp.date), 'dd MMM yyyy')}</p>
-                            <span className="text-[7px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-black uppercase border border-primary/10">
-                              {decryptedCategories.find(c => c.id === exp.expenseCategoryId)?.name || 'Misc'}
+              <ScrollArea className="flex-1 flex flex-col">
+                <div className="p-4 flex-1 flex flex-col">
+                  {auditExpenses.length > 0 ? (
+                    <div className="space-y-2">
+                      {auditExpenses.map((exp) => (
+                        <div 
+                          key={exp.id} 
+                          className={cn(
+                            "flex justify-between items-center p-4 rounded-xl bg-card border shadow-sm group transition-all cursor-pointer",
+                            selectedTransactionIds.has(exp.id) ? "border-primary/40 ring-1 ring-primary/10" : "opacity-50 grayscale border-transparent"
+                          )}
+                          onClick={() => toggleTransaction(exp.id)}
+                        >
+                          <div className="flex items-center gap-4 min-w-0 flex-1">
+                            <Checkbox 
+                              checked={selectedTransactionIds.has(exp.id)} 
+                              onCheckedChange={() => toggleTransaction(exp.id)}
+                              className="rounded-md h-5 w-5"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-black truncate tracking-tight">{exp.description || 'Secured Item'}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <p className="text-[8px] text-muted-foreground uppercase font-black">{format(new Date(exp.date), 'dd MMM yyyy')}</p>
+                                <span className="text-[7px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-black uppercase border border-primary/10">
+                                  {decryptedCategories.find(c => c.id === exp.expenseCategoryId)?.name || 'Misc'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right ml-4">
+                            <span className={cn("text-sm font-black", selectedTransactionIds.has(exp.id) ? "text-foreground" : "text-muted-foreground line-through opacity-30")}>
+                              ₹{exp.amount.toLocaleString()}
                             </span>
                           </div>
                         </div>
-                      </div>
-                      <div className="text-right ml-4">
-                        <span className={cn("text-sm font-black", selectedTransactionIds.has(exp.id) ? "text-foreground" : "text-muted-foreground line-through opacity-30")}>
-                          ₹{exp.amount.toLocaleString()}
-                        </span>
-                      </div>
+                      ))}
                     </div>
-                  )) : (
-                    <div className="flex flex-col items-center justify-center py-32 opacity-30 grayscale space-y-3">
-                      <div className="p-4 bg-muted rounded-full">
-                        <ReceiptText className="h-10 w-10" />
+                  ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
+                      <div className="relative">
+                        <div className="absolute -inset-4 bg-primary/5 rounded-full blur-2xl animate-pulse" />
+                        <div className="relative p-6 bg-background rounded-3xl border shadow-xl">
+                          <ReceiptText className="h-12 w-12 text-primary/40" />
+                        </div>
                       </div>
-                      <p className="text-xs font-black uppercase tracking-widest">Select a label to view ledger</p>
+                      <div className="space-y-1">
+                        <h3 className="text-sm font-black uppercase tracking-widest text-foreground">Ledger Selection Required</h3>
+                        <p className="text-[10px] font-medium text-muted-foreground max-w-[200px] leading-relaxed mx-auto">
+                          Choose a label from the left sidebar to audit individual transactions and verify your spending.
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
