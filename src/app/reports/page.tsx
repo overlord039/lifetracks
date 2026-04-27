@@ -12,11 +12,11 @@ import {
   eachWeekOfInterval,
   isSameWeek,
   subMonths,
+  eachMonthOfInterval,
+  endOfWeek,
   subWeeks,
   startOfYear,
-  endOfYear,
-  eachMonthOfInterval,
-  endOfWeek
+  endOfYear
 } from 'date-fns';
 import { collection, doc } from 'firebase/firestore';
 import { 
@@ -48,10 +48,6 @@ import {
   ReceiptText,
   History,
   Target,
-  Wallet,
-  PiggyBank,
-  HeartPulse,
-  Smile,
   ShieldCheck,
   BarChart as BarChartIcon,
   Download
@@ -74,14 +70,6 @@ import { cn } from '@/lib/utils';
 import { decryptData, decryptNumber } from '@/lib/encryption';
 import { useToast } from '@/hooks/use-toast';
 
-const PILLAR_ICONS: Record<string, any> = {
-  expense: { icon: Wallet, color: 'text-blue-500', bg: 'bg-blue-500' },
-  savings: { icon: PiggyBank, color: 'text-green-500', bg: 'bg-green-500' },
-  investment: { icon: TrendingUp, color: 'text-orange-500', bg: 'bg-orange-500' },
-  health: { icon: HeartPulse, color: 'text-purple-500', bg: 'bg-purple-500' },
-  personal: { icon: Smile, color: 'text-pink-500', bg: 'bg-pink-500' }
-};
-
 const CHART_COLORS = ['#64B5F6', '#81C784', '#FFB74D', '#BA68C8', '#F06292', '#4DB6AC', '#FF8A65'];
 
 const chartTooltipStyle = {
@@ -93,6 +81,14 @@ const chartTooltipStyle = {
   padding: '8px 12px',
   fontSize: '11px',
   fontWeight: '600'
+};
+
+const PILLAR_ICONS: Record<string, any> = {
+  expense: { icon: Activity, color: 'text-blue-500', bg: 'bg-blue-500' },
+  savings: { icon: Activity, color: 'text-green-500', bg: 'bg-green-500' },
+  investment: { icon: TrendingUp, color: 'text-orange-500', bg: 'bg-orange-500' },
+  health: { icon: Activity, color: 'text-purple-500', bg: 'bg-purple-500' },
+  personal: { icon: Activity, color: 'text-pink-500', bg: 'bg-pink-500' }
 };
 
 export default function ReportsPage() {
@@ -885,7 +881,7 @@ export default function ReportsPage() {
 
       <Dialog open={isAuditModalOpen} onOpenChange={setIsAuditModalOpen}>
         <DialogContent className="max-w-[98vw] md:max-w-6xl rounded-none md:rounded-2xl p-0 overflow-hidden border shadow-2xl h-[95vh] md:h-[90vh] flex flex-col">
-          <div className="bg-primary p-4 sm:p-6 text-primary-foreground relative shrink-0 flex items-center justify-between">
+          <div className="bg-primary p-4 sm:p-6 text-primary-foreground relative shrink-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <DialogHeader className="text-left space-y-1">
               <DialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-2">
                 <CheckSquare className="h-6 w-6" />
@@ -898,15 +894,15 @@ export default function ReportsPage() {
             <Button 
               variant="outline" 
               onClick={downloadAuditCsv}
-              className="bg-white/10 border-white/20 hover:bg-white/20 text-white font-black uppercase text-[10px] tracking-widest h-10 px-4 rounded-xl gap-2"
+              className="w-full sm:w-auto bg-white/10 border-white/20 hover:bg-white/20 text-white font-black uppercase text-[10px] tracking-widest h-10 px-4 rounded-xl gap-2"
             >
               <Download className="h-4 w-4" /> Download Audit
             </Button>
           </div>
           
-          <div className="flex-1 min-h-0 flex flex-col md:flex-row bg-background">
+          <div className="flex-1 min-h-0 flex flex-col md:flex-row bg-background overflow-hidden">
             {/* Sidebar: Categories */}
-            <div className="w-full md:w-1/3 border-r flex flex-col bg-muted/5">
+            <div className="w-full md:w-1/3 border-r flex flex-col bg-muted/5 max-h-[30vh] md:max-h-none shrink-0 md:shrink">
               <div className="p-4 border-b bg-muted/10 flex items-center justify-between shrink-0">
                 <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Labels to Tally</p>
                 <div className="flex items-center gap-3">
@@ -972,7 +968,7 @@ export default function ReportsPage() {
             </div>
 
             {/* Main Content: Transactions */}
-            <div className="flex-1 flex flex-col min-h-0 bg-background">
+            <div className="flex-1 flex flex-col min-h-0 bg-background overflow-hidden">
               <div className="p-4 border-b bg-muted/5 flex items-center justify-between shrink-0 px-6">
                 <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
                   <ReceiptText className="h-3.5 w-3.5 text-primary" />
@@ -1003,7 +999,7 @@ export default function ReportsPage() {
                               className="rounded-lg h-5 w-5 border-2 shadow-inner"
                             />
                             <div className="min-w-0 flex-1 space-y-1">
-                              <p className="text-[13px] font-black truncate tracking-tight text-foreground">{exp.description || 'Secured Item'}</p>
+                              <p className="text-[13px] font-black truncate tracking-tight text-foreground">{exp.description || 'SECURED ITEM'}</p>
                               <div className="flex items-center gap-3">
                                 <span className="text-[9px] font-black uppercase tracking-tighter text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-lg border">
                                   {format(new Date(exp.date), 'dd MMM yyyy')}
@@ -1048,14 +1044,14 @@ export default function ReportsPage() {
               </ScrollArea>
               
               {/* Summary Footer for the main pane */}
-              <div className="p-4 sm:p-6 border-t bg-card shrink-0 flex flex-row items-center justify-between shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.05)] relative z-20">
-                <div className="flex flex-col space-y-0.5">
+              <div className="p-4 sm:p-6 border-t bg-card shrink-0 flex flex-col sm:flex-row items-center justify-between shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.05)] relative z-20 gap-4">
+                <div className="flex flex-col space-y-0.5 text-center sm:text-left">
                   <span className="text-[11px] font-black uppercase tracking-[0.25em] text-muted-foreground opacity-60">Total</span>
                   <p className="text-[10px] font-black text-foreground uppercase tracking-tight">Audit Workspace Sum</p>
                 </div>
                 
-                <div className="flex items-center gap-3">
-                  <div className="bg-primary/[0.03] px-6 py-3 rounded-2xl border border-dashed border-primary/20 flex flex-row items-center gap-6 relative overflow-hidden group shadow-inner min-w-[220px] transition-all hover:bg-primary/[0.06]">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <div className="flex-1 bg-primary/[0.03] px-6 py-3 rounded-2xl border border-dashed border-primary/20 flex flex-row items-center gap-6 relative overflow-hidden group shadow-inner min-w-[220px] transition-all hover:bg-primary/[0.06]">
                     <div className="relative z-10">
                       <p className="text-3xl font-black text-primary tracking-tighter leading-none">₹{auditTotal.toLocaleString()}</p>
                     </div>
@@ -1072,7 +1068,7 @@ export default function ReportsPage() {
           </div>
           
           <div className="p-4 sm:p-6 bg-muted/10 border-t flex justify-end shrink-0 gap-3">
-            <Button onClick={() => setIsAuditModalOpen(false)} variant="outline" className="font-black rounded-2xl text-[11px] uppercase h-12 px-10 bg-background shadow-md border-primary/10 hover:bg-muted/5 transition-all">Close Audit Workspace</Button>
+            <Button onClick={() => setIsAuditModalOpen(false)} variant="outline" className="w-full sm:w-auto font-black rounded-2xl text-[11px] uppercase h-12 px-10 bg-background shadow-md border-primary/10 hover:bg-muted/5 transition-all">Close Audit Workspace</Button>
           </div>
         </DialogContent>
       </Dialog>
