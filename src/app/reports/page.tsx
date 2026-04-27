@@ -256,7 +256,7 @@ export default function ReportsPage() {
       setIsDecrypting(false);
     };
     decryptAll();
-  }, [rawBudget, rawPrevBudget, rawFixed, rawExpenses, rawPrevExpenses, rawCategories, rawSalaryProfile, rawAllBudgets, user, mounted]);
+  }, [rawBudget, rawPrevBudget, rawFixed, rawExpenses, rawPrevExpenses, rawCategories, rawSalaryProfile, rawAllBudgets, user, mounted, selectedAuditCategories.size]);
 
   const totals = useMemo(() => {
     const budget = decryptedBudget?.totalBudgetAmount || 0;
@@ -780,7 +780,7 @@ export default function ReportsPage() {
                 Strategic Health
               </Badge>
             </CardHeader>
-            <CardContent className="p-6">
+            <CardContent className="p-4 md:p-6">
               {!allocationReport ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 opacity-50 grayscale">
                   <Target className="h-12 w-12 text-muted-foreground" />
@@ -790,7 +790,7 @@ export default function ReportsPage() {
                   </Button>
                 </div>
               ) : (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
+                <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
                   {allocationReport.map(pillar => {
                     const Config = PILLAR_ICONS[pillar.id];
                     const Icon = Config.icon;
