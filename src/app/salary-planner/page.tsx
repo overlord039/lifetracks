@@ -29,6 +29,7 @@ import {
   Pencil,
   Check,
   Lock,
+  Unlock,
   IndianRupee,
   BrainCircuit
 } from 'lucide-react';
@@ -73,7 +74,7 @@ export default function SalaryPlannerPage() {
   const [mounted, setMounted] = useState(false);
   const [isDecrypting, setIsDecrypting] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
-  const [isAutoBalanceEnabled, setIsAutoBalanceEnabled] = useState(true);
+  const [lockedPillars, setLockedPillars] = useState<Set<keyof Percents>>(new Set());
 
   useEffect(() => {
     setMounted(true);
@@ -181,6 +182,15 @@ export default function SalaryPlannerPage() {
   const numSalary = parseFloat(salary) || 0;
   const numAge = parseInt(age) || 0;
 
+  const toggleLock = (id: keyof Percents) => {
+    setLockedPillars(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const updatePercent = useCallback((id: keyof Percents, newVal: number) => {
     const sanitizedVal = Math.min(100, Math.max(0, newVal));
     setPercents(prev => {
@@ -189,37 +199,43 @@ export default function SalaryPlannerPage() {
       
       const nextPercents = { ...prev, [id]: sanitizedVal };
 
-      if (!isAutoBalanceEnabled) {
+      // Identify adjustKeys: others that are NOT locked
+      const adjustKeys = (Object.keys(prev) as (keyof Percents)[]).filter(k => k !== id && !lockedPillars.has(k));
+      
+      if (adjustKeys.length === 0) {
         return nextPercents;
       }
 
-      const otherKeys = (Object.keys(prev) as (keyof Percents)[]).filter(k => k !== id);
-      const totalOthers = otherKeys.reduce((sum, k) => sum + prev[k], 0);
-      const targetOthersTotal = 100 - sanitizedVal;
+      // Sum of fixed items (the one being changed + any other locked ones)
+      const fixedSum = Object.entries(nextPercents)
+        .filter(([k]) => k === id || lockedPillars.has(k as keyof Percents))
+        .reduce((sum, [, val]) => sum + val, 0);
 
-      if (totalOthers > 0) {
-        const multiplier = targetOthersTotal / totalOthers;
-        otherKeys.forEach(k => {
+      const targetRemaining = Math.max(0, 100 - fixedSum);
+      const currentOthersTotal = adjustKeys.reduce((sum, k) => sum + prev[k], 0);
+
+      if (currentOthersTotal > 0) {
+        const multiplier = targetRemaining / currentOthersTotal;
+        adjustKeys.forEach(k => {
           nextPercents[k] = Math.max(0, Math.round(prev[k] * multiplier * 10) / 10);
         });
       } else {
-        const defaultTotalOthers = otherKeys.reduce((sum, k) => sum + DEFAULT_RATIOS[k], 0);
-        otherKeys.forEach(k => {
-          const ratio = DEFAULT_RATIOS[k] / defaultTotalOthers;
-          nextPercents[k] = Math.max(0, Math.round(targetOthersTotal * ratio * 10) / 10);
+        const count = adjustKeys.length;
+        adjustKeys.forEach(k => {
+          nextPercents[k] = Math.round((targetRemaining / count) * 10) / 10;
         });
       }
 
       const currentSum = Object.values(nextPercents).reduce((a, b) => a + b, 0);
       const diff = 100 - currentSum;
       if (Math.abs(diff) > 0.01) {
-        const keyToAdjust = otherKeys.find(k => nextPercents[k] > 0) || otherKeys[0];
+        const keyToAdjust = adjustKeys[0];
         nextPercents[keyToAdjust] = Math.round((nextPercents[keyToAdjust] + diff) * 10) / 10;
       }
 
       return nextPercents;
     });
-  }, [isAutoBalanceEnabled]);
+  }, [lockedPillars]);
 
   const updateAmount = useCallback((id: keyof Percents, val: string) => {
     const numVal = parseFloat(val) || 0;
@@ -461,14 +477,7 @@ export default function SalaryPlannerPage() {
                         <CardTitle className="text-lg md:text-xl font-black tracking-tight">Income Allocation</CardTitle>
                         <CardDescription className="text-[9px] md:text-[10px] font-black uppercase tracking-tight opacity-70">Customizable funds split</CardDescription>
                       </div>
-                      <div className="flex items-center gap-6">
-                        <div className="flex items-center gap-2 px-3 py-1 bg-muted/20 rounded-full border border-dashed">
-                          <Label className="text-[8px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                            <BrainCircuit className={cn("h-3 w-3", isAutoBalanceEnabled ? "text-primary" : "text-muted-foreground")} />
-                            AI Scaler
-                          </Label>
-                          <Switch checked={isAutoBalanceEnabled} onCheckedChange={setIsAutoBalanceEnabled} className="scale-75" />
-                        </div>
+                      <div className="flex items-center gap-4">
                         <Badge variant={totalPercent === 100 ? "secondary" : "destructive"} className="h-7 md:h-8 px-3 md:px-4 rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest shadow-sm">
                           Total: {totalPercent}%
                         </Badge>
@@ -488,11 +497,22 @@ export default function SalaryPlannerPage() {
                         const totalAllowed = amounts[item.id as keyof typeof amounts];
                         const committedPercent = totalAllowed > 0 ? (committed / totalAllowed) * 100 : 0;
                         const isOverspent = committed > totalAllowed;
+                        const isLocked = lockedPillars.has(item.id as keyof Percents);
                         
                         return (
                           <div key={item.id} className="space-y-4 group">
                             <div className="flex justify-between items-start md:items-end flex-col md:flex-row gap-3">
                               <div className="flex items-center gap-2">
+                                <button 
+                                  onClick={() => toggleLock(item.id as keyof Percents)}
+                                  className={cn(
+                                    "p-1.5 rounded-lg transition-all",
+                                    isLocked ? "bg-orange-100 text-orange-600 shadow-sm" : "text-muted-foreground hover:bg-muted"
+                                  )}
+                                  title={isLocked ? "Unlock Pillar" : "Lock Pillar (Exclude from AI Scaler)"}
+                                >
+                                  {isLocked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+                                </button>
                                 <item.icon className={cn("h-4 w-4 md:h-5 md:w-5", item.color)} />
                                 <div className="flex flex-col">
                                   <Label className="font-black text-[11px] md:text-[13px] uppercase tracking-tighter group-hover:text-primary transition-colors">
@@ -508,7 +528,10 @@ export default function SalaryPlannerPage() {
                               </div>
                               
                               <div className="flex items-center gap-3 w-full md:w-auto">
-                                <div className="flex-1 md:flex-initial flex items-center gap-1.5 bg-muted/20 px-3 py-1.5 rounded-xl border border-primary/10 shadow-inner group-hover:border-primary/30 transition-all">
+                                <div className={cn(
+                                  "flex-1 md:flex-initial flex items-center gap-1.5 px-3 py-1.5 rounded-xl border shadow-inner transition-all",
+                                  isLocked ? "bg-orange-50/50 border-orange-200" : "bg-muted/20 border-primary/10 group-hover:border-primary/30"
+                                )}>
                                   <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Cap</span>
                                   <div className="flex items-center gap-1">
                                     <span className="text-[10px] font-bold text-muted-foreground opacity-50">₹</span>
@@ -521,16 +544,22 @@ export default function SalaryPlannerPage() {
                                   </div>
                                 </div>
 
-                                <div className="flex-1 md:flex-initial flex items-center gap-1.5 bg-primary/5 px-3 py-1.5 rounded-xl border border-primary/20 shadow-inner">
-                                  <span className="text-[8px] font-black uppercase text-primary tracking-widest">Scale</span>
+                                <div className={cn(
+                                  "flex-1 md:flex-initial flex items-center gap-1.5 px-3 py-1.5 rounded-xl border shadow-inner transition-all",
+                                  isLocked ? "bg-orange-100/50 border-orange-300" : "bg-primary/5 border-primary/20"
+                                )}>
+                                  <span className={cn("text-[8px] font-black uppercase tracking-widest", isLocked ? "text-orange-600" : "text-primary")}>Scale</span>
                                   <div className="flex items-center gap-1">
                                     <Input 
                                       type="number"
                                       value={Math.round(percents[item.id as keyof Percents] * 10) / 10}
                                       onChange={(e) => updatePercent(item.id as keyof Percents, parseFloat(e.target.value) || 0)}
-                                      className="w-8 h-5 border-none bg-transparent p-0 text-[10px] md:text-xs font-black text-right focus-visible:ring-0 shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-primary"
+                                      className={cn(
+                                        "w-8 h-5 border-none bg-transparent p-0 text-[10px] md:text-xs font-black text-right focus-visible:ring-0 shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                                        isLocked ? "text-orange-600" : "text-primary"
+                                      )}
                                     />
-                                    <span className="text-[10px] font-bold text-primary">%</span>
+                                    <span className={cn("text-[10px] font-bold", isLocked ? "text-orange-600" : "text-primary")}>%</span>
                                   </div>
                                 </div>
                               </div>
@@ -543,12 +572,12 @@ export default function SalaryPlannerPage() {
                                   max={100}
                                   step={0.5}
                                   onValueChange={([val]) => updatePercent(item.id as keyof Percents, val)}
-                                  className="h-1.5 md:h-2"
+                                  className={cn("h-1.5 md:h-2", isLocked && "[&_.relative]:opacity-50")}
                                 />
                                 <div 
                                   className={cn(
                                     "absolute top-1 h-1.5 md:h-2 rounded-full pointer-events-none transition-all duration-700",
-                                    isOverspent ? "bg-destructive/40" : "bg-primary/30"
+                                    isOverspent ? "bg-destructive/40" : isLocked ? "bg-orange-500/30" : "bg-primary/30"
                                   )}
                                   style={{ width: `${Math.min(100, committedPercent)}%` }}
                                 />
@@ -557,7 +586,7 @@ export default function SalaryPlannerPage() {
                                 <span className="text-[7px] md:text-[8px] font-black uppercase text-muted-foreground tracking-widest">Strategy Utilization</span>
                                 <span className={cn(
                                   "text-[9px] font-black",
-                                  isOverspent ? "text-destructive" : "text-primary"
+                                  isOverspent ? "text-destructive" : isLocked ? "text-orange-600" : "text-primary"
                                 )}>
                                   {Math.round(committedPercent)}%
                                 </span>
