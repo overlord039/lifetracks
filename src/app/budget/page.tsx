@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -47,7 +48,6 @@ export default function BudgetPage() {
   const [mounted, setMounted] = useState(false);
   const [activeInputTab, setActiveInputTab] = useState('logger');
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
-  const syncPerformed = useRef(false);
 
   const [decryptedCategories, setDecryptedCategories] = useState<any[]>([]);
   const [decryptedBudget, setDecryptedBudget] = useState<any>(null);
@@ -85,16 +85,10 @@ export default function BudgetPage() {
     return collection(db, 'users', user.uid, 'monthlyBudgets', monthId, 'expenses');
   }, [db, user, monthId]);
 
-  const myGroupsQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
-    return query(collection(db, 'sharedGroups'), where('memberUids', 'array-contains', user.uid));
-  }, [db, user]);
-
   const { data: rawCategories } = useCollection(categoriesRef);
   const { data: rawFixed } = useCollection(fixedExpensesRef);
   const { data: rawBudget } = useDoc(monthlyBudgetRef);
   const { data: rawExpenses } = useCollection(expensesRef);
-  const { data: myGroups } = useCollection(myGroupsQuery);
 
   useEffect(() => {
     const decryptAll = async () => {
@@ -191,54 +185,6 @@ export default function BudgetPage() {
         return true;
       });
   }, [decryptedCategories]);
-
-  useEffect(() => {
-    const syncRoomLabels = async () => {
-      if (!user || !db || !myGroups || decryptedCategories.length === 0 || syncPerformed.current) return;
-      
-      syncPerformed.current = true;
-      try {
-        const personalNames = new Set(
-          decryptedCategories.map(c => (c.name || '').trim().toUpperCase())
-        );
-        
-        const labelsToImport: string[] = [];
-
-        for (const group of myGroups) {
-          const roomCatsRef = collection(db, 'sharedGroups', group.id, 'categories');
-          const snap = await getDocs(roomCatsRef);
-          snap.forEach(d => {
-            const labelName = (d.data().name || '').trim().toUpperCase();
-            if (labelName && !personalNames.has(labelName)) {
-              labelsToImport.push(labelName);
-              personalNames.add(labelName);
-            }
-          });
-        }
-
-        if (labelsToImport.length > 0 && categoriesRef) {
-          for (const name of labelsToImport) {
-            const newRef = doc(categoriesRef);
-            setDocumentNonBlocking(newRef, {
-              userId: user.uid,
-              name: await encryptData(name, user.uid),
-              type: 'daily',
-              isPrivate: false,
-              isEncrypted: true,
-              createdAt: new Date().toISOString()
-            }, { merge: true });
-          }
-          toast({ title: "Labels Synced", description: `Imported ${labelsToImport.length} unique labels from shared rooms.` });
-        }
-      } catch (e) {
-        console.error("Room label sync failed", e);
-      }
-    };
-
-    if (myGroups && decryptedCategories.length > 0) {
-      syncRoomLabels();
-    }
-  }, [myGroups, decryptedCategories, user, db, categoriesRef, toast]);
 
   const totalIncludedFixed = decryptedFixed?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
   const netMonthlyPool = (decryptedBudget?.totalBudgetAmount || 0) - totalIncludedFixed;
@@ -428,10 +374,7 @@ export default function BudgetPage() {
       return;
     }
 
-    // Headers
     const headers = ['Date', 'Description', 'Category', 'Pillar', 'Amount (₹)'];
-    
-    // Rows
     const rows = [...decryptedExpenses].sort((a,b) => b.date.localeCompare(a.date)).map(exp => {
       const catName = allCategories.find(c => c.id === exp.expenseCategoryId)?.name || 'MISC';
       return [
