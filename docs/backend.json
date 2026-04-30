@@ -37,6 +37,8 @@
         "userId": { "type": "string" },
         "salary": { "type": "string", "description": "Encrypted salary amount" },
         "age": { "type": "string", "description": "Encrypted age" },
+        "percents": { "type": "object", "description": "Map of pillarId to percentage" },
+        "pillars": { "type": "array", "items": { "type": "object" }, "description": "Custom pillar configurations" },
         "expensePercent": { "type": "number" },
         "savingsPercent": { "type": "number" },
         "investmentPercent": { "type": "number" },
@@ -74,7 +76,7 @@
         "name": { "type": "string", "description": "Encrypted name" },
         "amount": { "type": "string", "description": "Encrypted amount" },
         "expenseCategoryId": { "type": "string" },
-        "allocationBucket": { "type": "string", "enum": ["expense", "savings", "investment", "health", "personal"] },
+        "allocationBucket": { "type": "string" },
         "includeInBudget": { "type": "boolean" },
         "isEncrypted": { "type": "boolean" }
       }
@@ -164,7 +166,7 @@
         "splits": { "type": "object", "description": "userId -> amount map" },
         "expenseCategoryId": { "type": "string" },
         "description": { "type": "string" },
-        "allocationBucket": { "type": "string", "enum": ["expense", "savings", "investment", "health", "personal"] },
+        "allocationBucket": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       }
     }

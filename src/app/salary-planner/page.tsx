@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
 import { doc, collection } from 'firebase/firestore';
 import { 
@@ -27,10 +26,10 @@ import {
   Target,
   Loader2,
   Pencil,
-  Check,
   Lock,
   Unlock,
-  IndianRupee,
+  Plus,
+  Trash2,
   BrainCircuit
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -46,20 +45,18 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { encryptData, decryptData, decryptNumber } from '@/lib/encryption';
 import Link from 'next/link';
-import { Separator } from '@/components/ui/separator';
 
-const COLORS = ['#64B5F6', '#81C784', '#FFB74D', '#BA68C8', '#F06292'];
-const INV_COLORS = ['#BA68C8', '#64B5F6', '#FFD54F'];
+const CHART_COLORS = ['#64B5F6', '#81C784', '#FFB74D', '#BA68C8', '#F06292', '#4DB6AC', '#FF8A65'];
 
-type Percents = {
-  expense: number;
-  savings: number;
-  investment: number;
-  health: number;
-  personal: number;
-};
+const STANDARD_PILLARS = [
+  { id: 'expense', label: 'EXPENSES', icon: Wallet, color: '#64B5F6' },
+  { id: 'savings', label: 'SAVINGS', icon: PiggyBank, color: '#81C784' },
+  { id: 'investment', label: 'INVESTMENTS', icon: TrendingUp, color: '#FFB74D' },
+  { id: 'health', label: 'HEALTH', icon: HeartPulse, color: '#BA68C8' },
+  { id: 'personal', label: 'PERSONAL', icon: Smile, color: '#F06292' }
+];
 
-const DEFAULT_RATIOS: Percents = {
+const DEFAULT_RATIOS: Record<string, number> = {
   expense: 50,
   savings: 20,
   investment: 20,
@@ -74,16 +71,18 @@ export default function SalaryPlannerPage() {
   const [mounted, setMounted] = useState(false);
   const [isDecrypting, setIsDecrypting] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
-  const [lockedPillars, setLockedPillars] = useState<Set<keyof Percents>>(new Set());
+  const [lockedPillars, setLockedPillars] = useState<Set<string>>(new Set());
+  const [newPillarName, setNewPillarName] = useState('');
+  
+  const [salary, setSalary] = useState<string>('');
+  const [age, setAge] = useState<string>('');
+  const [percents, setPercents] = useState<Record<string, number>>(DEFAULT_RATIOS);
+  const [pillars, setPillars] = useState<any[]>(STANDARD_PILLARS);
+  const [showResults, setShowResults] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  const [salary, setSalary] = useState<string>('');
-  const [age, setAge] = useState<string>('');
-  const [percents, setPercents] = useState<Percents>(DEFAULT_RATIOS);
-  const [showResults, setShowResults] = useState(false);
 
   const monthId = mounted ? format(new Date(), 'yyyyMM') : '';
 
@@ -113,18 +112,30 @@ export default function SalaryPlannerPage() {
     const decryptProfile = async () => {
       if (savedProfile && user && mounted) {
         setIsDecrypting(true);
-        const s = savedProfile.isEncrypted ? await decryptData(savedProfile.salary, user.uid) : savedProfile.salary.toString();
-        const a = savedProfile.isEncrypted ? await decryptData(savedProfile.age, user.uid) : savedProfile.age.toString();
+        const s = savedProfile.isEncrypted ? await decryptData(savedProfile.salary, user.uid) : (savedProfile.salary?.toString() || '');
+        const a = savedProfile.isEncrypted ? await decryptData(savedProfile.age, user.uid) : (savedProfile.age?.toString() || '');
         
         setSalary(s);
         setAge(a);
-        setPercents({
-          expense: savedProfile.expensePercent,
-          savings: savedProfile.savingsPercent,
-          investment: savedProfile.investmentPercent,
-          health: savedProfile.healthPercent,
-          personal: savedProfile.personalPercent
-        });
+
+        if (savedProfile.pillars && Array.isArray(savedProfile.pillars)) {
+          const restored = savedProfile.pillars.map((p: any) => ({
+            ...p,
+            icon: STANDARD_PILLARS.find(s => s.id === p.id)?.icon || Coins
+          }));
+          setPillars(restored);
+          setPercents(savedProfile.percents || DEFAULT_RATIOS);
+        } else {
+          // Legacy format fallback
+          setPercents({
+            expense: savedProfile.expensePercent || 50,
+            savings: savedProfile.savingsPercent || 20,
+            investment: savedProfile.investmentPercent || 20,
+            health: savedProfile.healthPercent || 5,
+            personal: savedProfile.personalPercent || 5
+          });
+        }
+        
         setShowResults(true);
         setIsDecrypting(false);
       }
@@ -161,7 +172,8 @@ export default function SalaryPlannerPage() {
   }, [rawExpenses, user, mounted]);
 
   const committedCosts = useMemo(() => {
-    const totals: Record<string, number> = { expense: 0, savings: 0, investment: 0, health: 0, personal: 0 };
+    const totals: Record<string, number> = {};
+    pillars.forEach(p => totals[p.id] = 0);
     
     decryptedFixed.forEach(f => {
       if (totals[f.allocationBucket] !== undefined) {
@@ -177,12 +189,12 @@ export default function SalaryPlannerPage() {
     });
     
     return totals;
-  }, [decryptedFixed, decryptedExpenses]);
+  }, [decryptedFixed, decryptedExpenses, pillars]);
 
   const numSalary = parseFloat(salary) || 0;
   const numAge = parseInt(age) || 0;
 
-  const toggleLock = (id: keyof Percents) => {
+  const toggleLock = (id: string) => {
     setLockedPillars(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -191,33 +203,28 @@ export default function SalaryPlannerPage() {
     });
   };
 
-  const updatePercent = useCallback((id: keyof Percents, newVal: number) => {
+  const updatePercent = useCallback((id: string, newVal: number) => {
     const sanitizedVal = Math.min(100, Math.max(0, newVal));
     setPercents(prev => {
-      const oldVal = prev[id];
+      const oldVal = prev[id] ?? 0;
       if (oldVal === sanitizedVal) return prev;
       
       const nextPercents = { ...prev, [id]: sanitizedVal };
-
-      // Identify adjustKeys: others that are NOT locked
-      const adjustKeys = (Object.keys(prev) as (keyof Percents)[]).filter(k => k !== id && !lockedPillars.has(k));
+      const adjustKeys = Object.keys(prev).filter(k => k !== id && !lockedPillars.has(k));
       
-      if (adjustKeys.length === 0) {
-        return nextPercents;
-      }
+      if (adjustKeys.length === 0) return nextPercents;
 
-      // Sum of fixed items (the one being changed + any other locked ones)
       const fixedSum = Object.entries(nextPercents)
-        .filter(([k]) => k === id || lockedPillars.has(k as keyof Percents))
+        .filter(([k]) => k === id || lockedPillars.has(k))
         .reduce((sum, [, val]) => sum + val, 0);
 
       const targetRemaining = Math.max(0, 100 - fixedSum);
-      const currentOthersTotal = adjustKeys.reduce((sum, k) => sum + prev[k], 0);
+      const currentOthersTotal = adjustKeys.reduce((sum, k) => sum + (prev[k] ?? 0), 0);
 
       if (currentOthersTotal > 0) {
         const multiplier = targetRemaining / currentOthersTotal;
         adjustKeys.forEach(k => {
-          nextPercents[k] = Math.max(0, Math.round(prev[k] * multiplier * 10) / 10);
+          nextPercents[k] = Math.max(0, Math.round((prev[k] ?? 0) * multiplier * 10) / 10);
         });
       } else {
         const count = adjustKeys.length;
@@ -228,7 +235,7 @@ export default function SalaryPlannerPage() {
 
       const currentSum = Object.values(nextPercents).reduce((a, b) => a + b, 0);
       const diff = 100 - currentSum;
-      if (Math.abs(diff) > 0.01) {
+      if (Math.abs(diff) > 0.01 && adjustKeys.length > 0) {
         const keyToAdjust = adjustKeys[0];
         nextPercents[keyToAdjust] = Math.round((nextPercents[keyToAdjust] + diff) * 10) / 10;
       }
@@ -237,46 +244,45 @@ export default function SalaryPlannerPage() {
     });
   }, [lockedPillars]);
 
-  const updateAmount = useCallback((id: keyof Percents, val: string) => {
+  const updateAmount = useCallback((id: string, val: string) => {
     const numVal = parseFloat(val) || 0;
     const newPercent = numSalary > 0 ? (numVal / numSalary) * 100 : 0;
     updatePercent(id, newPercent);
   }, [numSalary, updatePercent]);
 
   const amounts = useMemo(() => {
-    return {
-      expense: numSalary * (percents.expense / 100),
-      savings: numSalary * (percents.savings / 100),
-      investment: numSalary * (percents.investment / 100),
-      health: numSalary * (percents.health / 100),
-      personal: numSalary * (percents.personal / 100)
-    };
+    const ams: Record<string, number> = {};
+    Object.entries(percents).forEach(([id, p]) => {
+      ams[id] = numSalary * (p / 100);
+    });
+    return ams;
   }, [numSalary, percents]);
 
   const invAllocation = useMemo(() => {
     const equityP = Math.min(Math.max(100 - numAge, 30), 80);
     const goldP = 5;
     const debtP = 100 - equityP - goldP;
+    const invAmt = amounts['investment'] || 0;
     return {
       equityP, debtP, goldP,
-      equityAmt: amounts.investment * (equityP / 100),
-      debtAmt: amounts.investment * (debtP / 100),
-      goldAmt: amounts.investment * (goldP / 100)
+      equityAmt: invAmt * (equityP / 100),
+      debtAmt: invAmt * (debtP / 100),
+      goldAmt: invAmt * (goldP / 100)
     };
-  }, [numAge, amounts.investment]);
+  }, [numAge, amounts]);
 
-  const salaryData = useMemo(() => [
-    { name: 'Expenses', value: amounts.expense, color: COLORS[0] },
-    { name: 'Savings', value: amounts.savings, color: COLORS[1] },
-    { name: 'Investments', value: amounts.investment, color: COLORS[2] },
-    { name: 'Health', value: amounts.health, color: COLORS[3] },
-    { name: 'Personal', value: amounts.personal, color: COLORS[4] }
-  ].filter(d => d.value > 0), [amounts]);
+  const salaryData = useMemo(() => {
+    return pillars.map(p => ({
+      name: p.label,
+      value: amounts[p.id] || 0,
+      color: p.color
+    })).filter(d => d.value > 0);
+  }, [pillars, amounts]);
 
   const invData = useMemo(() => [
-    { name: 'Equity', value: invAllocation.equityAmt, color: INV_COLORS[0] },
-    { name: 'Debt', value: invAllocation.debtAmt, color: INV_COLORS[1] },
-    { name: 'Gold', value: invAllocation.goldAmt, color: INV_COLORS[2] }
+    { name: 'Equity', value: invAllocation.equityAmt, color: '#BA68C8' },
+    { name: 'Debt', value: invAllocation.debtAmt, color: '#64B5F6' },
+    { name: 'Gold', value: invAllocation.goldAmt, color: '#FFD54F' }
   ].filter(d => d.value > 0), [invAllocation]);
 
   const totalPercent = useMemo(() => Math.round(Object.values(percents).reduce((a, b) => a + b, 0)), [percents]);
@@ -287,11 +293,8 @@ export default function SalaryPlannerPage() {
       userId: user.uid,
       salary: await encryptData(salary, user.uid),
       age: await encryptData(age, user.uid),
-      expensePercent: percents.expense,
-      savingsPercent: percents.savings,
-      investmentPercent: percents.investment,
-      healthPercent: percents.health,
-      personalPercent: percents.personal,
+      percents: percents,
+      pillars: pillars.map(p => ({ id: p.id, label: p.label, color: p.color })),
       isEncrypted: true,
       createdAt: savedProfile?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -309,22 +312,53 @@ export default function SalaryPlannerPage() {
     handleSave();
   };
 
+  const addPillar = () => {
+    const name = newPillarName.trim().toUpperCase();
+    if (!name) return;
+    const id = `custom_${Math.random().toString(36).substring(2, 7)}`;
+    const newPillar = { id, label: name, icon: Coins, color: CHART_COLORS[pillars.length % CHART_COLORS.length] };
+    setPillars([...pillars, newPillar]);
+    setPercents({ ...percents, [id]: 0 });
+    setNewPillarName('');
+    toast({ title: "Pillar Added", description: `"${name}" integrated into strategy.` });
+  };
+
+  const deletePillar = (id: string) => {
+    const deletedPercent = percents[id] || 0;
+    const remainingPillars = pillars.filter(p => p.id !== id);
+    const remainingPercents = { ...percents };
+    delete remainingPercents[id];
+
+    setPillars(remainingPillars);
+    
+    // Redistribute deleted percentage to remaining unlocked pillars
+    const unlockedKeys = remainingPillars.filter(p => !lockedPillars.has(p.id)).map(p => p.id);
+    if (unlockedKeys.length > 0) {
+      const share = deletedPercent / unlockedKeys.length;
+      unlockedKeys.forEach(k => remainingPercents[k] = (remainingPercents[k] || 0) + share);
+    }
+    
+    setPercents(remainingPercents);
+    toast({ title: "Pillar Removed", description: "Remaining funds redistributed." });
+  };
+
   const syncWithBudget = async () => {
     if (!user || !db) return;
     const monthId = format(new Date(), 'yyyyMM');
     const budgetRef = doc(db, 'users', user.uid, 'monthlyBudgets', monthId);
+    const expenseAmt = amounts['expense'] || 0;
     setDocumentNonBlocking(budgetRef, {
       userId: user.uid,
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
-      totalBudgetAmount: await encryptData(amounts.expense.toString(), user.uid),
-      baseBudgetAmount: await encryptData(amounts.expense.toString(), user.uid),
+      totalBudgetAmount: await encryptData(expenseAmt.toString(), user.uid),
+      baseBudgetAmount: await encryptData(expenseAmt.toString(), user.uid),
       isEncrypted: true,
       updatedAt: new Date().toISOString(),
       createdAt: new Date().toISOString()
     }, { merge: true });
     setIsSynced(true);
-    toast({ title: 'Budget Synced', description: `₹${Math.round(amounts.expense).toLocaleString()} set as monthly target.` });
+    toast({ title: 'Budget Synced', description: `₹${Math.round(expenseAmt).toLocaleString()} set as monthly target.` });
   };
 
   if (!mounted || isDecrypting) {
@@ -424,7 +458,7 @@ export default function SalaryPlannerPage() {
               </CardContent>
             </Card>
 
-            {showResults && (
+            {showResults && percents['expense'] !== undefined && (
               <Card className="shadow-xl rounded-2xl border-none ring-1 ring-blue-500/30 bg-blue-50/10 dark:bg-blue-900/10 animate-in slide-in-from-left-4">
                 <CardHeader className="pb-2 px-4 md:px-6">
                   <CardTitle className="text-sm flex items-center gap-2 font-black">
@@ -434,7 +468,7 @@ export default function SalaryPlannerPage() {
                 </CardHeader>
                 <CardContent className="space-y-3 px-4 md:px-6 pb-5 md:pb-6">
                   <p className="text-[10px] md:text-[11px] leading-relaxed text-muted-foreground font-medium">
-                    Your planned expenses are <span className="font-black text-foreground">₹{Math.round(amounts.expense).toLocaleString()}</span>. 
+                    Your planned expenses are <span className="font-black text-foreground">₹{Math.round(amounts['expense'] || 0).toLocaleString()}</span>. 
                     Set this as your daily budget cap?
                   </p>
                   
@@ -473,9 +507,12 @@ export default function SalaryPlannerPage() {
                 <Card className="shadow-xl rounded-3xl border-none ring-1 ring-border overflow-hidden">
                   <CardHeader className="bg-muted/30 border-b py-4 md:py-5 px-5 md:px-8">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4">
-                      <div>
-                        <CardTitle className="text-lg md:text-xl font-black tracking-tight">Income Allocation</CardTitle>
-                        <CardDescription className="text-[9px] md:text-[10px] font-black uppercase tracking-tight opacity-70">Customizable funds split</CardDescription>
+                      <div className="flex items-center gap-4">
+                         <div>
+                          <CardTitle className="text-lg md:text-xl font-black tracking-tight">Income Allocation</CardTitle>
+                          <CardDescription className="text-[9px] md:text-[10px] font-black uppercase tracking-tight opacity-70">Customizable funds split</CardDescription>
+                        </div>
+                        <BrainCircuit className="h-6 w-6 text-primary animate-pulse" />
                       </div>
                       <div className="flex items-center gap-4">
                         <Badge variant={totalPercent === 100 ? "secondary" : "destructive"} className="h-7 md:h-8 px-3 md:px-4 rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest shadow-sm">
@@ -486,115 +523,134 @@ export default function SalaryPlannerPage() {
                   </CardHeader>
                   <CardContent className="grid gap-6 md:gap-8 md:grid-cols-5 p-5 md:p-8">
                     <div className="md:col-span-3 space-y-8 md:space-y-10">
-                      {[
-                        { id: 'expense', label: 'Expenses', icon: Wallet, color: 'text-blue-500' },
-                        { id: 'savings', label: 'Savings', icon: PiggyBank, color: 'text-green-500' },
-                        { id: 'investment', label: 'Investments', icon: TrendingUp, color: 'text-orange-500' },
-                        { id: 'health', label: 'Health', icon: HeartPulse, color: 'text-purple-500' },
-                        { id: 'personal', label: 'Personal', icon: Smile, color: 'text-pink-500' }
-                      ].map((item) => {
-                        const committed = committedCosts[item.id] || 0;
-                        const totalAllowed = amounts[item.id as keyof typeof amounts];
-                        const committedPercent = totalAllowed > 0 ? (committed / totalAllowed) * 100 : 0;
-                        const isOverspent = committed > totalAllowed;
-                        const isLocked = lockedPillars.has(item.id as keyof Percents);
-                        
-                        return (
-                          <div key={item.id} className="space-y-4 group">
-                            <div className="flex justify-between items-start md:items-end flex-col md:flex-row gap-3">
-                              <div className="flex items-center gap-2">
-                                <button 
-                                  onClick={() => toggleLock(item.id as keyof Percents)}
-                                  className={cn(
-                                    "p-1.5 rounded-lg transition-all",
-                                    isLocked ? "bg-orange-100 text-orange-600 shadow-sm" : "text-muted-foreground hover:bg-muted"
-                                  )}
-                                  title={isLocked ? "Unlock Pillar" : "Lock Pillar (Exclude from AI Scaler)"}
-                                >
-                                  {isLocked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
-                                </button>
-                                <item.icon className={cn("h-4 w-4 md:h-5 md:w-5", item.color)} />
-                                <div className="flex flex-col">
-                                  <Label className="font-black text-[11px] md:text-[13px] uppercase tracking-tighter group-hover:text-primary transition-colors">
-                                    {item.label}
-                                  </Label>
-                                  <span className={cn(
-                                    "text-[9px] md:text-[10px] font-black tracking-tight",
-                                    isOverspent ? "text-destructive" : "text-primary"
+                      <div className="space-y-6">
+                        {pillars.map((item) => {
+                          const committed = committedCosts[item.id] || 0;
+                          const totalAllowed = amounts[item.id] || 0;
+                          const committedPercent = totalAllowed > 0 ? (committed / totalAllowed) * 100 : 0;
+                          const isOverspent = committed > totalAllowed;
+                          const isLocked = lockedPillars.has(item.id);
+                          const Icon = item.icon || Coins;
+                          
+                          return (
+                            <div key={item.id} className="space-y-4 group relative">
+                              <div className="flex justify-between items-start md:items-end flex-col md:flex-row gap-3">
+                                <div className="flex items-center gap-2">
+                                  <button 
+                                    onClick={() => toggleLock(item.id)}
+                                    className={cn(
+                                      "p-1.5 rounded-lg transition-all",
+                                      isLocked ? "bg-orange-100 text-orange-600 shadow-sm" : "text-muted-foreground hover:bg-muted"
+                                    )}
+                                    title={isLocked ? "Unlock Pillar" : "Lock Pillar (Exclude from AI Scaler)"}
+                                  >
+                                    {isLocked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+                                  </button>
+                                  <Icon className="h-4 w-4 md:h-5 md:w-5" style={{ color: item.color }} />
+                                  <div className="flex flex-col">
+                                    <Label className="font-black text-[11px] md:text-[13px] uppercase tracking-tighter group-hover:text-primary transition-colors">
+                                      {item.label}
+                                    </Label>
+                                    <span className={cn(
+                                      "text-[9px] md:text-[10px] font-black tracking-tight",
+                                      isOverspent ? "text-destructive" : "text-primary"
+                                    )}>
+                                      ₹{committed.toLocaleString()} Spent
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-3 w-full md:w-auto">
+                                  <div className={cn(
+                                    "flex-1 md:flex-initial flex items-center gap-1.5 px-3 py-1.5 rounded-xl border shadow-inner transition-all",
+                                    isLocked ? "bg-orange-50/50 border-orange-200" : "bg-muted/20 border-primary/10 group-hover:border-primary/30"
                                   )}>
-                                    ₹{committed.toLocaleString()} Spent
-                                  </span>
+                                    <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Cap</span>
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-[10px] font-bold text-muted-foreground opacity-50">₹</span>
+                                      <Input 
+                                        type="number"
+                                        value={Math.round(totalAllowed)}
+                                        onChange={(e) => updateAmount(item.id, e.target.value)}
+                                        className="w-16 h-5 border-none bg-transparent p-0 text-[10px] md:text-xs font-black focus-visible:ring-0 shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className={cn(
+                                    "flex-1 md:flex-initial flex items-center gap-1.5 px-3 py-1.5 rounded-xl border shadow-inner transition-all",
+                                    isLocked ? "bg-orange-100/50 border-orange-300" : "bg-primary/5 border-primary/20"
+                                  )}>
+                                    <span className={cn("text-[8px] font-black uppercase tracking-widest", isLocked ? "text-orange-600" : "text-primary")}>Scale</span>
+                                    <div className="flex items-center gap-1">
+                                      <Input 
+                                        type="number"
+                                        value={Math.round((percents[item.id] || 0) * 10) / 10}
+                                        onChange={(e) => updatePercent(item.id, parseFloat(e.target.value) || 0)}
+                                        className={cn(
+                                          "w-8 h-5 border-none bg-transparent p-0 text-[10px] md:text-xs font-black text-right focus-visible:ring-0 shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                                          isLocked ? "text-orange-600" : "text-primary"
+                                        )}
+                                      />
+                                      <span className={cn("text-[10px] font-bold", isLocked ? "text-orange-600" : "text-primary")}>%</span>
+                                    </div>
+                                  </div>
+
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    onClick={() => deletePillar(item.id)}
+                                    className="h-8 w-8 text-destructive/40 hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
                                 </div>
                               </div>
                               
-                              <div className="flex items-center gap-3 w-full md:w-auto">
-                                <div className={cn(
-                                  "flex-1 md:flex-initial flex items-center gap-1.5 px-3 py-1.5 rounded-xl border shadow-inner transition-all",
-                                  isLocked ? "bg-orange-50/50 border-orange-200" : "bg-muted/20 border-primary/10 group-hover:border-primary/30"
-                                )}>
-                                  <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Cap</span>
-                                  <div className="flex items-center gap-1">
-                                    <span className="text-[10px] font-bold text-muted-foreground opacity-50">₹</span>
-                                    <Input 
-                                      type="number"
-                                      value={Math.round(totalAllowed)}
-                                      onChange={(e) => updateAmount(item.id as keyof Percents, e.target.value)}
-                                      className="w-16 h-5 border-none bg-transparent p-0 text-[10px] md:text-xs font-black focus-visible:ring-0 shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                    />
-                                  </div>
+                              <div className="space-y-1.5">
+                                <div className="relative pt-1">
+                                  <Slider 
+                                    value={[percents[item.id] || 0]}
+                                    max={100}
+                                    step={0.5}
+                                    onValueChange={([val]) => updatePercent(item.id, val)}
+                                    className={cn("h-1.5 md:h-2", isLocked && "[&_.relative]:opacity-50")}
+                                  />
+                                  <div 
+                                    className={cn(
+                                      "absolute top-1 h-1.5 md:h-2 rounded-full pointer-events-none transition-all duration-700",
+                                      isOverspent ? "bg-destructive/40" : isLocked ? "bg-orange-500/30" : "bg-primary/30"
+                                    )}
+                                    style={{ width: `${Math.min(100, committedPercent)}%` }}
+                                  />
                                 </div>
+                                <div className="flex justify-between items-center px-1">
+                                  <span className="text-[7px] md:text-[8px] font-black uppercase text-muted-foreground tracking-widest">Strategy Utilization</span>
+                                  <span className={cn(
+                                    "text-[9px] font-black",
+                                    isOverspent ? "text-destructive" : isLocked ? "text-orange-600" : "text-primary"
+                                  )}>
+                                    {Math.round(committedPercent)}%
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
 
-                                <div className={cn(
-                                  "flex-1 md:flex-initial flex items-center gap-1.5 px-3 py-1.5 rounded-xl border shadow-inner transition-all",
-                                  isLocked ? "bg-orange-100/50 border-orange-300" : "bg-primary/5 border-primary/20"
-                                )}>
-                                  <span className={cn("text-[8px] font-black uppercase tracking-widest", isLocked ? "text-orange-600" : "text-primary")}>Scale</span>
-                                  <div className="flex items-center gap-1">
-                                    <Input 
-                                      type="number"
-                                      value={Math.round(percents[item.id as keyof Percents] * 10) / 10}
-                                      onChange={(e) => updatePercent(item.id as keyof Percents, parseFloat(e.target.value) || 0)}
-                                      className={cn(
-                                        "w-8 h-5 border-none bg-transparent p-0 text-[10px] md:text-xs font-black text-right focus-visible:ring-0 shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
-                                        isLocked ? "text-orange-600" : "text-primary"
-                                      )}
-                                    />
-                                    <span className={cn("text-[10px] font-bold", isLocked ? "text-orange-600" : "text-primary")}>%</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <div className="space-y-1.5">
-                              <div className="relative pt-1">
-                                <Slider 
-                                  value={[percents[item.id as keyof Percents]]}
-                                  max={100}
-                                  step={0.5}
-                                  onValueChange={([val]) => updatePercent(item.id as keyof Percents, val)}
-                                  className={cn("h-1.5 md:h-2", isLocked && "[&_.relative]:opacity-50")}
-                                />
-                                <div 
-                                  className={cn(
-                                    "absolute top-1 h-1.5 md:h-2 rounded-full pointer-events-none transition-all duration-700",
-                                    isOverspent ? "bg-destructive/40" : isLocked ? "bg-orange-500/30" : "bg-primary/30"
-                                  )}
-                                  style={{ width: `${Math.min(100, committedPercent)}%` }}
-                                />
-                              </div>
-                              <div className="flex justify-between items-center px-1">
-                                <span className="text-[7px] md:text-[8px] font-black uppercase text-muted-foreground tracking-widest">Strategy Utilization</span>
-                                <span className={cn(
-                                  "text-[9px] font-black",
-                                  isOverspent ? "text-destructive" : isLocked ? "text-orange-600" : "text-primary"
-                                )}>
-                                  {Math.round(committedPercent)}%
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
+                      <div className="p-4 rounded-2xl bg-muted/20 border border-dashed flex items-center gap-3">
+                        <Input 
+                          placeholder="New Pillar Name..." 
+                          value={newPillarName} 
+                          onChange={e => setNewPillarName(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && addPillar()}
+                          className="h-10 text-[10px] uppercase font-black tracking-tight"
+                        />
+                        <Button onClick={addPillar} size="icon" className="h-10 w-10 shrink-0 rounded-xl shadow-md">
+                          <Plus className="h-5 w-5" />
+                        </Button>
+                      </div>
                     </div>
                     <div className="md:col-span-2 flex flex-col items-center justify-center p-2 md:p-4">
                       <div className="w-full h-[200px] md:h-[250px] relative">
@@ -629,48 +685,50 @@ export default function SalaryPlannerPage() {
                 </Card>
 
                 <div className="grid gap-4 md:gap-6 md:grid-cols-2">
-                  <Card className="shadow-xl rounded-3xl border-none ring-1 ring-orange-500/20">
-                    <CardHeader className="pb-2 border-b bg-muted/10 px-5 md:px-6">
-                      <CardTitle className="text-xs md:text-sm flex items-center gap-2 font-black">
-                        <Target className="h-4 w-4 text-orange-500" />
-                        Asset Matrix
-                      </CardTitle>
-                      <CardDescription className="text-[8px] md:text-[9px] font-black uppercase tracking-widest opacity-60">Risk Profile: Age {numAge}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-4 md:pt-6 space-y-5 md:space-y-6 px-5 md:px-6">
-                      <div className="h-[150px] md:h-[180px] w-full relative">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie data={invData} innerRadius={40} outerRadius={60} paddingAngle={4} dataKey="value" stroke="none">
-                              {invData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
-                            </Pie>
-                            <RechartsTooltip 
-                              contentStyle={chartTooltipStyle}
-                              itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
-                              formatter={(v: number) => `₹${Math.round(v).toLocaleString()}`} 
-                            />
-                            <Legend iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold' }} />
-                          </PieChart>
-                        </ResponsiveContainer>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                          <p className="text-sm md:text-lg font-black tracking-tighter">₹{Math.round(amounts.investment).toLocaleString()}</p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 pb-5">
-                        {[
-                          { label: 'Equity', amt: invAllocation.equityAmt, p: invAllocation.equityP },
-                          { label: 'Debt', amt: invAllocation.debtAmt, p: invAllocation.debtP },
-                          { label: 'Gold', amt: invAllocation.goldAmt, p: invAllocation.goldP }
-                        ].map(item => (
-                          <div key={item.label} className="p-2 md:p-3 border rounded-2xl bg-muted/5 text-center space-y-1">
-                            <p className="text-[7px] md:text-[8px] font-black text-muted-foreground uppercase truncate">{item.label}</p>
-                            <p className="text-[10px] md:text-xs font-black tracking-tighter">₹{Math.round(item.amt).toLocaleString()}</p>
-                            <span className="text-[8px] md:text-[9px] font-black text-primary">{item.p}%</span>
+                  {percents['investment'] !== undefined && (
+                    <Card className="shadow-xl rounded-3xl border-none ring-1 ring-orange-500/20">
+                      <CardHeader className="pb-2 border-b bg-muted/10 px-5 md:px-6">
+                        <CardTitle className="text-xs md:text-sm flex items-center gap-2 font-black">
+                          <Target className="h-4 w-4 text-orange-500" />
+                          Asset Matrix
+                        </CardTitle>
+                        <CardDescription className="text-[8px] md:text-[9px] font-black uppercase tracking-widest opacity-60">Risk Profile: Age {numAge}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="pt-4 md:pt-6 space-y-5 md:space-y-6 px-5 md:px-6">
+                        <div className="h-[150px] md:h-[180px] w-full relative">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie data={invData} innerRadius={40} outerRadius={60} paddingAngle={4} dataKey="value" stroke="none">
+                                {invData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
+                              </Pie>
+                              <RechartsTooltip 
+                                contentStyle={chartTooltipStyle}
+                                itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                                formatter={(v: number) => `₹${Math.round(v).toLocaleString()}`} 
+                              />
+                              <Legend iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold' }} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                            <p className="text-sm md:text-lg font-black tracking-tighter">₹{Math.round(amounts['investment'] || 0).toLocaleString()}</p>
                           </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 pb-5">
+                          {[
+                            { label: 'Equity', amt: invAllocation.equityAmt, p: invAllocation.equityP },
+                            { label: 'Debt', amt: invAllocation.debtAmt, p: invAllocation.debtP },
+                            { label: 'Gold', amt: invAllocation.goldAmt, p: invAllocation.goldP }
+                          ].map(item => (
+                            <div key={item.label} className="p-2 md:p-3 border rounded-2xl bg-muted/5 text-center space-y-1">
+                              <p className="text-[7px] md:text-[8px] font-black text-muted-foreground uppercase truncate">{item.label}</p>
+                              <p className="text-[10px] md:text-xs font-black tracking-tighter">₹{Math.round(item.amt).toLocaleString()}</p>
+                              <span className="text-[8px] md:text-[9px] font-black text-primary">{item.p}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
 
                   <Card className="shadow-xl rounded-3xl border-none ring-1 ring-border overflow-hidden">
                     <CardHeader className="pb-2 border-b bg-muted/10 px-5 md:px-6">
@@ -681,12 +739,10 @@ export default function SalaryPlannerPage() {
                     </CardHeader>
                     <CardContent className="pt-4 md:pt-6 space-y-4 md:space-y-5 px-5 md:px-6 max-h-[300px] md:max-h-[350px] overflow-y-auto pb-6">
                       <div className="space-y-3 md:space-y-4">
-                        <h4 className="text-[8px] md:text-[9px] font-black uppercase text-primary border-b pb-1">Core Allocation</h4>
-                        <StrategyDesc committed={committedCosts.expense} label="Expenses" text="Daily living costs like rent, food, travel, and bills." />
-                        <StrategyDesc committed={committedCosts.savings} label="Savings" text="Emergency fund for unexpected situations." />
-                        <StrategyDesc committed={committedCosts.investment} label="Investments" text="Capital used to grow long-term wealth." />
-                        <StrategyDesc committed={committedCosts.health} label="Health" text="Medical, insurance, and fitness expenses." />
-                        <StrategyDesc committed={committedCosts.personal} label="Personal" text="Entertainment, hobbies, and lifestyle spending." />
+                        <h4 className="text-[8px] md:text-[9px] font-black uppercase text-primary border-b pb-1">Dynamic Allocation</h4>
+                        {pillars.map(p => (
+                           <StrategyDesc key={p.id} committed={committedCosts[p.id]} label={p.label} text={`Custom allocation for ${p.label}.`} />
+                        ))}
                       </div>
                     </CardContent>
                   </Card>
