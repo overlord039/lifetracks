@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
 import { doc, collection } from 'firebase/firestore';
 import { 
@@ -28,7 +29,8 @@ import {
   Pencil,
   Check,
   Lock,
-  IndianRupee
+  IndianRupee,
+  BrainCircuit
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -71,6 +73,7 @@ export default function SalaryPlannerPage() {
   const [mounted, setMounted] = useState(false);
   const [isDecrypting, setIsDecrypting] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
+  const [isAutoBalanceEnabled, setIsAutoBalanceEnabled] = useState(true);
 
   useEffect(() => {
     setMounted(true);
@@ -159,14 +162,12 @@ export default function SalaryPlannerPage() {
   const committedCosts = useMemo(() => {
     const totals: Record<string, number> = { expense: 0, savings: 0, investment: 0, health: 0, personal: 0 };
     
-    // Sum fixed recurring costs
     decryptedFixed.forEach(f => {
       if (totals[f.allocationBucket] !== undefined) {
         totals[f.allocationBucket] += f.amount;
       }
     });
     
-    // Sum daily dynamic spends across ALL buckets
     decryptedExpenses.forEach(e => {
       const bucket = e.allocationBucket || 'expense';
       if (totals[bucket] !== undefined) {
@@ -187,6 +188,11 @@ export default function SalaryPlannerPage() {
       if (oldVal === sanitizedVal) return prev;
       
       const nextPercents = { ...prev, [id]: sanitizedVal };
+
+      if (!isAutoBalanceEnabled) {
+        return nextPercents;
+      }
+
       const otherKeys = (Object.keys(prev) as (keyof Percents)[]).filter(k => k !== id);
       const totalOthers = otherKeys.reduce((sum, k) => sum + prev[k], 0);
       const targetOthersTotal = 100 - sanitizedVal;
@@ -213,7 +219,7 @@ export default function SalaryPlannerPage() {
 
       return nextPercents;
     });
-  }, []);
+  }, [isAutoBalanceEnabled]);
 
   const updateAmount = useCallback((id: keyof Percents, val: string) => {
     const numVal = parseFloat(val) || 0;
@@ -455,9 +461,18 @@ export default function SalaryPlannerPage() {
                         <CardTitle className="text-lg md:text-xl font-black tracking-tight">Income Allocation</CardTitle>
                         <CardDescription className="text-[9px] md:text-[10px] font-black uppercase tracking-tight opacity-70">Customizable funds split</CardDescription>
                       </div>
-                      <Badge variant={totalPercent === 100 ? "secondary" : "destructive"} className="h-7 md:h-8 px-3 md:px-4 rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest shadow-sm">
-                        Total: {totalPercent}%
-                      </Badge>
+                      <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-2 px-3 py-1 bg-muted/20 rounded-full border border-dashed">
+                          <Label className="text-[8px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                            <BrainCircuit className={cn("h-3 w-3", isAutoBalanceEnabled ? "text-primary" : "text-muted-foreground")} />
+                            AI Scaler
+                          </Label>
+                          <Switch checked={isAutoBalanceEnabled} onCheckedChange={setIsAutoBalanceEnabled} className="scale-75" />
+                        </div>
+                        <Badge variant={totalPercent === 100 ? "secondary" : "destructive"} className="h-7 md:h-8 px-3 md:px-4 rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest shadow-sm">
+                          Total: {totalPercent}%
+                        </Badge>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="grid gap-6 md:gap-8 md:grid-cols-5 p-5 md:p-8">
