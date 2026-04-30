@@ -27,7 +27,8 @@ import {
   Loader2,
   Pencil,
   Check,
-  Lock
+  Lock,
+  IndianRupee
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -213,6 +214,12 @@ export default function SalaryPlannerPage() {
       return nextPercents;
     });
   }, []);
+
+  const updateAmount = useCallback((id: keyof Percents, val: string) => {
+    const numVal = parseFloat(val) || 0;
+    const newPercent = numSalary > 0 ? (numVal / numSalary) * 100 : 0;
+    updatePercent(id, newPercent);
+  }, [numSalary, updatePercent]);
 
   const amounts = useMemo(() => {
     return {
@@ -468,35 +475,48 @@ export default function SalaryPlannerPage() {
                         const isOverspent = committed > totalAllowed;
                         
                         return (
-                          <div key={item.id} className="space-y-3 group">
-                            <div className="flex justify-between items-end">
+                          <div key={item.id} className="space-y-4 group">
+                            <div className="flex justify-between items-start md:items-end flex-col md:flex-row gap-3">
                               <div className="flex items-center gap-2">
                                 <item.icon className={cn("h-4 w-4 md:h-5 md:w-5", item.color)} />
                                 <div className="flex flex-col">
                                   <Label className="font-black text-[11px] md:text-[13px] uppercase tracking-tighter group-hover:text-primary transition-colors">
                                     {item.label}
                                   </Label>
-                                  <div className="flex items-center gap-2">
-                                    <span className={cn(
-                                      "text-[9px] md:text-[10px] font-black tracking-tight",
-                                      isOverspent ? "text-destructive" : "text-primary"
-                                    )}>
-                                      ₹{committed.toLocaleString()} Spent
-                                    </span>
-                                    <Separator orientation="vertical" className="h-2" />
-                                    <span className="text-[9px] md:text-[10px] font-bold text-muted-foreground">₹{Math.round(totalAllowed).toLocaleString()} Cap</span>
-                                  </div>
+                                  <span className={cn(
+                                    "text-[9px] md:text-[10px] font-black tracking-tight",
+                                    isOverspent ? "text-destructive" : "text-primary"
+                                  )}>
+                                    ₹{committed.toLocaleString()} Spent
+                                  </span>
                                 </div>
                               </div>
-                              <div className="flex flex-col items-end">
-                                <div className="flex items-center gap-1 bg-muted/30 px-2 py-0.5 rounded-lg">
-                                  <Input 
-                                    type="number"
-                                    value={Math.round(percents[item.id as keyof Percents] * 10) / 10}
-                                    onChange={(e) => updatePercent(item.id as keyof Percents, parseFloat(e.target.value) || 0)}
-                                    className="w-10 h-6 border-none bg-transparent p-0 text-[10px] md:text-xs font-black text-right focus-visible:ring-0 shadow-none [appearance:textfield]"
-                                  />
-                                  <span className="text-[10px] md:text-xs font-black text-muted-foreground">%</span>
+                              
+                              <div className="flex items-center gap-3 w-full md:w-auto">
+                                <div className="flex-1 md:flex-initial flex items-center gap-1.5 bg-muted/20 px-3 py-1.5 rounded-xl border border-primary/10 shadow-inner group-hover:border-primary/30 transition-all">
+                                  <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Cap</span>
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-[10px] font-bold text-muted-foreground opacity-50">₹</span>
+                                    <Input 
+                                      type="number"
+                                      value={Math.round(totalAllowed)}
+                                      onChange={(e) => updateAmount(item.id as keyof Percents, e.target.value)}
+                                      className="w-16 h-5 border-none bg-transparent p-0 text-[10px] md:text-xs font-black focus-visible:ring-0 shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="flex-1 md:flex-initial flex items-center gap-1.5 bg-primary/5 px-3 py-1.5 rounded-xl border border-primary/20 shadow-inner">
+                                  <span className="text-[8px] font-black uppercase text-primary tracking-widest">Scale</span>
+                                  <div className="flex items-center gap-1">
+                                    <Input 
+                                      type="number"
+                                      value={Math.round(percents[item.id as keyof Percents] * 10) / 10}
+                                      onChange={(e) => updatePercent(item.id as keyof Percents, parseFloat(e.target.value) || 0)}
+                                      className="w-8 h-5 border-none bg-transparent p-0 text-[10px] md:text-xs font-black text-right focus-visible:ring-0 shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-primary"
+                                    />
+                                    <span className="text-[10px] font-bold text-primary">%</span>
+                                  </div>
                                 </div>
                               </div>
                             </div>
