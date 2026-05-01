@@ -7,22 +7,34 @@
 
 const ALGORITHM = 'AES-GCM';
 
+// Cache the derived key to avoid expensive recalculations during bulk decryption
+let cachedKey: { uid: string; key: CryptoKey } | null = null;
+
 /**
  * Derives a cryptographic key from a stable user-specific secret (the UID).
  * This ensures data is developer-proof at rest in Firestore.
  */
 async function deriveKey(uid: string): Promise<CryptoKey> {
+  // Return cached key if UID matches to speed up bulk operations
+  if (cachedKey && cachedKey.uid === uid) {
+    return cachedKey.key;
+  }
+
   const encoder = new TextEncoder();
   // We use a salt combined with the UID to ensure the key isn't just the raw UID string.
   const salt = "lifetrack_secure_v1_";
   const rawKey = encoder.encode((salt + uid).padEnd(32, '0').slice(0, 32));
-  return crypto.subtle.importKey(
+  
+  const key = await crypto.subtle.importKey(
     'raw',
     rawKey,
     ALGORITHM,
     false,
     ['encrypt', 'decrypt']
   );
+
+  cachedKey = { uid, key };
+  return key;
 }
 
 /**

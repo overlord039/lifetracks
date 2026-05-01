@@ -171,12 +171,14 @@ export default function Dashboard() {
 
   const hasActiveGoals = !!(learningGoals && learningGoals.length > 0);
 
-  if (!mounted || isDecrypting) {
+  // We only show a minimal skeleton if the user state isn't ready. 
+  // Once the user is known, we show the dashboard layout immediately.
+  if (!mounted) {
     return (
       <AppShell>
         <div className="flex h-[60vh] w-full items-center justify-center flex-col gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Syncing Vault...</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Unlocking Vault...</p>
         </div>
       </AppShell>
     );
@@ -194,14 +196,18 @@ export default function Dashboard() {
                   <TrendingUp className="w-4 h-4 text-primary" />
                   Budget Insight
                 </CardTitle>
-                <CardDescription className="text-[9px] md:text-[10px] font-medium uppercase tracking-tight">Real-time performance metrics</CardDescription>
+                <CardDescription className="text-[9px] md:text-[10px] font-medium uppercase tracking-tight">
+                  {isDecrypting ? "Syncing metrics..." : "Real-time performance metrics"}
+                </CardDescription>
               </CardHeader>
               <CardContent className="p-4 md:p-6 space-y-4 md:space-y-6">
                 <div className={cn(
                   "p-4 md:p-5 rounded-2xl border transition-all grid grid-cols-2 gap-4",
-                  baseRemaining >= 0 
-                    ? 'bg-green-50/50 border-green-100 dark:bg-green-950/20 dark:border-green-900/30' 
-                    : 'bg-red-50/50 border-red-100 dark:bg-red-950/20 dark:border-red-900/30'
+                  isDecrypting ? "opacity-50 grayscale" : (
+                    baseRemaining >= 0 
+                      ? 'bg-green-50/50 border-green-100 dark:bg-green-950/20 dark:border-green-900/30' 
+                      : 'bg-red-50/50 border-red-100 dark:bg-red-950/20 dark:border-red-900/30'
+                  )
                 )}>
                   <div className="flex items-center gap-3">
                     <div className={cn(
@@ -285,6 +291,7 @@ export default function Dashboard() {
             subtext="Receivable total"
             icon={<HandCoins className="w-4 h-4" />}
             variant="default"
+            loading={isDecrypting}
           />
         )}
 
@@ -318,16 +325,18 @@ interface DashboardCardProps {
   icon: React.ReactNode;
   variant?: 'primary' | 'secondary' | 'destructive' | 'default';
   progress?: number;
+  loading?: boolean;
 }
 
-function DashboardCard({ href, title, value, subtext, icon, variant = 'default', progress }: DashboardCardProps) {
+function DashboardCard({ href, title, value, subtext, icon, variant = 'default', progress, loading }: DashboardCardProps) {
   return (
     <Link href={href} className="block transition-transform hover:scale-[1.02] active:scale-[0.98]">
       <Card className={cn(
         "shadow-md h-full transition-all duration-300 border-none ring-1 ring-border relative overflow-hidden rounded-2xl",
         variant === 'primary' && "bg-primary text-primary-foreground ring-primary/20",
         variant === 'secondary' && "bg-secondary text-secondary-foreground ring-secondary/20",
-        variant === 'destructive' && "bg-destructive text-destructive-foreground ring-destructive/20 animate-pulse"
+        variant === 'destructive' && "bg-destructive text-destructive-foreground ring-destructive/20 animate-pulse",
+        loading && "opacity-50 grayscale"
       )}>
         <CardHeader className="flex flex-row items-center justify-between pb-1 space-y-0 pt-3 md:pt-4 px-3 md:px-4">
           <CardTitle className={cn(

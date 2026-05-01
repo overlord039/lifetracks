@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -416,7 +415,9 @@ export default function BudgetPage() {
     toast({ title: "Export Complete", description: "CSV has been saved to your downloads." });
   };
 
-  if (!mounted || isDecrypting) {
+  // Immediate layout transition once component is mounted.
+  // Cached Firestore data will populate almost instantly.
+  if (!mounted) {
     return (
       <AppShell>
         <div className="flex h-[60vh] w-full items-center justify-center flex-col gap-4">
@@ -433,7 +434,7 @@ export default function BudgetPage() {
     <AppShell>
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-12">
         <div className="lg:col-span-8 flex flex-col gap-4">
-          <Card className="shadow-lg border-t-4 border-t-primary rounded-2xl overflow-hidden">
+          <Card className={cn("shadow-lg border-t-4 border-t-primary rounded-2xl overflow-hidden transition-opacity", isDecrypting && "opacity-60")}>
             <CardHeader className="bg-muted/30 pb-3 md:pb-4 px-4 md:px-6">
               <CardTitle className="flex items-center gap-2 text-base md:text-lg font-black tracking-tight"><Wallet className="h-5 w-5 text-primary" /> Monthly Vault</CardTitle>
               <CardDescription className="text-[10px] uppercase font-bold tracking-tight">Protected targets for {monthName}.</CardDescription>
@@ -473,11 +474,13 @@ export default function BudgetPage() {
                         </div>
                       )}
                     </div>
-                  ) : (
+                  ) : !isDecrypting ? (
                     <div className="flex gap-2">
                       <Input type="number" placeholder="Enter Monthly Limit..." value={tempInitialBudget} onChange={(e) => setTempInitialBudget(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSetInitialBudget()} className="h-12 text-base md:text-lg font-bold rounded-xl" />
                       <Button onClick={handleSetInitialBudget} className="h-12 font-bold px-4 md:px-6 rounded-xl">Set</Button>
                     </div>
+                  ) : (
+                    <div className="h-12 w-full animate-pulse bg-muted rounded-xl" />
                   )}
                 </div>
                 
@@ -689,7 +692,7 @@ export default function BudgetPage() {
 
         <div className="lg:col-span-4 flex flex-col gap-4">
           <div className="hidden lg:block">
-            <SustainableTodayCard isOverspentToday={isOverspentToday} isWithinBudget={isWithinBudget} todayStr={todayStr} dailyAllocationToday={dailyAllocationToday} todayReport={todayReport} isDailyEnabled={isDailyEnabled} remainingNetPool={remainingNetPool} totalSpentThisMonth={totalSpentThisMonth} monthName={monthName} />
+            <SustainableTodayCard isOverspentToday={isOverspentToday} isWithinBudget={isWithinBudget} todayStr={todayStr} dailyAllocationToday={dailyAllocationToday} todayReport={todayReport} isDailyEnabled={isDailyEnabled} remainingNetPool={remainingNetPool} totalSpentThisMonth={totalSpentThisMonth} monthName={monthName} isDecrypting={isDecrypting} />
           </div>
           
           <Card className="shadow-lg rounded-2xl border-none ring-1 ring-border overflow-hidden">
@@ -844,11 +847,11 @@ export default function BudgetPage() {
   );
 }
 
-function SustainableTodayCard({ isOverspentToday, isWithinBudget, todayStr, dailyAllocationToday, todayReport, isDailyEnabled, remainingNetPool, totalSpentThisMonth, monthName }: any) {
+function SustainableTodayCard({ isOverspentToday, isWithinBudget, todayStr, dailyAllocationToday, todayReport, isDailyEnabled, remainingNetPool, totalSpentThisMonth, monthName, isDecrypting }: any) {
   if (!isDailyEnabled) {
     const total = remainingNetPool + totalSpentThisMonth;
     return (
-      <Card className="shadow-2xl transition-all duration-500 rounded-3xl border-none ring-4 ring-offset-4 ring-offset-background bg-primary text-primary-foreground ring-primary">
+      <Card className={cn("shadow-2xl transition-all duration-500 rounded-3xl border-none ring-4 ring-offset-4 ring-offset-background bg-primary text-primary-foreground ring-primary", isDecrypting && "animate-pulse opacity-80")}>
         <CardHeader className="pb-1 px-5 pt-5 md:px-6 md:pt-6">
           <CardTitle className="text-xl md:text-2xl font-black flex items-center gap-3 drop-shadow-md"><Coins className="h-6 w-6 md:h-7 md:h-7" /> Monthly Pool</CardTitle>
           <CardDescription className="text-inherit opacity-80 font-black text-[9px] md:text-[10px] uppercase tracking-widest mt-1">Vault Status • {monthName}</CardDescription>
@@ -881,6 +884,7 @@ function SustainableTodayCard({ isOverspentToday, isWithinBudget, todayStr, dail
   return (
     <Card className={cn(
       "shadow-2xl transition-all duration-500 rounded-3xl border-none ring-4 ring-offset-4 ring-offset-background", 
+      isDecrypting ? "bg-muted text-muted-foreground ring-muted animate-pulse" :
       isOverspentToday ? "bg-destructive text-destructive-foreground ring-destructive animate-pulse" : 
       isWithinBudget ? "bg-secondary text-secondary-foreground ring-secondary" : 
       "bg-primary text-primary-foreground ring-primary"
@@ -906,7 +910,7 @@ function SustainableTodayCard({ isOverspentToday, isWithinBudget, todayStr, dail
           </div>
         </div>
 
-        {isOverspentToday && (
+        {isOverspentToday && !isDecrypting && (
           <div className="mt-2 flex items-center justify-center gap-2 text-[10px] font-black text-white uppercase bg-white/20 py-3 rounded-2xl shadow-inner animate-bounce">
             <AlertTriangle className="h-4 w-4" /> 
             Limit Exceeded by ₹{(spentToday - dailyAllocationToday).toFixed(0)}
