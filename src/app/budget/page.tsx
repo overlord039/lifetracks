@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -484,35 +485,31 @@ export default function BudgetPage() {
                   )}
                 </div>
                 
-                <div className="space-y-4">
-                  <div className="space-y-3 p-4 border rounded-2xl bg-muted/10 relative overflow-hidden group">
+                <div className="grid grid-cols-2 md:grid-cols-1 gap-2.5">
+                  <div className="p-3 border rounded-2xl bg-muted/5 relative overflow-hidden group min-h-[72px] flex flex-col justify-center">
                     <div className="flex items-center justify-between relative z-10">
-                      <Label className="flex items-center gap-2 font-black text-xs"><CalendarDays className="h-4 w-4 text-primary" /> Weekend Boost</Label>
-                      <Switch checked={decryptedBudget?.isWeekendExtraBudgetEnabled || false} onCheckedChange={(checked) => saveMonthlyBudget({ isWeekendExtraBudgetEnabled: checked })} />
+                      <Label className="flex items-center gap-1.5 font-black text-[9px] uppercase tracking-wider text-muted-foreground"><CalendarDays className="h-3.5 w-3.5 text-primary" /> Weekend</Label>
+                      <Switch className="scale-75 origin-right" checked={decryptedBudget?.isWeekendExtraBudgetEnabled || false} onCheckedChange={(checked) => saveMonthlyBudget({ isWeekendExtraBudgetEnabled: checked })} />
                     </div>
                     {decryptedBudget?.isWeekendExtraBudgetEnabled && (
-                      <div className="pt-2 animate-in fade-in zoom-in-95 relative z-10 text-center">
-                        <div className="p-3 bg-background/50 dark:bg-muted/30 rounded-xl border border-dashed border-primary/30">
-                          <p className="text-[8px] text-muted-foreground uppercase font-black tracking-widest mb-1">Encrypted Bonus</p>
-                          <p className="text-xl font-black text-primary tracking-tighter">₹{calculatedWeekendBonus}</p>
-                        </div>
-                      </div>
+                      <p className="text-sm font-black text-primary tracking-tighter mt-0.5 ml-5 animate-in slide-in-from-top-1">₹{calculatedWeekendBonus}</p>
                     )}
-                    <ShieldCheck className="absolute -bottom-4 -right-4 w-16 h-16 text-primary/5 -rotate-12" />
+                    <ShieldCheck className="absolute -bottom-2 -right-2 w-10 h-10 text-primary/5 -rotate-12" />
                   </div>
 
-                  <div className="space-y-3 p-4 border rounded-2xl bg-muted/10 relative overflow-hidden group">
+                  <div className="p-3 border rounded-2xl bg-muted/5 relative overflow-hidden group min-h-[72px] flex flex-col justify-center">
                     <div className="flex items-center justify-between relative z-10">
-                      <Label className="flex items-center gap-2 font-black text-xs"><Activity className="h-4 w-4 text-primary" /> Daily Tracking</Label>
+                      <Label className="flex items-center gap-1.5 font-black text-[9px] uppercase tracking-wider text-muted-foreground"><Activity className="h-3.5 w-3.5 text-primary" /> Tracking</Label>
                       <Switch 
+                        className="scale-75 origin-right"
                         checked={isDailyEnabled} 
                         onCheckedChange={(checked) => saveMonthlyBudget({ isDailyLimitEnabled: checked })} 
                       />
                     </div>
-                    <p className="text-[9px] text-muted-foreground font-medium mt-1 relative z-10">
-                      {isDailyEnabled ? "Rolling daily allowance active." : "Month-wide pool mode active."}
+                    <p className="text-[8px] text-primary/60 font-black uppercase mt-0.5 ml-5">
+                      {isDailyEnabled ? "Rolling" : "Pool"}
                     </p>
-                    <History className="absolute -bottom-4 -right-4 w-16 h-16 text-primary/5 -rotate-12" />
+                    <History className="absolute -bottom-2 -right-2 w-10 h-10 text-primary/5 -rotate-12" />
                   </div>
                 </div>
               </div>
