@@ -98,37 +98,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background overflow-x-hidden">
         <Sidebar className="border-r">
-          <SidebarHeader className="p-4 flex flex-row items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-lg">
-              <span className="text-white font-black text-xl">L</span>
+          <SidebarHeader className="p-4 flex flex-row items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-lg">
+                <span className="text-white font-black text-xl">L</span>
+              </div>
+              <span className="font-headline font-black text-xl tracking-tighter">LifeTrack</span>
             </div>
-            <span className="font-headline font-black text-xl tracking-tighter">LifeTrack</span>
-          </SidebarHeader>
-          <SidebarContent>
-            <SidebarMenu className="px-2 pt-2">
-              {filteredNavItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton 
-                    asChild 
-                    isActive={pathname === item.url}
-                    tooltip={item.title}
-                    className="font-bold text-[13px] h-10 px-3 rounded-xl transition-all"
-                  >
-                    <Link href={item.url} className="flex items-center gap-3">
-                      <item.icon className={cn("h-5 w-5", pathname === item.url ? "text-primary" : "text-muted-foreground")} />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarContent>
-          <SidebarFooter className="p-4 space-y-3">
+            
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="ghost" className="w-full justify-start h-10 px-3 rounded-xl font-bold text-xs uppercase tracking-widest gap-3 text-muted-foreground hover:text-primary hover:bg-primary/5">
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/5">
                   <Settings2 className="h-4 w-4" />
-                  Customize Nav
+                  <span className="sr-only">Customize Navigation</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-md rounded-3xl">
@@ -160,7 +142,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarMenu className="px-2 pt-2">
+              {filteredNavItems.map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton 
+                    asChild 
+                    isActive={pathname === item.url}
+                    tooltip={item.title}
+                    className="font-bold text-[13px] h-10 px-3 rounded-xl transition-all"
+                  >
+                    <Link href={item.url} className="flex items-center gap-3">
+                      <item.icon className={cn("h-5 w-5", pathname === item.url ? "text-primary" : "text-muted-foreground")} />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarContent>
+          <SidebarFooter className="p-4 space-y-3">
             <Link 
               href="/profile" 
               className={cn(
