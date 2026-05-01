@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -127,7 +126,6 @@ export default function SalaryPlannerPage() {
           setPillars(restored);
           setPercents(savedProfile.percents || DEFAULT_RATIOS);
         } else {
-          // Legacy format fallback
           setPercents({
             expense: savedProfile.expensePercent || 50,
             savings: savedProfile.savingsPercent || 20,
@@ -332,7 +330,6 @@ export default function SalaryPlannerPage() {
 
     setPillars(remainingPillars);
     
-    // Redistribute deleted percentage to remaining unlocked pillars
     const unlockedKeys = remainingPillars.filter(p => !lockedPillars.has(p.id)).map(p => p.id);
     if (unlockedKeys.length > 0) {
       const share = deletedPercent / unlockedKeys.length;

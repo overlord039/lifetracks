@@ -1,21 +1,20 @@
 {
-  "name": "LifeTrack - Personal Life Tracking System",
+  "name": "LifeTrack",
   "short_name": "LifeTrack",
-  "description": "Manage your budget, learning progress, and daily reflections in one place.",
+  "description": "Personal Life Tracking System with E2EE",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#E3F2FD",
   "theme_color": "#64B5F6",
-  "orientation": "portrait",
   "icons": [
     {
-      "src": "https://picsum.photos/seed/lifeapp1/192/192",
+      "src": "https://picsum.photos/seed/lifetrack/192/192",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "https://picsum.photos/seed/lifeapp2/512/512",
+      "src": "https://picsum.photos/seed/lifetrack/512/512",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

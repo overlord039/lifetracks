@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -909,7 +908,6 @@ export default function ReportsPage() {
           </div>
           
           <div className="flex-1 min-h-0 flex flex-col md:flex-row bg-background overflow-hidden">
-            {/* Sidebar: Categories */}
             <div className="w-full md:w-1/3 border-r flex flex-col bg-muted/5 max-h-[30vh] md:max-h-none shrink-0 md:shrink">
               <div className="p-4 border-b bg-muted/10 flex items-center justify-between shrink-0">
                 <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Labels to Tally</p>
@@ -975,7 +973,6 @@ export default function ReportsPage() {
               </ScrollArea>
             </div>
 
-            {/* Main Content: Transactions */}
             <div className="flex-1 flex flex-col min-h-0 bg-background overflow-hidden">
               <div className="p-4 border-b bg-muted/5 flex items-center justify-between shrink-0 px-6">
                 <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
@@ -1051,7 +1048,6 @@ export default function ReportsPage() {
                 </div>
               </ScrollArea>
               
-              {/* Summary Footer for the main pane */}
               <div className="p-4 sm:p-6 border-t bg-card shrink-0 flex flex-col sm:flex-row items-center justify-between shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.05)] relative z-20 gap-4">
                 <div className="flex flex-col space-y-0.5 text-center sm:text-left">
                   <span className="text-[11px] font-black uppercase tracking-[0.25em] text-muted-foreground opacity-60">Total</span>

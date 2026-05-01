@@ -19,16 +19,9 @@ export function initializeFirebase() {
   let firebaseApp: FirebaseApp;
   
   if (!getApps().length) {
-    // Important! initializeApp() is called without any arguments because Firebase App Hosting
-    // integrates with the initializeApp() function to provide the environment variables needed to
-    // populate the FirebaseOptions in production. It is critical that we attempt to call initializeApp()
-    // without arguments.
     try {
-      // Attempt to initialize via Firebase App Hosting environment variables
       firebaseApp = initializeApp();
     } catch (e) {
-      // Only warn in production because it's normal to use the firebaseConfig to initialize
-      // during development
       if (process.env.NODE_ENV === "production") {
         console.warn('Automatic initialization failed. Falling back to firebase config object.', e);
       }
@@ -38,15 +31,18 @@ export function initializeFirebase() {
     firebaseApp = getApp();
   }
 
-  // Initialize Firestore with persistent cache enabled for instant loading of cached data
-  // Ensure we only call initializeFirestore once to avoid "already been called" error
+  // Initialize Firestore with persistent cache enabled
+  // We use a more robust check to handle potential IndexedDB corruption or tab conflicts
   if (!firestoreInstance) {
     try {
       firestoreInstance = initializeFirestore(firebaseApp, {
-        localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+        localCache: persistentLocalCache({ 
+          tabManager: persistentMultipleTabManager() 
+        })
       });
-    } catch (e) {
-      // Fallback if initialization happened elsewhere (e.g. hot reloading)
+    } catch (e: any) {
+      // Fallback if initialization fails due to corruption or duplicate calls
+      console.warn('Firestore persistence failed to initialize, falling back to standard instance:', e.message);
       firestoreInstance = getFirestore(firebaseApp);
     }
   }

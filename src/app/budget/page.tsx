@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -161,18 +160,6 @@ export default function BudgetPage() {
     syncAggregates();
   }, [decryptedExpenses, decryptedFixed, decryptedBudget?.actualSpent, decryptedBudget?.actualFixedSpent, user, monthlyBudgetRef, isDecrypting, mounted]);
 
-  useEffect(() => {
-    if (editingExpenseId) {
-      setActiveInputTab('logger');
-    }
-  }, [editingExpenseId]);
-
-  useEffect(() => {
-    if (editingFixedId) {
-      setActiveInputTab('fixed');
-    }
-  }, [editingFixedId]);
-
   const allCategories = useMemo(() => {
     const seen = new Set<string>();
     const normalize = (s: string) => (s || '').trim().toUpperCase();
@@ -306,10 +293,6 @@ export default function BudgetPage() {
       isPrivate: !currentPrivate,
       updatedAt: new Date().toISOString()
     });
-    toast({ 
-      title: !currentPrivate ? "Isolation Active" : "Public Mode Active", 
-      description: !currentPrivate ? "Label isolated from collaborative sync." : "Label now visible to Split Pay matching." 
-    });
   };
 
   const addFixedExpense = async () => {
@@ -395,21 +378,16 @@ export default function BudgetPage() {
       ];
     });
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n');
-
+    const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
     link.setAttribute('download', `LifeTrack_Activity_${monthId}.csv`);
-    link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast({ title: "Export Complete", description: "CSV has been saved to your downloads." });
+    toast({ title: "Export Complete" });
   };
 
   if (!mounted) {
@@ -674,9 +652,7 @@ export default function BudgetPage() {
         </div>
 
         <div className="lg:col-span-4 flex flex-col gap-4">
-          <div className="hidden lg:block">
-            <SustainableTodayCard isOverspentToday={isOverspentToday} isWithinBudget={isWithinBudget} todayStr={todayStr} dailyAllocationToday={dailyAllocationToday} todayReport={todayReport} isDailyEnabled={isDailyEnabled} remainingNetPool={remainingNetPool} totalSpentThisMonth={totalSpentThisMonth} monthName={monthName} isDecrypting={isDecrypting} />
-          </div>
+          <SustainableTodayCard isOverspentToday={isOverspentToday} isWithinBudget={isWithinBudget} todayStr={todayStr} dailyAllocationToday={dailyAllocationToday} todayReport={todayReport} isDailyEnabled={isDailyEnabled} remainingNetPool={remainingNetPool} totalSpentThisMonth={totalSpentThisMonth} monthName={monthName} isDecrypting={isDecrypting} />
           
           <Card className="shadow-lg rounded-2xl border-none ring-1 ring-border overflow-hidden">
             <CardHeader className="bg-muted/30 border-b py-2.5 px-4">
@@ -750,77 +726,54 @@ export default function BudgetPage() {
                 <DialogDescription className="text-[10px] uppercase font-bold tracking-tight">Comprehensive history of your secured spends</DialogDescription>
               </div>
               <div className="flex items-center gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={downloadActivityCsv}
-                  className="h-8 px-3 text-[10px] font-black uppercase gap-2 bg-background shadow-sm hover:bg-primary/5"
-                >
-                  <Download className="h-3.5 w-3.5 text-primary" />
-                  Export CSV
+                <Button variant="outline" size="sm" onClick={downloadActivityCsv} className="h-8 px-3 text-[10px] font-black uppercase gap-2 bg-background shadow-sm hover:bg-primary/5">
+                  <Download className="h-3.5 w-3.5 text-primary" /> Export CSV
                 </Button>
                 <Badge variant="outline" className="text-[10px] font-black uppercase px-3 py-1 bg-background h-8">
-                  {decryptedExpenses?.length || 0} Total Records
+                  {decryptedExpenses?.length || 0} Records
                 </Badge>
               </div>
             </div>
           </DialogHeader>
-          <div className="p-0">
-            <ScrollArea className="h-[60vh] w-full">
-              <Table>
-                <TableHeader className="bg-muted/50 sticky top-0 z-10">
-                  <TableRow className="h-10">
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest px-6">Date</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest px-6">Item Details</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest px-6">Amount</TableHead>
-                    <TableHead className="w-20 text-right px-6"></TableHead>
+          <ScrollArea className="h-[60vh] w-full">
+            <Table>
+              <TableHeader className="bg-muted/50 sticky top-0 z-10">
+                <TableRow className="h-10">
+                  <TableHead className="text-[10px] font-black uppercase tracking-widest px-6">Date</TableHead>
+                  <TableHead className="text-[10px] font-black uppercase tracking-widest px-6">Item Details</TableHead>
+                  <TableHead className="text-[10px] font-black uppercase tracking-widest px-6">Amount</TableHead>
+                  <TableHead className="w-20 text-right px-6"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {decryptedExpenses?.length ? [...decryptedExpenses].sort((a,b) => b.date.localeCompare(a.date)).map((exp) => (
+                  <TableRow key={exp.id} className={cn("h-14 text-[12px] hover:bg-muted/30 group", editingExpenseId === exp.id && "bg-orange-50/50")}>
+                    <TableCell className="text-muted-foreground font-black px-6">{format(new Date(exp.date), 'dd MMM yyyy')}</TableCell>
+                    <TableCell className="px-6">
+                      <div className="flex flex-col gap-1">
+                        <span className="font-bold truncate max-w-[200px] text-sm">{exp.description || 'SECURED ITEM'}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[8px] uppercase font-black px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/10">{exp.allocationBucket}</span>
+                          <span className="text-[8px] uppercase font-black px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-muted-foreground/10">
+                            {allCategories.find(c => c.id === exp.expenseCategoryId)?.name || 'MISC'}
+                          </span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-black text-sm px-6">₹{exp.amount.toLocaleString()}</TableCell>
+                    <TableCell className="text-right px-6">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" onClick={() => { setEditingExpenseId(exp.id); setNewExpense({ description: exp.description || '', amount: exp.amount.toString(), categoryId: exp.expenseCategoryId, allocationBucket: exp.allocationBucket || 'expense' }); setIsActivityModalOpen(false); }} className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors"><Pencil className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => deleteDocumentNonBlocking(doc(expensesRef!, exp.id))} className="h-8 w-8 hover:bg-destructive/10 text-destructive transition-colors"><Trash2 className="h-4 w-4" /></Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {decryptedExpenses?.length ? [...decryptedExpenses].sort((a,b) => b.date.localeCompare(a.date)).map((exp) => (
-                    <TableRow key={exp.id} className={cn("h-14 text-[12px] hover:bg-muted/30 group", editingExpenseId === exp.id && "bg-orange-50/50")}>
-                      <TableCell className="text-muted-foreground font-black px-6">{format(new Date(exp.date), 'dd MMM yyyy')}</TableCell>
-                      <TableCell className="px-6">
-                        <div className="flex flex-col gap-1">
-                          <span className="font-bold truncate max-w-[200px] text-sm">{exp.description || 'SECURED ITEM'}</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[8px] uppercase font-black px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/10">{exp.allocationBucket}</span>
-                            <span className="text-[8px] uppercase font-black px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-muted-foreground/10">
-                              {allCategories.find(c => c.id === exp.expenseCategoryId)?.name || 'MISC'}
-                            </span>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-black text-sm px-6">₹{exp.amount.toLocaleString()}</TableCell>
-                      <TableCell className="text-right px-6">
-                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="icon" onClick={() => { 
-                            setEditingExpenseId(exp.id); 
-                            setNewExpense({ description: exp.description || '', amount: exp.amount.toString(), categoryId: exp.expenseCategoryId, allocationBucket: exp.allocationBucket || 'expense' }); 
-                            setIsActivityModalOpen(false);
-                          }} className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors">
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => deleteDocumentNonBlocking(doc(expensesRef!, exp.id))} className="h-8 w-8 hover:bg-destructive/10 text-destructive transition-colors">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )) : (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-24">
-                        <div className="flex flex-col items-center gap-3 opacity-30 grayscale">
-                          <History className="h-12 w-12" />
-                          <p className="text-sm font-black uppercase tracking-widest">No secure activity recorded.</p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-          </div>
+                )) : (
+                  <TableRow><TableCell colSpan={4} className="text-center py-24 text-muted-foreground uppercase font-black text-[10px] tracking-widest italic">No activity recorded</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </ScrollArea>
           <div className="p-4 border-t bg-muted/10 flex justify-end">
             <Button variant="secondary" onClick={() => setIsActivityModalOpen(false)} className="rounded-xl font-black h-9 text-[10px] uppercase px-6">Close Ledger</Button>
           </div>

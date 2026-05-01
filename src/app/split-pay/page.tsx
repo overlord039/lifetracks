@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -102,11 +101,9 @@ export default function SplitPayPage() {
   const [isEditingRoomName, setIsEditingRoomName] = useState(false);
   const [editedRoomName, setEditedRoomName] = useState('');
 
-  // Member editing state
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [editedMemberName, setEditedMemberName] = useState('');
 
-  // Manual Room Creation State
   const [manualRoomName, setManualRoomName] = useState('');
   const [manualMemberCount, setManualMemberCount] = useState('2');
   const [manualMembers, setManualMembers] = useState<{ id: string, name: string, share: string }[]>([
@@ -129,10 +126,8 @@ export default function SplitPayPage() {
   const [decryptedGroups, setDecryptedGroups] = useState<any[]>([]);
   const [isDecryptingGroups, setIsDecryptingGroups] = useState(false);
 
-  // Unified Label Sync state
   const [decryptedPersonalCategories, setDecryptedPersonalCategories] = useState<any[]>([]);
 
-  // Personal Debts Logic
   const [newDebt, setNewDebt] = useState({ debtorName: '', amount: '', description: '' });
   const [decryptedDebts, setDecryptedDebts] = useState<any[]>([]);
   const [isDecryptingDebts, setIsDecryptingDebts] = useState(false);
@@ -195,7 +190,6 @@ export default function SplitPayPage() {
 
   const totalOwed = decryptedDebts?.filter(d => !d.isPaid).reduce((sum, d) => sum + d.amount, 0) || 0;
 
-  // Sync manual members based on count input
   useEffect(() => {
     const count = parseInt(manualMemberCount) || 0;
     if (count < 1 || !isManualRoomModalOpen) return;
@@ -234,7 +228,6 @@ export default function SplitPayPage() {
   }, [db, user]);
   const { data: personalCategories } = useCollection(personalCategoriesRef);
 
-  // Decrypt personal categories for label sync
   useEffect(() => {
     const decryptCats = async () => {
       if (!personalCategories || !user) return;
@@ -289,7 +282,6 @@ export default function SplitPayPage() {
   }, [db, selectedGroupId, activeGroup, user?.uid]);
   const { data: roomCategories } = useCollection(roomCategoriesRef);
 
-  // Case-Insensitive Deduplication for room categories
   const filteredRoomCategories = useMemo(() => {
     const seen = new Set<string>();
     const normalize = (s: string) => (s || '').trim().toUpperCase();
@@ -301,7 +293,6 @@ export default function SplitPayPage() {
     });
   }, [roomCategories]);
 
-  // Unified Label Sync: Push personal public labels to the room
   useEffect(() => {
     const syncLabelsToRoom = async () => {
       if (!user || !activeGroup || decryptedPersonalCategories.length === 0 || !roomCategories || !roomCategoriesRef) return;
@@ -511,7 +502,7 @@ export default function SplitPayPage() {
     setIsCreateModalOpen(false);
     setSelectedGroupId(roomId);
     setIsProcessing(false);
-    toast({ title: "Room Initialized", description: `Join Code: ${roomId}` });
+    toast({ title: "Room Initialized" });
   };
 
   const handleCreateManualRoom = async () => {
@@ -521,7 +512,6 @@ export default function SplitPayPage() {
     const roomId = Math.random().toString(36).substring(2, 10).toUpperCase();
     const groupRef = doc(db, 'sharedGroups', roomId);
     
-    // Convert manualMembers to room members with virtual IDs
     const roomMembers = manualMembers.map((m, idx) => ({
       userId: idx === 0 && m.name.toLowerCase() === 'me' ? user.uid : `virtual_${Math.random().toString(36).substring(2, 7)}`,
       userName: m.name.toUpperCase()
@@ -532,7 +522,7 @@ export default function SplitPayPage() {
       name: await encryptData(manualRoomName.trim().toUpperCase(), user.uid),
       createdBy: user.uid,
       creatorName: userName,
-      memberUids: [user.uid], // Only creator can edit by default
+      memberUids: [user.uid],
       members: roomMembers,
       isEncrypted: true,
       isManual: true,
@@ -595,7 +585,7 @@ export default function SplitPayPage() {
 
     setNewMemberName('');
     setIsAddMemberModalOpen(false);
-    toast({ title: "Member Added", description: `${newMember.userName} added to ledger.` });
+    toast({ title: "Member Added" });
   };
 
   const targetRoomAdminCheck = () => {
@@ -621,7 +611,7 @@ export default function SplitPayPage() {
     setIsJoiningModalOpen(false);
     setSelectedGroupId(code);
     setIsProcessing(false);
-    toast({ title: "Syncing Membership", description: "Verifying credentials with ledger..." });
+    toast({ title: "Syncing Membership" });
   };
 
   const addRoomCategory = async () => {
@@ -631,11 +621,7 @@ export default function SplitPayPage() {
     const alreadyExists = roomCategories?.some(c => (c.name || '').trim().toUpperCase() === normalizedName);
     
     if (alreadyExists) {
-      toast({ 
-        variant: "destructive", 
-        title: "Label Exists", 
-        description: `"${normalizedName}" is already defined in this room.` 
-      });
+      toast({ variant: "destructive", title: "Label Exists" });
       return;
     }
 
@@ -735,23 +721,17 @@ export default function SplitPayPage() {
     setExpenseDesc('');
     setExpenseCategoryId('');
     setCustomSplits({});
-    toast({ 
-      title: "Ledger Updated", 
-      description: myShare > 0 ? "Private split synced to budget vault." : "Shared ledger updated." 
-    });
+    toast({ title: "Ledger Updated" });
   };
 
   const handleSettle = (fromId: string, fromName: string, toId: string, amount: number) => {
     if (!settlementsRef || !activeGroup) return;
-    const members = Array.isArray(activeGroup.members) ? activeGroup.members : [];
-    const toName = members.find((m: any) => m.userId === toId)?.userName || 'UNKNOWN';
-    
     addDocumentNonBlocking(settlementsRef, {
       roomId: activeGroup.id,
       paidBy: fromId,
       paidByName: fromName,
       paidTo: toId,
-      paidToName: toName,
+      paidToName: activeGroup.members.find((m: any) => m.userId === toId)?.userName || 'UNKNOWN',
       amount,
       createdAt: new Date().toISOString()
     });
@@ -830,9 +810,7 @@ export default function SplitPayPage() {
                         key={group.id} 
                         className={cn(
                           "group cursor-pointer hover:ring-2 transition-all rounded-3xl border-none ring-1 overflow-hidden relative",
-                          group.isManual 
-                            ? "ring-secondary/30 bg-secondary/[0.03] hover:ring-secondary/60" 
-                            : "ring-border bg-card hover:ring-primary/50"
+                          group.isManual ? "ring-secondary/30 bg-secondary/[0.03] hover:ring-secondary/60" : "ring-border bg-card hover:ring-primary/50"
                         )}
                         onClick={() => setSelectedGroupId(group.id)}
                       >
@@ -843,25 +821,14 @@ export default function SplitPayPage() {
                                 {group.isManual ? <Calculator className="h-3.5 w-3.5 text-secondary-foreground" /> : <Users className="h-3.5 w-3.5 text-primary" />}
                                 <CardTitle className="text-xl font-black tracking-tight truncate">{group.name}</CardTitle>
                               </div>
-                              <CardDescription className={cn(
-                                "text-[10px] uppercase font-black tracking-widest",
-                                group.isManual ? "text-secondary-foreground font-bold" : "text-primary"
-                              )}>
+                              <CardDescription className={cn("text-[10px] uppercase font-black tracking-widest", group.isManual ? "text-secondary-foreground font-bold" : "text-primary")}>
                                 {group.isManual ? "Standalone Mode" : `Join Code: ${group.id}`}
                               </CardDescription>
                             </div>
                             <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors mt-1 shrink-0" />
                           </div>
                           {group.createdBy === user?.uid && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="absolute right-12 top-6 h-8 w-8 text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setRoomToDelete(group.id);
-                              }}
-                            >
+                            <Button variant="ghost" size="icon" className="absolute right-12 top-6 h-8 w-8 text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); setRoomToDelete(group.id); }}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           )}
@@ -869,10 +836,7 @@ export default function SplitPayPage() {
                         <CardContent className="pt-4 flex items-center justify-between">
                           <div className="flex -space-x-2">
                             {members.slice(0, 4).map((m: any) => (
-                              <div key={m.userId} title={m.userName} className={cn(
-                                "h-8 w-8 rounded-full border-2 border-background flex items-center justify-center text-[10px] font-black text-white",
-                                group.isManual ? "bg-secondary" : "bg-primary"
-                              )}>{(m.userName || 'U')[0].toUpperCase()}</div>
+                              <div key={m.userId} title={m.userName} className={cn("h-8 w-8 rounded-full border-2 border-background flex items-center justify-center text-[10px] font-black text-white", group.isManual ? "bg-secondary" : "bg-primary")}>{(m.userName || 'U')[0].toUpperCase()}</div>
                             ))}
                             {members.length > 4 && <div className="h-8 w-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[8px] font-black">+{members.length - 4}</div>}
                           </div>
@@ -895,12 +859,7 @@ export default function SplitPayPage() {
                 </div>
 
                 <Card className="shadow-xl rounded-3xl border-none ring-1 ring-border overflow-hidden">
-                  <CardHeader className="bg-muted/30 border-b">
-                    <CardTitle className="text-base font-black flex items-center gap-2">
-                      <UserPlus className="h-5 w-5 text-primary" />
-                      Secure New Debt Record
-                    </CardTitle>
-                  </CardHeader>
+                  <CardHeader className="bg-muted/30 border-b"><CardTitle className="text-base font-black flex items-center gap-2"><UserPlus className="h-5 w-5 text-primary" /> Secure New Debt Record</CardTitle></CardHeader>
                   <CardContent className="pt-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="space-y-2">
@@ -916,50 +875,24 @@ export default function SplitPayPage() {
                         <Input placeholder="e.g. For dinner last Friday" value={newDebt.description} onChange={e => setNewDebt({...newDebt, description: e.target.value})} className="h-11 rounded-xl" />
                       </div>
                     </div>
-                    <Button onClick={addDebt} className="w-full mt-8 h-12 rounded-2xl font-black shadow-lg text-base">
-                      <Plus className="mr-2 h-5 w-5" /> Secure Record in Debt Ledger
-                    </Button>
+                    <Button onClick={addDebt} className="w-full mt-8 h-12 rounded-2xl font-black shadow-lg text-base"><Plus className="mr-2 h-5 w-5" /> Secure Record in Debt Ledger</Button>
                   </CardContent>
                 </Card>
 
                 <div className="space-y-4">
-                  <h3 className="text-lg font-black flex items-center gap-2 pl-2">
-                    <HandCoins className="h-4 w-4 text-primary" />
-                    Personal Debt Records
-                  </h3>
-                  
+                  <h3 className="text-lg font-black flex items-center gap-2 pl-2"><HandCoins className="h-4 w-4 text-primary" /> Personal Debt Records</h3>
                   <div className="grid gap-3">
                     {decryptedDebts?.length === 0 ? (
-                      <Card className="p-20 border-dashed border-2 flex flex-col items-center justify-center opacity-40 grayscale space-y-4 rounded-3xl">
-                        <HandCoins className="h-12 w-12" />
-                        <p className="text-sm font-black uppercase tracking-widest">Ledger is empty</p>
-                      </Card>
+                      <Card className="p-20 border-dashed border-2 flex flex-col items-center justify-center opacity-40 grayscale space-y-4 rounded-3xl"><HandCoins className="h-12 w-12" /><p className="text-sm font-black uppercase tracking-widest">Ledger is empty</p></Card>
                     ) : (
                       decryptedDebts?.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((debt) => (
-                        <div 
-                          key={debt.id} 
-                          className={cn(
-                            "group flex flex-col sm:flex-row sm:items-center justify-between p-5 rounded-3xl border transition-all duration-300 shadow-sm gap-4 relative overflow-hidden",
-                            debt.isPaid ? "bg-muted/30 border-muted opacity-60" : "bg-card border-border hover:border-primary/50 hover:shadow-md ring-1 ring-transparent hover:ring-primary/10"
-                          )}
-                        >
+                        <div key={debt.id} className={cn("group flex flex-col sm:flex-row sm:items-center justify-between p-5 rounded-3xl border transition-all duration-300 shadow-sm gap-4 relative overflow-hidden", debt.isPaid ? "bg-muted/30 border-muted opacity-60" : "bg-card border-border hover:border-primary/50 hover:shadow-md ring-1 ring-transparent hover:ring-primary/10")}>
                           <div className="flex items-center gap-4 relative z-10">
-                            <button 
-                              onClick={() => togglePaid(debt.id, debt.isPaid)}
-                              className={cn(
-                                "p-2 rounded-xl transition-all duration-300 flex-shrink-0",
-                                debt.isPaid ? "text-green-600 bg-green-100 shadow-inner" : "text-muted-foreground hover:text-primary hover:bg-primary/10 bg-muted/20"
-                              )}
-                            >
+                            <button onClick={() => togglePaid(debt.id, debt.isPaid)} className={cn("p-2 rounded-xl transition-all duration-300 flex-shrink-0", debt.isPaid ? "text-green-600 bg-green-100 shadow-inner" : "text-muted-foreground hover:text-primary hover:bg-primary/10 bg-muted/20")}>
                               {debt.isPaid ? <CheckCircle className="h-6 w-6" /> : <Circle className="h-6 w-6" />}
                             </button>
                             <div className="min-w-0">
-                              <h4 className={cn(
-                                "font-black text-xl truncate tracking-tight",
-                                debt.isPaid && "line-through text-muted-foreground opacity-70"
-                              )}>
-                                {debt.debtorName}
-                              </h4>
+                              <h4 className={cn("font-black text-xl truncate tracking-tight", debt.isPaid && "line-through text-muted-foreground opacity-70")}>{debt.debtorName}</h4>
                               <div className="text-[10px] text-muted-foreground font-black uppercase tracking-widest flex items-center gap-2">
                                 {debt.description || "Secured Note"} <Separator orientation="vertical" className="h-2" /> {new Date(debt.createdAt).toLocaleDateString()}
                               </div>
@@ -967,22 +900,10 @@ export default function SplitPayPage() {
                           </div>
                           <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto relative z-10">
                             <div className="text-right">
-                              <p className={cn(
-                                "text-2xl font-black tracking-tighter",
-                                debt.isPaid ? "text-muted-foreground line-through opacity-50" : "text-primary"
-                              )}>
-                                ₹{debt.amount.toLocaleString()}
-                              </p>
+                              <p className={cn("text-2xl font-black tracking-tighter", debt.isPaid ? "text-muted-foreground line-through opacity-50" : "text-primary")}>₹{debt.amount.toLocaleString()}</p>
                               {debt.isPaid && <span className="text-[8px] font-black uppercase text-green-600 tracking-widest">Reconciled</span>}
                             </div>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              onClick={() => deleteDebt(debt.id)}
-                              className="text-destructive h-10 w-10 rounded-xl hover:bg-destructive/10"
-                            >
-                              <Trash2 className="h-5 w-5" />
-                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => deleteDebt(debt.id)} className="text-destructive h-10 w-10 rounded-xl hover:bg-destructive/10"><Trash2 className="h-5 w-5" /></Button>
                           </div>
                           {!debt.isPaid && <HandCoins className="absolute -right-4 -bottom-4 h-24 w-24 text-primary/[0.03] -rotate-12 pointer-events-none" />}
                         </div>
@@ -998,81 +919,40 @@ export default function SplitPayPage() {
         <div className="max-w-6xl mx-auto space-y-6">
           <header className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => setSelectedGroupId(null)} className="h-10 w-10 rounded-xl">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
+              <Button variant="ghost" size="icon" onClick={() => setSelectedGroupId(null)} className="h-10 w-10 rounded-xl"><ArrowLeft className="h-5 w-5" /></Button>
               <div className="flex flex-col">
                 <div className="flex items-center gap-2 group">
                   {isEditingRoomName ? (
                     <div className="flex items-center gap-2 animate-in slide-in-from-left-2">
-                      <Input 
-                        value={editedRoomName} 
-                        onChange={(e) => setEditedRoomName(e.target.value)}
-                        className="h-8 w-48 font-black text-xl bg-muted/20 border-primary/20 focus:ring-primary/20 uppercase"
-                        autoFocus
-                        onKeyDown={(e) => e.key === 'Enter' && handleUpdateRoomName()}
-                      />
-                      <Button size="icon" variant="ghost" onClick={handleUpdateRoomName} className="h-8 w-8 text-green-600 hover:bg-green-50">
-                        <Check className="h-4 w-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" onClick={() => { setIsEditingRoomName(false); setEditedRoomName(activeGroup?.name || ''); }} className="h-8 w-8 text-destructive hover:bg-red-50">
-                        <X className="h-4 w-4" />
-                      </Button>
+                      <Input value={editedRoomName} onChange={(e) => setEditedRoomName(e.target.value)} className="h-8 w-48 font-black text-xl bg-muted/20 border-primary/20 focus:ring-primary/20 uppercase" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleUpdateRoomName()} />
+                      <Button size="icon" variant="ghost" onClick={handleUpdateRoomName} className="h-8 w-8 text-green-600 hover:bg-green-50"><Check className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => { setIsEditingRoomName(false); setEditedRoomName(activeGroup?.name || ''); }} className="h-8 w-8 text-destructive hover:bg-red-50"><X className="h-4 w-4" /></Button>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <h2 className="text-2xl font-black tracking-tighter flex items-center gap-2">
-                        {activeGroup ? activeGroup.name : "Verifying..."}
-                      </h2>
-                      {activeGroup?.createdBy === user?.uid && (
-                        <Button variant="ghost" size="icon" onClick={() => setIsEditingRoomName(true)} className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
+                      <h2 className="text-2xl font-black tracking-tighter flex items-center gap-2">{activeGroup ? activeGroup.name : "Verifying..."}</h2>
+                      {activeGroup?.createdBy === user?.uid && <Button variant="ghost" size="icon" onClick={() => setIsEditingRoomName(true)} className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"><Pencil className="h-3.5 w-3.5" /></Button>}
                     </div>
                   )}
-                  <Badge className={cn(
-                    "hover:opacity-100 border-none font-black text-[8px] uppercase tracking-widest hidden sm:inline-flex",
-                    activeGroup?.isManual ? "bg-secondary/20 text-secondary-foreground" : "bg-green-100 text-green-700"
-                  )}>
-                    {activeGroup?.isManual ? "Manual Ledger" : "Live Ledger"}
-                  </Badge>
+                  <Badge className={cn("hover:opacity-100 border-none font-black text-[8px] uppercase tracking-widest hidden sm:inline-flex", activeGroup?.isManual ? "bg-secondary/20 text-secondary-foreground" : "bg-green-100 text-green-700")}>{activeGroup?.isManual ? "Manual Ledger" : "Live Ledger"}</Badge>
                 </div>
                 <div className="flex items-center gap-2 group">
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                    {activeGroup?.isManual ? "Standalone Ledger Mode" : `Room ID: ${selectedGroupId}`}
-                  </p>
-                  {!activeGroup?.isManual && (
-                    <button onClick={() => copyToClipboard(selectedGroupId || '')} className="opacity-50 hover:opacity-100 transition-opacity">
-                      <Copy className="h-3 w-3 text-muted-foreground hover:text-primary" />
-                    </button>
-                  )}
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{activeGroup?.isManual ? "Standalone Ledger Mode" : `Room ID: ${selectedGroupId}`}</p>
+                  {!activeGroup?.isManual && <button onClick={() => copyToClipboard(selectedGroupId || '')} className="opacity-50 hover:opacity-100 transition-opacity"><Copy className="h-3 w-3 text-muted-foreground hover:text-primary" /></button>}
                 </div>
               </div>
             </div>
             
-            <button 
-              onClick={() => setIsStatsModalOpen(true)}
-              className="bg-primary/5 px-4 sm:px-6 py-3 rounded-2xl border border-primary/10 flex flex-row items-center gap-4 md:gap-8 hover:bg-primary/10 transition-all group cursor-pointer w-full md:w-auto"
-            >
-              <div className="text-left">
-                <p className="text-[9px] font-black uppercase text-primary/60 tracking-widest group-hover:text-primary transition-colors">Shared Pool</p>
-                <p className="text-xl sm:text-2xl font-black text-primary">₹{stats?.totalSpent.toLocaleString() || '0'}</p>
-              </div>
+            <button onClick={() => setIsStatsModalOpen(true)} className="bg-primary/5 px-4 sm:px-6 py-3 rounded-2xl border border-primary/10 flex flex-row items-center gap-4 md:gap-8 hover:bg-primary/10 transition-all group cursor-pointer w-full md:w-auto">
+              <div className="text-left"><p className="text-[9px] font-black uppercase text-primary/60 tracking-widest group-hover:text-primary transition-colors">Shared Pool</p><p className="text-xl sm:text-2xl font-black text-primary">₹{stats?.totalSpent.toLocaleString() || '0'}</p></div>
               <Separator orientation="vertical" className="hidden sm:block h-8" />
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground group-hover:text-primary transition-colors">{(Array.isArray(activeGroup?.members) ? activeGroup.members.length : 0)} Active</span>
-              </div>
+              <div className="flex items-center gap-2"><Users className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" /><span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground group-hover:text-primary transition-colors">{(Array.isArray(activeGroup?.members) ? activeGroup.members.length : 0)} Active</span></div>
               <BarChart3 className="h-4 w-4 text-primary opacity-50 group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0" />
             </button>
           </header>
 
           {!activeGroup ? (
-            <Card className="p-20 flex flex-col items-center justify-center border-dashed border-2 animate-pulse space-y-4">
-              <Loader2 className="h-10 w-10 animate-spin text-primary" />
-              <p className="font-black uppercase text-xs tracking-widest text-muted-foreground">Authenticating...</p>
-            </Card>
+            <Card className="p-20 flex flex-col items-center justify-center border-dashed border-2 animate-pulse space-y-4"><Loader2 className="h-10 w-10 animate-spin text-primary" /><p className="font-black uppercase text-xs tracking-widest text-muted-foreground">Authenticating...</p></Card>
           ) : (
             <Tabs defaultValue="add" className="w-full">
               <TabsList className="grid w-full grid-cols-3 h-12 p-1 bg-muted rounded-2xl mb-6">
@@ -1084,9 +964,7 @@ export default function SplitPayPage() {
               <TabsContent value="add" className="animate-in fade-in slide-in-from-bottom-2 px-1">
                 <div className="grid gap-6 lg:grid-cols-12">
                   <Card className="lg:col-span-7 shadow-xl rounded-3xl border-none ring-1 ring-border overflow-hidden">
-                    <CardHeader className="bg-primary/5 border-b py-4">
-                      <CardTitle className="text-base font-black flex items-center gap-2">Sync New Expense</CardTitle>
-                    </CardHeader>
+                    <CardHeader className="bg-primary/5 border-b py-4"><CardTitle className="text-base font-black flex items-center gap-2">Sync New Expense</CardTitle></CardHeader>
                     <CardContent className="pt-6 space-y-6 px-4 sm:px-6">
                       <div className="grid gap-6 md:grid-cols-2">
                         <div className="space-y-4">
@@ -1094,127 +972,29 @@ export default function SplitPayPage() {
                             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Description (Optional)</Label>
                             <div className="flex gap-2">
                               <Input placeholder="What was this for?" value={expenseDesc} onChange={e => setExpenseDesc(e.target.value)} className="h-11 rounded-xl uppercase font-bold" />
-                              <Button variant="outline" size="icon" className="h-11 w-11 shrink-0 rounded-xl" onClick={handleAICategorize} disabled={isAIThinking || !expenseDesc}>
-                                {isAIThinking ? <Loader2 className="h-4 w-4 animate-spin" /> : <BrainCircuit className="h-4 w-4 text-primary" />}
-                              </Button>
+                              <Button variant="outline" size="icon" className="h-11 w-11 shrink-0 rounded-xl" onClick={handleAICategorize} disabled={isAIThinking || !expenseDesc}>{isAIThinking ? <Loader2 className="h-4 w-4 animate-spin" /> : <BrainCircuit className="h-4 w-4 text-primary" />}</Button>
                             </div>
                           </div>
-                          <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Label</Label>
-                            <Select value={expenseCategoryId} onValueChange={setExpenseCategoryId}>
-                              <SelectTrigger className="h-11 rounded-xl font-black">
-                                <SelectValue placeholder="Select Label" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {filteredRoomCategories?.map(c => (
-                                  <SelectItem key={c.id} value={c.id} className="font-black">{c.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Amount (₹)</Label>
-                            <div className="relative">
-                              <Input 
-                                type="number" 
-                                placeholder="0.00" 
-                                value={expenseAmt} 
-                                onChange={e => setExpenseAmt(e.target.value)} 
-                                className="h-11 pl-9 rounded-xl font-black text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
-                              />
-                              <IndianRupee className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Paid By</Label>
-                            <Select value={paidBy} onValueChange={setPaidBy}>
-                              <SelectTrigger className="h-11 rounded-xl font-black">
-                                <SelectValue placeholder="Select Payer" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {(Array.isArray(activeGroup?.members) ? activeGroup.members : []).map((m: any) => (
-                                  <SelectItem key={m.userId} value={m.userId} className="font-black">{m.userName}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
+                          <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Label</Label><Select value={expenseCategoryId} onValueChange={setExpenseCategoryId}><SelectTrigger className="h-11 rounded-xl font-black"><SelectValue placeholder="Select Label" /></SelectTrigger><SelectContent>{filteredRoomCategories?.map(c => (<SelectItem key={c.id} value={c.id} className="font-black">{c.name}</SelectItem>))}</SelectContent></Select></div>
+                          <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Amount (₹)</Label><div className="relative"><Input type="number" placeholder="0.00" value={expenseAmt} onChange={e => setExpenseAmt(e.target.value)} className="h-11 pl-9 rounded-xl font-black text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" /><IndianRupee className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" /></div></div>
+                          <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Paid By</Label><Select value={paidBy} onValueChange={setPaidBy}><SelectTrigger className="h-11 rounded-xl font-black"><SelectValue placeholder="Select Payer" /></SelectTrigger><SelectContent>{(Array.isArray(activeGroup?.members) ? activeGroup.members : []).map((m: any) => (<SelectItem key={m.userId} value={m.userId} className="font-black">{m.userName}</SelectItem>))}</SelectContent></Select></div>
                         </div>
-
                         <div className="space-y-4">
-                          <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Mark Participants</Label>
-                            <div className="flex flex-wrap gap-2 p-3 bg-muted/20 rounded-2xl border border-dashed">
-                              {(Array.isArray(activeGroup?.members) ? activeGroup.members : []).map((m: any) => (
-                                <button
-                                  key={m.userId}
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedParticipants(prev => 
-                                      prev.includes(m.userId) ? prev.filter(uid => uid !== m.userId) : [...prev, m.userId]
-                                    );
-                                  }}
-                                  className={cn(
-                                    "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-1.5 border",
-                                    selectedParticipants.includes(m.userId) 
-                                      ? "bg-primary text-primary-foreground border-primary shadow-sm" 
-                                      : "bg-background text-muted-foreground border-border opacity-60"
-                                  )}
-                                >
-                                  {selectedParticipants.includes(m.userId) && <Check className="h-3 w-3" />}
-                                  {m.userName}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Split Calculation</Label>
-                            <Tabs value={splitType} onValueChange={(v: any) => setSplitType(v)} className="w-full">
-                              <TabsList className="grid w-full grid-cols-3 h-9 p-1 rounded-xl">
-                                <TabsTrigger value="equal" className="text-[9px] font-black uppercase">Equal</TabsTrigger>
-                                <TabsTrigger value="custom" className="text-[9px] font-black uppercase">₹ Manual</TabsTrigger>
-                                <TabsTrigger value="percentage" className="text-[9px] font-black uppercase">% Manual</TabsTrigger>
-                              </TabsList>
-                            </Tabs>
-                          </div>
+                          <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Mark Participants</Label><div className="flex flex-wrap gap-2 p-3 bg-muted/20 rounded-2xl border border-dashed">{(Array.isArray(activeGroup?.members) ? activeGroup.members : []).map((m: any) => (<button key={m.userId} type="button" onClick={() => { setSelectedParticipants(prev => prev.includes(m.userId) ? prev.filter(uid => uid !== m.userId) : [...prev, m.userId]); }} className={cn("px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-1.5 border", selectedParticipants.includes(m.userId) ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-background text-muted-foreground border-border opacity-60")}>{selectedParticipants.includes(m.userId) && <Check className="h-3 w-3" />}{m.userName}</button>))}</div></div>
+                          <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Split Calculation</Label><Tabs value={splitType} onValueChange={(v: any) => setSplitType(v)} className="w-full"><TabsList className="grid w-full grid-cols-3 h-9 p-1 rounded-xl"><TabsTrigger value="equal" className="text-[9px] font-black uppercase">Equal</TabsTrigger><TabsTrigger value="custom" className="text-[9px] font-black uppercase">₹ Manual</TabsTrigger><TabsTrigger value="percentage" className="text-[9px] font-black uppercase">% Manual</TabsTrigger></TabsList></Tabs></div>
                         </div>
                       </div>
-
                       {selectedParticipants.length > 0 && parseFloat(expenseAmt) > 0 && (
                         <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 space-y-4">
-                          <div className="flex items-center justify-between">
-                            <p className="text-[10px] font-black uppercase text-primary tracking-widest">Allocation Ledger</p>
-                            <Badge variant={splitValidation.isValid ? "secondary" : "destructive"} className="text-[8px] font-black uppercase">
-                              {splitValidation.message}
-                            </Badge>
-                          </div>
-                          
+                          <div className="flex items-center justify-between"><p className="text-[10px] font-black uppercase text-primary tracking-widest">Allocation Ledger</p><Badge variant={splitValidation.isValid ? "secondary" : "destructive"} className="text-[8px] font-black uppercase">{splitValidation.message}</Badge></div>
                           <div className="grid gap-3 sm:grid-cols-2">
                             {selectedParticipants.map((uid) => {
                               const members = Array.isArray(activeGroup?.members) ? activeGroup.members : [];
                               const name = members.find((m: any) => m.userId === uid)?.userName || 'User';
                               return (
                                 <div key={uid} className="flex flex-col gap-1.5 bg-background/50 p-3 rounded-xl border shadow-sm">
-                                  <div className="flex justify-between items-center">
-                                    <span className="text-[10px] font-black uppercase truncate max-w-[100px] opacity-70">{name}</span>
-                                  </div>
-                                  <div className="relative">
-                                    <Input 
-                                      type="number" 
-                                      placeholder="0.00" 
-                                      value={customSplits[uid] || ''} 
-                                      onChange={(e) => {
-                                        if (splitType === 'equal') setSplitType('custom');
-                                        setCustomSplits({...customSplits, [uid]: e.target.value});
-                                      }}
-                                      className="h-8 pl-7 text-xs font-bold rounded-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                    />
-                                    {splitType === 'percentage' ? (
-                                      <><Percent className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" /><span className="absolute right-2 top-2 text-[10px] font-black text-muted-foreground">≈ ₹{previewSplits[uid]?.toFixed(2)}</span></>
-                                    ) : (
-                                      <IndianRupee className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" />
-                                    )}
-                                  </div>
+                                  <div className="flex justify-between items-center"><span className="text-[10px] font-black uppercase truncate max-w-[100px] opacity-70">{name}</span></div>
+                                  <div className="relative"><Input type="number" placeholder="0.00" value={customSplits[uid] || ''} onChange={(e) => { if (splitType === 'equal') setSplitType('custom'); setCustomSplits({...customSplits, [uid]: e.target.value}); }} className="h-8 pl-7 text-xs font-bold rounded-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />{splitType === 'percentage' ? (<><Percent className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" /><span className="absolute right-2 top-2 text-[10px] font-black text-muted-foreground">≈ ₹{previewSplits[uid]?.toFixed(2)}</span></>) : (<IndianRupee className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" />)}</div>
                                 </div>
                               );
                             })}
@@ -1222,96 +1002,30 @@ export default function SplitPayPage() {
                         </div>
                       )}
                     </CardContent>
-                    <CardFooter className="bg-muted/10 border-t py-4">
-                      <Button onClick={handleAddExpense} disabled={!splitValidation.isValid} className="w-full h-12 rounded-2xl font-black shadow-lg gap-2 text-base">
-                        <CheckCircle2 className="h-5 w-5" /> Sync to Shared Ledger
-                      </Button>
-                    </CardFooter>
+                    <CardFooter className="bg-muted/10 border-t py-4"><Button onClick={handleAddExpense} disabled={!splitValidation.isValid} className="w-full h-12 rounded-2xl font-black shadow-lg gap-2 text-base"><CheckCircle2 className="h-5 w-5" /> Sync to Shared Ledger</Button></CardFooter>
                   </Card>
-
                   <div className="lg:col-span-5 space-y-6">
                     <Card className="shadow-lg rounded-3xl border-none ring-1 ring-border overflow-hidden">
-                      <CardHeader className="bg-muted/30 pb-3 px-4 sm:px-6">
-                        <CardTitle className="text-sm font-black flex items-center gap-2"><Users className="h-4 w-4" /> Room Members</CardTitle>
-                      </CardHeader>
+                      <CardHeader className="bg-muted/30 pb-3 px-4 sm:px-6"><CardTitle className="text-sm font-black flex items-center gap-2"><Users className="h-4 w-4" /> Room Members</CardTitle></CardHeader>
                       <CardContent className="pt-4 space-y-3 px-4 sm:px-6">
                         {(Array.isArray(activeGroup?.members) ? activeGroup.members : []).map((m: any) => (
                           <div key={m.userId} className="flex items-center justify-between p-3 rounded-2xl bg-muted/10 border border-dashed group">
                             <div className="flex items-center gap-3 flex-1 min-w-0">
-                              <div className={cn(
-                                "h-8 w-8 rounded-xl flex items-center justify-center text-white font-black text-xs shrink-0",
-                                activeGroup?.isManual ? "bg-secondary" : "bg-primary/10 !text-primary"
-                              )}>{(m.userName || 'U')[0].toUpperCase()}</div>
-                              
+                              <div className={cn("h-8 w-8 rounded-xl flex items-center justify-center text-white font-black text-xs shrink-0", activeGroup?.isManual ? "bg-secondary" : "bg-primary/10 !text-primary")}>{(m.userName || 'U')[0].toUpperCase()}</div>
                               <div className="flex flex-col min-w-0 flex-1">
                                 {editingMemberId === m.userId ? (
-                                  <div className="flex items-center gap-2 animate-in slide-in-from-left-1 w-full">
-                                    <Input 
-                                      value={editedMemberName}
-                                      onChange={e => setEditedMemberName(e.target.value)}
-                                      onKeyDown={e => e.key === 'Enter' && handleUpdateMemberName(m.userId)}
-                                      className="h-7 text-xs font-black uppercase py-0 px-2 bg-background border-primary/30"
-                                      autoFocus
-                                    />
-                                    <button onClick={() => handleUpdateMemberName(m.userId)} className="text-green-600"><Check className="h-3.5 w-3.5" /></button>
-                                    <button onClick={() => setEditingMemberId(null)} className="text-destructive"><X className="h-3.5 w-3.5" /></button>
-                                  </div>
+                                  <div className="flex items-center gap-2 animate-in slide-in-from-left-1 w-full"><Input value={editedMemberName} onChange={e => setEditedMemberName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleUpdateMemberName(m.userId)} className="h-7 text-xs font-black uppercase py-0 px-2 bg-background border-primary/30" autoFocus /><button onClick={() => handleUpdateMemberName(m.userId)} className="text-green-600"><Check className="h-3.5 w-3.5" /></button><button onClick={() => setEditingMemberId(null)} className="text-destructive"><X className="h-3.5 w-3.5" /></button></div>
                                 ) : (
-                                  <div className="flex items-center gap-2 group/name">
-                                    <span className="text-sm font-black uppercase tracking-tight truncate">{m.userName}</span>
-                                    {user?.uid === activeGroup?.createdBy && (
-                                      <button 
-                                        onClick={() => {
-                                          setEditingMemberId(m.userId);
-                                          setEditedMemberName(m.userName);
-                                        }}
-                                        className="opacity-0 group-hover/name:opacity-100 text-muted-foreground hover:text-primary transition-opacity"
-                                      >
-                                        <Pencil className="h-3 w-3" />
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
-                                {m.userId === activeGroup?.createdBy && <span className="text-[8px] font-black uppercase text-orange-600">Room Admin</span>}
+                                  <div className="flex items-center gap-2 group/name"><span className="text-sm font-black uppercase tracking-tight truncate">{m.userName}</span>{user?.uid === activeGroup?.createdBy && (<button onClick={() => { setEditingMemberId(m.userId); setEditedMemberName(m.userName); }} className="opacity-0 group-hover/name:opacity-100 text-muted-foreground hover:text-primary transition-opacity"><Pencil className="h-3 w-3" /></button>)}</div>
+                                )}{m.userId === activeGroup?.createdBy && <span className="text-[8px] font-black uppercase text-orange-600">Room Admin</span>}
                               </div>
                             </div>
-                            {user?.uid === activeGroup?.createdBy && m.userId !== user?.uid && !editingMemberId && (
-                              <Button variant="ghost" size="icon" onClick={() => handleKickMember(m.userId)} className="h-8 w-8 text-destructive opacity-50 group-hover:opacity-100 transition-opacity">
-                                <UserMinus className="h-4 w-4" />
-                              </Button>
-                            )}
+                            {user?.uid === activeGroup?.createdBy && m.userId !== user?.uid && !editingMemberId && (<Button variant="ghost" size="icon" onClick={() => handleKickMember(m.userId)} className="h-8 w-8 text-destructive opacity-50 group-hover:opacity-100 transition-opacity"><UserMinus className="h-4 w-4" /></Button>)}
                           </div>
                         ))}
                         {user?.uid === activeGroup?.createdBy && (
-                          <div className="pt-4 mt-2 border-t border-dashed space-y-2">
-                            <Button variant="outline" className="w-full h-10 rounded-xl font-black gap-2 text-[10px] uppercase" onClick={() => setIsAddMemberModalOpen(true)}>
-                              <Plus className="h-4 w-4" /> Add Member
-                            </Button>
-                            {!activeGroup?.isManual && (
-                              <Button variant="ghost" className="w-full h-10 rounded-xl font-black gap-2 text-[10px] uppercase text-muted-foreground" onClick={() => copyToClipboard(activeGroup?.id || '')}>
-                                <UserPlus className="h-4 w-4" /> Invite via Code
-                              </Button>
-                            )}
-                          </div>
+                          <div className="pt-4 mt-2 border-t border-dashed space-y-2"><Button variant="outline" className="w-full h-10 rounded-xl font-black gap-2 text-[10px] uppercase" onClick={() => setIsAddMemberModalOpen(true)}><Plus className="h-4 w-4" /> Add Member</Button>{!activeGroup?.isManual && (<Button variant="ghost" className="w-full h-10 rounded-xl font-black gap-2 text-[10px] uppercase text-muted-foreground" onClick={() => copyToClipboard(activeGroup?.id || '')}><UserPlus className="h-4 w-4" /> Invite via Code</Button>)}</div>
                         )}
-                      </CardContent>
-                    </Card>
-
-                    <Card className="shadow-lg rounded-3xl border-none ring-1 ring-border overflow-hidden">
-                      <CardHeader className="bg-muted/30 border-b py-2.5 px-4 sm:px-6"><CardTitle className="text-sm md:text-base flex items-center gap-2 font-black"><LayoutGrid className="h-4 w-4 text-primary" /> Room Labels</CardTitle></CardHeader>
-                      <CardContent className="pt-4 px-4 sm:px-6 space-y-4">
-                        <div className="flex gap-2">
-                          <Input placeholder="New label..." value={newRoomCategoryName} onChange={(e) => setNewRoomCategoryName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addRoomCategory()} className="h-9 text-[11px]" />
-                          <Button size="icon" onClick={addRoomCategory} className="h-9 w-9 shrink-0 rounded-xl"><Plus className="h-4 w-4" /></Button>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {filteredRoomCategories?.length ? filteredRoomCategories.map(c => (
-                            <div key={c.id} className="flex items-center gap-1.5 pl-3 pr-1 py-1 bg-primary/10 text-primary rounded-full text-[9px] font-black uppercase border border-primary/20">
-                              {c.name}
-                              <button onClick={() => deleteDocumentNonBlocking(doc(roomCategoriesRef!, c.id))} className="ml-1 text-destructive p-0.5 hover:bg-destructive/10 rounded-full transition-colors"><Trash2 className="h-3 w-3" /></button>
-                            </div>
-                          )) : <p className="text-[10px] text-muted-foreground italic w-full text-center py-4">No room labels defined.</p>}
-                        </div>
                       </CardContent>
                     </Card>
                   </div>
@@ -1321,48 +1035,10 @@ export default function SplitPayPage() {
               <TabsContent value="balance" className="animate-in fade-in slide-in-from-right-2 px-1">
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {stats?.balances.map(b => (
-                    <Card key={b.userId} className={cn(
-                      "rounded-3xl border-none ring-1 shadow-md transition-all",
-                      b.net > 0 ? "ring-green-500/30 bg-green-50/10" : b.net < 0 ? "ring-red-500/30 bg-red-50/10" : "ring-border"
-                    )}>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-base font-black flex items-center gap-3">
-                          <div className={cn(
-                            "h-8 w-8 rounded-xl border flex items-center justify-center font-black",
-                            activeGroup?.isManual ? "bg-secondary text-secondary-foreground" : "bg-background text-primary"
-                          )}>{(b.userName || 'U')[0].toUpperCase()}</div>
-                          {b.userName}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-2 text-[10px] font-black uppercase opacity-60">
-                          <div className="p-2 bg-background rounded-xl border">Paid: ₹{b.paid.toLocaleString()}</div>
-                          <div className="p-2 bg-background rounded-xl border">Share: ₹{b.share.toLocaleString()}</div>
-                        </div>
-                        <div className="pt-3 border-t">
-                          <p className="text-[9px] font-black uppercase tracking-widest opacity-60">Net Ledger Balance</p>
-                          <div className="flex items-center justify-between">
-                            <p className={cn("text-2xl font-black tracking-tighter", b.net > 0 ? "text-green-600" : b.net < 0 ? "text-red-600" : "text-muted-foreground")}>
-                              {b.net > 0 ? `+₹${b.net.toFixed(0)}` : b.net < 0 ? `-₹${Math.abs(b.net).toFixed(0)}` : 'Settled'}
-                            </p>
-                            {b.net > 0 ? <TrendingUp className="h-6 w-6 text-green-600 opacity-20" /> : <TrendingDown className="h-6 w-6 text-red-600 opacity-20" />}
-                          </div>
-                        </div>
-                      </CardContent>
-                      {b.net < 0 && b.userId === user?.uid && (
-                        <CardFooter className="pt-0">
-                          <Select onValueChange={(toUid) => handleSettle(b.userId, b.userName, toUid, Math.abs(b.net))}>
-                            <SelectTrigger className="h-10 text-[10px] font-black uppercase rounded-xl">
-                              <SelectValue placeholder="Settle Bill To..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(Array.isArray(activeGroup?.members) ? activeGroup.members : []).filter((m: any) => m.userId !== b.userId).map((m: any) => (
-                                <SelectItem key={m.userId} value={m.userId} className="text-[10px] font-black">{m.userName}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </CardFooter>
-                      )}
+                    <Card key={b.userId} className={cn("rounded-3xl border-none ring-1 shadow-md transition-all", b.net > 0 ? "ring-green-500/30 bg-green-50/10" : b.net < 0 ? "ring-red-500/30 bg-red-50/10" : "ring-border")}>
+                      <CardHeader className="pb-2"><CardTitle className="text-base font-black flex items-center gap-3"><div className={cn("h-8 w-8 rounded-xl border flex items-center justify-center font-black", activeGroup?.isManual ? "bg-secondary text-secondary-foreground" : "bg-background text-primary")}>{(b.userName || 'U')[0].toUpperCase()}</div>{b.userName}</CardTitle></CardHeader>
+                      <CardContent className="space-y-4"><div className="grid grid-cols-2 gap-2 text-[10px] font-black uppercase opacity-60"><div className="p-2 bg-background rounded-xl border">Paid: ₹{b.paid.toLocaleString()}</div><div className="p-2 bg-background rounded-xl border">Share: ₹{b.share.toLocaleString()}</div></div><div className="pt-3 border-t"><p className="text-[9px] font-black uppercase tracking-widest opacity-60">Net Ledger Balance</p><div className="flex items-center justify-between"><p className={cn("text-2xl font-black tracking-tighter", b.net > 0 ? "text-green-600" : b.net < 0 ? "text-red-600" : "text-muted-foreground")}>{b.net > 0 ? `+₹${b.net.toFixed(0)}` : b.net < 0 ? `-₹${Math.abs(b.net).toFixed(0)}` : 'Settled'}</p>{b.net > 0 ? <TrendingUp className="h-6 w-6 text-green-600 opacity-20" /> : <TrendingDown className="h-6 w-6 text-red-600 opacity-20" />}</div></div></CardContent>
+                      {b.net < 0 && b.userId === user?.uid && (<CardFooter className="pt-0"><Select onValueChange={(toUid) => handleSettle(b.userId, b.userName, toUid, Math.abs(b.net))}><SelectTrigger className="h-10 text-[10px] font-black uppercase rounded-xl"><SelectValue placeholder="Settle Bill To..." /></SelectTrigger><SelectContent>{(Array.isArray(activeGroup?.members) ? activeGroup.members : []).filter((m: any) => m.userId !== b.userId).map((m: any) => (<SelectItem key={m.userId} value={m.userId} className="text-[10px] font-black">{m.userName}</SelectItem>))}</SelectContent></Select></CardFooter>)}
                     </Card>
                   ))}
                 </div>
@@ -1372,58 +1048,12 @@ export default function SplitPayPage() {
                 <Card className="rounded-3xl border-none ring-1 ring-border overflow-hidden">
                   <ScrollArea className="h-[500px]">
                     <div className="divide-y">
-                      {expenses?.sort((a,b) => b.createdAt.localeCompare(a.createdAt)).map(exp => {
-                        const catName = roomCategories?.find(c => c.id === exp.expenseCategoryId)?.name;
-                        return (
-                          <div key={exp.id} className="p-4 sm:p-6 hover:bg-muted/30 transition-colors">
-                            <div className="flex justify-between items-start mb-4">
-                              <div className="space-y-1">
-                                <h4 className="font-black text-base sm:text-lg tracking-tight">
-                                  {exp.description}
-                                  {catName && <Badge variant="secondary" className="ml-2 text-[8px] font-black uppercase bg-primary/10 text-primary border-primary/20">{catName}</Badge>}
-                                </h4>
-                                <p className="text-[10px] text-muted-foreground font-black uppercase">
-                                  <span className="text-primary">{exp.paidByName}</span> paid ₹{exp.amount}
-                                </p>
-                              </div>
-                              <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest">{exp.splitType} split</Badge>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {Object.entries(exp.splits || {}).map(([uid, share]: any) => {
-                                const members = Array.isArray(activeGroup?.members) ? activeGroup.members : [];
-                                const name = members.find((m: any) => m.userId === uid)?.userName || 'User';
-                                return share > 0 ? (
-                                  <div key={uid} className="flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-muted/20 rounded-full border border-dashed">
-                                    <span className="text-[8px] sm:text-[9px] font-black uppercase opacity-60">{name}</span>
-                                    <span className="text-[9px] sm:text-[10px] font-black">₹{share.toFixed(0)}</span>
-                                  </div>
-                                ) : null;
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {settlements?.sort((a,b) => b.createdAt.localeCompare(a.createdAt)).map(s => (
-                        <div key={s.id} className="p-4 sm:p-6 bg-green-50/20 border-l-4 border-l-green-500">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 bg-green-100 rounded-lg text-green-600"><Check className="h-4 w-4" /></div>
-                              <div>
-                                <p className="text-[10px] sm:text-xs font-black uppercase tracking-tight">
-                                  <span className="text-green-700">{s.paidByName}</span> settled <span className="text-green-700">₹{s.amount}</span> to {s.paidToName}
-                                </p>
-                                <p className="text-[8px] font-bold text-muted-foreground uppercase">{new Date(s.createdAt).toLocaleDateString()}</p>
-                              </div>
-                            </div>
-                          </div>
+                      {expenses?.sort((a,b) => b.createdAt.localeCompare(a.createdAt)).map(exp => (
+                        <div key={exp.id} className="p-4 sm:p-6 hover:bg-muted/30 transition-colors">
+                          <div className="flex justify-between items-start mb-4"><div className="space-y-1"><h4 className="font-black text-base sm:text-lg tracking-tight">{exp.description}{roomCategories?.find(c => c.id === exp.expenseCategoryId)?.name && <Badge variant="secondary" className="ml-2 text-[8px] font-black uppercase bg-primary/10 text-primary border-primary/20">{roomCategories?.find(c => c.id === exp.expenseCategoryId)?.name}</Badge>}</h4><p className="text-[10px] text-muted-foreground font-black uppercase"><span className="text-primary">{exp.paidByName}</span> paid ₹{exp.amount}</p></div><Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest">{exp.splitType} split</Badge></div>
+                          <div className="flex flex-wrap gap-2">{Object.entries(exp.splits || {}).map(([uid, share]: any) => share > 0 ? (<div key={uid} className="flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-muted/20 rounded-full border border-dashed"><span className="text-[8px] sm:text-[9px] font-black uppercase opacity-60">{activeGroup?.members.find((m: any) => m.userId === uid)?.userName || 'User'}</span><span className="text-[9px] sm:text-[10px] font-black">₹{share.toFixed(0)}</span></div>) : null)}</div>
                         </div>
                       ))}
-                      {(!expenses || expenses.length === 0) && (!settlements || settlements.length === 0) && (
-                        <div className="flex flex-col items-center justify-center py-32 opacity-30 grayscale space-y-4">
-                          <History className="h-16 w-16" />
-                          <p className="text-xs font-black uppercase tracking-widest text-center">Room ledger is currently empty.</p>
-                        </div>
-                      )}
                     </div>
                   </ScrollArea>
                 </Card>
@@ -1435,253 +1065,11 @@ export default function SplitPayPage() {
 
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
         <DialogContent className="rounded-3xl max-w-[95vw] sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black tracking-tighter">Initialize Room</DialogTitle>
-            <DialogDescription className="text-sm font-medium">Setup a private collaborative workspace.</DialogDescription>
-          </DialogHeader>
-          <div className="py-6 space-y-4">
-            <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest">Room Name</Label>
-              <Input placeholder="e.g. TRIP TO LADAKH" value={roomName} onChange={e => setRoomName(e.target.value)} className="h-12 rounded-2xl uppercase font-bold" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleCreateRoom} disabled={isProcessing} className="w-full h-12 rounded-2xl font-black">
-              {isProcessing ? <Loader2 className="animate-spin h-5 w-5" /> : "Launch Room"}
-            </Button>
-          </DialogFooter>
+          <DialogHeader><DialogTitle className="text-2xl font-black tracking-tighter">Initialize Room</DialogTitle><DialogDescription className="text-sm font-medium">Setup a private collaborative workspace.</DialogDescription></DialogHeader>
+          <div className="py-6 space-y-4"><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest">Room Name</Label><Input placeholder="e.g. TRIP TO LADAKH" value={roomName} onChange={e => setRoomName(e.target.value)} className="h-12 rounded-2xl uppercase font-bold" /></div></div>
+          <DialogFooter><Button onClick={handleCreateRoom} disabled={isProcessing} className="w-full h-12 rounded-2xl font-black">{isProcessing ? <Loader2 className="animate-spin h-5 w-5" /> : "Launch Room"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <Dialog open={isJoiningModalOpen} onOpenChange={setIsJoiningModalOpen}>
-        <DialogContent className="rounded-3xl max-w-[95vw] sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black tracking-tighter">Join Existing Room</DialogTitle>
-            <DialogDescription className="text-sm font-medium">Enter the Room Code shared with you.</DialogDescription>
-          </DialogHeader>
-          <div className="py-6 space-y-4">
-            <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-center block">Room Code</Label>
-              <Input placeholder="ABC123XY" value={joinCode} onChange={e => setJoinCode(e.target.value)} className="h-14 rounded-2xl text-2xl font-black text-center tracking-widest uppercase" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleJoinRoom} disabled={isProcessing} className="w-full h-12 rounded-2xl font-black">
-              {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : "Join Room"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isManualRoomModalOpen} onOpenChange={setIsManualRoomModalOpen}>
-        <DialogContent className="rounded-3xl max-w-[95vw] sm:max-w-xl p-0 overflow-hidden border-none shadow-2xl">
-          <DialogHeader className="p-6 sm:p-8 bg-secondary text-secondary-foreground">
-            <DialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-3">
-              <div className="p-2 bg-white/20 rounded-xl"><Calculator className="h-6 w-6" /></div>
-              Manual Room Initializer
-            </DialogTitle>
-            <DialogDescription className="text-xs font-black uppercase tracking-widest opacity-80">Setup a persistent ledger with virtual members</DialogDescription>
-          </DialogHeader>
-          <ScrollArea className="max-h-[70vh]">
-            <div className="p-6 sm:p-8 space-y-8 bg-background">
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="space-y-4">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Manual Room Name</Label>
-                  <Input 
-                    placeholder="e.g. HOUSEHOLD BILLS" 
-                    value={manualRoomName} 
-                    onChange={e => setManualRoomName(e.target.value)} 
-                    className="h-14 rounded-2xl font-black text-lg tracking-tight bg-muted/20 uppercase" 
-                  />
-                </div>
-                <div className="space-y-4">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Number of People</Label>
-                  <div className="relative">
-                    <Input 
-                      type="number" 
-                      placeholder="2" 
-                      value={manualMemberCount} 
-                      onChange={e => setManualMemberCount(e.target.value)} 
-                      className="h-14 pl-10 rounded-2xl font-black text-2xl tracking-tighter bg-muted/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
-                    />
-                    <Users className="absolute left-4 top-4.5 h-6 w-6 text-muted-foreground" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Define Members</Label>
-                <div className="grid gap-4">
-                  {manualMembers.map((member, idx) => (
-                    <div key={member.id} className="flex items-center gap-3 animate-in fade-in slide-in-from-left-2" style={{ animationDelay: `${idx * 50}ms` }}>
-                      <Input 
-                        placeholder="Member Name..." 
-                        value={member.name} 
-                        onChange={e => {
-                          const newMembers = [...manualMembers];
-                          newMembers[idx].name = e.target.value;
-                          setManualMembers(newMembers);
-                        }}
-                        className="h-12 rounded-xl font-bold text-sm flex-1 uppercase"
-                      />
-                      <Button variant="ghost" size="icon" onClick={() => handleManualRemoveMember(member.id)} className="h-12 w-12 text-destructive/50 hover:text-destructive hover:bg-destructive/10 rounded-xl">
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-                
-                <Button variant="outline" onClick={handleManualAddMember} className="w-full h-10 border-dashed rounded-xl font-black text-[10px] uppercase gap-2">
-                  <UserPlus className="h-4 w-4" /> Add Person Manually
-                </Button>
-              </div>
-            </div>
-          </ScrollArea>
-          <div className="p-4 sm:p-6 bg-muted/20 border-t grid grid-cols-2 gap-3">
-            <Button variant="outline" onClick={() => setIsManualRoomModalOpen(false)} className="rounded-2xl font-black h-12 uppercase text-[10px]">Discard</Button>
-            <Button onClick={handleCreateManualRoom} disabled={isProcessing || !manualRoomName.trim()} className="rounded-2xl font-black h-12 uppercase text-[10px] gap-2 shadow-lg">
-              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Launch Manual Ledger
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isAddMemberModalOpen} onOpenChange={setIsAddMemberModalOpen}>
-        <DialogContent className="rounded-3xl max-w-[95vw] sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black tracking-tighter">Add Member</DialogTitle>
-            <DialogDescription className="text-sm font-medium">Add a virtual member to track their shares locally.</DialogDescription>
-          </DialogHeader>
-          <div className="py-6 space-y-4">
-            <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest">Member Name</Label>
-              <Input 
-                placeholder="e.g. JOHN DOE" 
-                value={newMemberName} 
-                onChange={e => setNewMemberName(e.target.value)} 
-                className="h-12 rounded-2xl uppercase font-bold" 
-                autoFocus
-                onKeyDown={(e) => e.key === 'Enter' && handleAddMemberManually()}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleAddMemberManually} disabled={!newMemberName.trim()} className="w-full h-12 rounded-2xl font-black">
-              Add to Room
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isStatsModalOpen} onOpenChange={setIsStatsModalOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-2xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
-          <DialogHeader className={cn(
-            "p-6 sm:p-8 text-white",
-            activeGroup?.isManual ? "bg-secondary text-secondary-foreground" : "bg-primary text-primary-foreground"
-          )}>
-            <DialogTitle className="text-xl sm:text-2xl font-black tracking-tighter flex items-center gap-3">
-              <div className="p-2 bg-white/20 rounded-xl"><BarChart3 className="h-5 w-5 sm:h-6 sm:h-6" /></div>
-              Room Analytics
-            </DialogTitle>
-            <DialogDescription className="text-[10px] font-black uppercase tracking-widest opacity-80">Detailed breakdown for {activeGroup?.name}</DialogDescription>
-          </DialogHeader>
-          <ScrollArea className="max-h-[70vh]">
-            <div className="p-4 sm:p-8 space-y-8 bg-background">
-              <div className="grid gap-8 md:grid-cols-2">
-                <div className="space-y-4">
-                  <div className="space-y-1">
-                    <Badge className="bg-blue-100 text-blue-700 font-black text-[8px] uppercase">Member Contributions</Badge>
-                    <p className="text-[10px] text-muted-foreground font-medium leading-tight">Total funds paid out of pocket by each member to cover group bills.</p>
-                  </div>
-                  <div className="h-[200px] w-full">
-                    {stats?.contributionData.length ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie data={stats.contributionData} innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
-                            {stats.contributionData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
-                          </Pie>
-                          <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', fontSize: '10px', fontWeight: '900' }} formatter={(v: number) => `₹${v.toLocaleString()}`} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    ) : <div className="flex items-center justify-center h-full opacity-30 grayscale"><PieChartIcon className="h-10 w-10" /></div>}
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div className="space-y-1">
-                    <Badge className="bg-orange-100 text-orange-700 font-black text-[8px] uppercase">Member Consumption</Badge>
-                    <p className="text-[10px] text-muted-foreground font-medium leading-tight">The cumulative value of shares consumed by each member (what they owe the room).</p>
-                  </div>
-                  <div className="h-[200px] w-full">
-                    {stats?.consumptionData.length ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie data={stats.consumptionData} innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
-                            {stats.consumptionData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
-                          </Pie>
-                          <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', fontSize: '10px', fontWeight: '900' }} formatter={(v: number) => `₹${v.toLocaleString()}`} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    ) : <div className="flex items-center justify-center h-full opacity-30 grayscale"><PieChartIcon className="h-10 w-10" /></div>}
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <Badge className="bg-purple-100 text-purple-700 font-black text-[8px] uppercase">Spending by Label</Badge>
-                  <p className="text-[10px] text-muted-foreground font-medium">A categorical breakdown of group spending to identify top expenditure areas like food or stay.</p>
-                </div>
-                <div className="grid gap-8 md:grid-cols-2 items-center">
-                  <div className="h-[200px] w-full">
-                    {stats?.categorySpendData.length ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie data={stats.categorySpendData} innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
-                            {stats.categorySpendData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
-                          </Pie>
-                          <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', fontSize: '10px', fontWeight: '900' }} formatter={(v: number) => `₹${v.toLocaleString()}`} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    ) : <div className="flex items-center justify-center h-full opacity-30 grayscale"><LayoutGrid className="h-10 w-10" /></div>}
-                  </div>
-                  <div className="space-y-2">
-                    {stats?.categorySpendData.map((cat, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-3 rounded-2xl bg-muted/30 border border-dashed hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full" style={{ backgroundColor: cat.color }} />
-                          <div className="flex flex-col">
-                            <span className="text-[10px] font-black uppercase truncate max-w-[120px]">{cat.name}</span>
-                            <span className="text-[8px] text-muted-foreground font-bold uppercase">Room Label</span>
-                          </div>
-                        </div>
-                        <span className="text-xs font-black">₹{cat.value.toLocaleString() || '0'}</span>
-                      </div>
-                    ))}
-                    {!stats?.categorySpendData.length && <p className="text-[10px] text-muted-foreground italic text-center py-10">No categorized bills found.</p>}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </ScrollArea>
-          <div className="p-4 bg-muted/20 border-t flex justify-end"><Button onClick={() => setIsStatsModalOpen(false)} variant="outline" className="rounded-xl font-black h-9 text-[10px] uppercase px-6">Close Dashboard</Button></div>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={!!roomToDelete} onOpenChange={(open) => !open && setRoomToDelete(null)}>
-        <AlertDialogContent className="rounded-3xl border-none shadow-2xl max-w-[90vw] sm:max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-3"><AlertTriangle className="h-6 w-6 text-destructive" /> Decommission Room?</AlertDialogTitle>
-            <AlertDialogDescription className="text-muted-foreground font-medium">This action is permanent. All expenses, settlements, and ledger history for this room will be wiped.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2 sm:gap-0">
-            <AlertDialogCancel className="rounded-xl font-black h-11 text-[10px] uppercase">Retain Ledger</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteRoom} className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 font-black h-11 text-[10px] uppercase">Wipe Everything</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </AppShell>
   );
 }
-

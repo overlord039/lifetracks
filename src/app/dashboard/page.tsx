@@ -132,7 +132,7 @@ export default function Dashboard() {
 
     const dailyExpensesMap: Record<string, number> = {};
     (decryptedExpenses || [])
-      .filter(exp => (exp.allocationBucket || 'expense') === 'expense') // Only expenses impact rolling budget
+      .filter(exp => (exp.allocationBucket || 'expense') === 'expense')
       .forEach(exp => {
         dailyExpensesMap[exp.date] = (dailyExpensesMap[exp.date] || 0) + exp.amount;
       });
@@ -158,7 +158,6 @@ export default function Dashboard() {
   }, [decryptedBudget, decryptedExpenses, decryptedFixed, now, mounted]);
 
   const todayReport = budgetReport?.[todayStr];
-  
   const baseAllocation = todayReport?.baseBudget || 0;
   const spentToday = todayReport?.spent || 0;
   const rollingAllowance = (todayReport?.baseBudget || 0) + (todayReport?.extraBudget || 0) + (todayReport?.carryForwardFromYesterday || 0);
@@ -166,13 +165,9 @@ export default function Dashboard() {
   const baseRemaining = baseAllocation - spentToday;
 
   const goalsProgress = learningGoals?.length ? Math.round((learningGoals.filter(g => (g.completedCount || 0) >= (g.target || 0)).length / learningGoals.length) * 100) : 0;
-
   const totalOwed = useMemo(() => decryptedDebts?.filter(d => !d.isPaid).reduce((sum, d) => sum + d.amount, 0) || 0, [decryptedDebts]);
-
   const hasActiveGoals = !!(learningGoals && learningGoals.length > 0);
 
-  // We only show a minimal skeleton if the user state isn't ready. 
-  // Once the user is known, we show the dashboard layout immediately.
   if (!mounted) {
     return (
       <AppShell>
@@ -186,7 +181,6 @@ export default function Dashboard() {
 
   return (
     <AppShell>
-      {/* Primary Insights Grid */}
       <div className="grid gap-4 md:gap-6 lg:grid-cols-12 mb-4 md:mb-6">
         <div className={cn("space-y-4 md:space-y-6", hasActiveGoals ? "lg:col-span-7" : "lg:col-span-12")}>
           <Link href="/reports" className="block group">
@@ -226,13 +220,11 @@ export default function Dashboard() {
                       )}>₹{baseRemaining.toFixed(0)}</p>
                     </div>
                   </div>
-
                   <div className="flex flex-col justify-center items-end border-l border-dashed border-muted-foreground/20 pl-4">
                     <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground tracking-widest">Spent Today</p>
                     <p className="text-xl md:text-2xl font-black tracking-tighter">₹{spentToday.toFixed(0)}</p>
                   </div>
                 </div>
-                
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-0.5 md:space-y-1">
                     <p className="text-[8px] md:text-[10px] font-bold text-muted-foreground uppercase">Base Target</p>
@@ -243,16 +235,13 @@ export default function Dashboard() {
                     <p className={cn(
                       "text-xs md:text-sm font-black",
                       remaining > 0 ? 'text-green-600' : 'text-red-600'
-                    )}>
-                      ₹{remaining.toFixed(0)}
-                    </p>
+                    )}>₹{remaining.toFixed(0)}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </Link>
         </div>
-
         {hasActiveGoals && (
           <div className="lg:col-span-5">
             <Link href="/learning" className="block group h-full">
@@ -281,37 +270,12 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Secondary Status Grid */}
       <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3">
         {totalOwed > 0 && (
-          <DashboardCard 
-            href="/split-pay"
-            title="Split & Debt"
-            value={`₹${totalOwed.toFixed(0)}`}
-            subtext="Receivable total"
-            icon={<HandCoins className="w-4 h-4" />}
-            variant="default"
-            loading={isDecrypting}
-          />
+          <DashboardCard href="/split-pay" title="Split & Debt" value={`₹${totalOwed.toFixed(0)}`} subtext="Receivable total" icon={<HandCoins className="w-4 h-4" />} variant="default" loading={isDecrypting} />
         )}
-
-        <DashboardCard 
-          href="/learning"
-          title="Skill Mastery"
-          value={`${goalsProgress}%`}
-          subtext="Completion rate"
-          icon={<BookOpen className="w-4 h-4" />}
-          progress={goalsProgress}
-        />
-
-        <DashboardCard 
-          href="/diary"
-          title="Daily Reflection"
-          value={todayDiary ? "Logged" : "Pending"}
-          subtext={todayDiary ? "Well done!" : "Record thoughts"}
-          icon={todayDiary ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-          variant={todayDiary ? "secondary" : "default"}
-        />
+        <DashboardCard href="/learning" title="Skill Mastery" value={`${goalsProgress}%`} subtext="Completion rate" icon={<BookOpen className="w-4 h-4" />} progress={goalsProgress} />
+        <DashboardCard href="/diary" title="Daily Reflection" value={todayDiary ? "Logged" : "Pending"} subtext={todayDiary ? "Well done!" : "Record thoughts"} icon={todayDiary ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />} variant={todayDiary ? "secondary" : "default"} />
       </div>
     </AppShell>
   );
@@ -339,26 +303,13 @@ function DashboardCard({ href, title, value, subtext, icon, variant = 'default',
         loading && "opacity-50 grayscale"
       )}>
         <CardHeader className="flex flex-row items-center justify-between pb-1 space-y-0 pt-3 md:pt-4 px-3 md:px-4">
-          <CardTitle className={cn(
-            "text-[8px] md:text-[10px] font-black uppercase tracking-widest leading-tight",
-            variant === 'default' ? "text-muted-foreground" : "text-inherit opacity-80"
-          )}>{title}</CardTitle>
-          <div className={cn(
-            "p-1 rounded-lg shrink-0",
-            variant === 'default' ? "bg-muted text-primary" : "bg-white/10"
-          )}>
-            {icon}
-          </div>
+          <CardTitle className={cn("text-[8px] md:text-[10px] font-black uppercase tracking-widest leading-tight", variant === 'default' ? "text-muted-foreground" : "text-inherit opacity-80")}>{title}</CardTitle>
+          <div className={cn("p-1 rounded-lg shrink-0", variant === 'default' ? "bg-muted text-primary" : "bg-white/10")}>{icon}</div>
         </CardHeader>
         <CardContent className="pb-3 md:pb-4 px-3 md:px-4">
           <div className="text-lg md:text-2xl font-black tracking-tighter truncate">{value}</div>
-          <p className={cn(
-            "text-[7px] md:text-[9px] font-bold uppercase mt-0.5 truncate",
-            variant === 'default' ? "text-muted-foreground" : "text-inherit opacity-70"
-          )}>{subtext}</p>
-          {progress !== undefined && (
-            <Progress value={progress} className="h-0.5 md:h-1 mt-2 md:mt-2.5 bg-muted/20" />
-          )}
+          <p className={cn("text-[7px] md:text-[9px] font-bold uppercase mt-0.5 truncate", variant === 'default' ? "text-muted-foreground" : "text-inherit opacity-70")}>{subtext}</p>
+          {progress !== undefined && <Progress value={progress} className="h-0.5 md:h-1 mt-2 md:mt-2.5 bg-muted/20" />}
         </CardContent>
       </Card>
     </Link>
