@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -188,25 +187,7 @@ export default function Dashboard() {
 
   return (
     <AppShell>
-      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3 xl:grid-cols-4">
-        <DashboardCard 
-          href="/budget"
-          title="Daily Allowance"
-          value={`₹${baseAllocation.toFixed(0)}`}
-          subtext="Base Allocation"
-          icon={<DollarSign className="w-4 h-4" />}
-          variant="primary"
-        />
-
-        <DashboardCard 
-          href="/budget"
-          title="Spent Today"
-          value={`₹${spentToday.toFixed(0)}`}
-          subtext={isOverspent ? "Above limit" : "Safe zone"}
-          icon={<TrendingUp className="w-4 h-4" />}
-          variant={isOverspent ? "destructive" : isWithinBudget ? "secondary" : "default"}
-        />
-
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3">
         {totalOwed > 0 && (
           <DashboardCard 
             href="/split-pay"
