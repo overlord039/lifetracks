@@ -51,7 +51,12 @@ import {
   Target,
   ShieldCheck,
   BarChart as BarChartIcon,
-  Download
+  Download,
+  Wallet,
+  PiggyBank,
+  HeartPulse,
+  Smile,
+  Coins
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -73,6 +78,14 @@ import { useToast } from '@/hooks/use-toast';
 
 const CHART_COLORS = ['#64B5F6', '#81C784', '#FFB74D', '#BA68C8', '#F06292', '#4DB6AC', '#FF8A65'];
 
+const PILLAR_ICONS: Record<string, any> = {
+  expense: { icon: Wallet, color: 'text-blue-500', bg: 'bg-blue-500' },
+  savings: { icon: PiggyBank, color: 'text-green-500', bg: 'bg-green-500' },
+  investment: { icon: TrendingUp, color: 'text-orange-500', bg: 'bg-orange-500' },
+  health: { icon: HeartPulse, color: 'text-purple-500', bg: 'bg-purple-500' },
+  personal: { icon: Smile, color: 'text-pink-500', bg: 'bg-pink-500' }
+};
+
 const chartTooltipStyle = {
   borderRadius: '12px',
   border: '1px solid hsl(var(--border))',
@@ -82,14 +95,6 @@ const chartTooltipStyle = {
   padding: '8px 12px',
   fontSize: '11px',
   fontWeight: '600'
-};
-
-const PILLAR_ICONS: Record<string, any> = {
-  expense: { icon: Activity, color: 'text-blue-500', bg: 'bg-blue-500' },
-  savings: { icon: Activity, color: 'text-green-500', bg: 'bg-green-500' },
-  investment: { icon: TrendingUp, color: 'text-orange-500', bg: 'bg-orange-500' },
-  health: { icon: Activity, color: 'text-purple-500', bg: 'bg-purple-500' },
-  personal: { icon: Activity, color: 'text-pink-500', bg: 'bg-pink-500' }
 };
 
 export default function ReportsPage() {
@@ -196,7 +201,6 @@ export default function ReportsPage() {
           ...f,
           name: f.isEncrypted ? await decryptData(f.name, user.uid) : (f.name || ''),
           amount: f.isEncrypted ? await decryptNumber(f.amount, user.uid) : (f.amount || 0),
-          includeInBudget: f.includeInBudget ?? true,
           allocationBucket: f.allocationBucket || 'expense'
         })));
         setDecryptedFixed(fixed);
@@ -794,21 +798,21 @@ export default function ReportsPage() {
                   </Button>
                 </div>
               ) : (
-                <div className="grid gap-3 md:gap-4 grid-cols-3 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="grid gap-3 grid-cols-3">
                   {allocationReport.map(pillar => {
-                    const Config = PILLAR_ICONS[pillar.id] || PILLAR_ICONS['expense'];
+                    const Config = PILLAR_ICONS[pillar.id] || { icon: Coins, color: 'text-primary', bg: 'bg-primary' };
                     const Icon = Config.icon;
                     const isOverspent = pillar.utilization > 100;
                     
                     return (
-                      <div key={pillar.id} className="space-y-2 md:space-y-3 p-2 md:p-4 rounded-2xl border bg-muted/5 transition-all hover:bg-muted/10 group">
+                      <div key={pillar.id} className="space-y-3 p-3 md:p-4 rounded-2xl border bg-muted/5 transition-all hover:bg-muted/10 group">
                         <div className="flex items-center justify-between">
-                          <div className={cn("p-1 md:p-2 rounded-lg text-white shadow-md transition-transform group-hover:scale-110", Config.bg)}>
-                            <Icon className="h-3 w-3" />
-                          </div>
                           <Badge variant={isOverspent ? "destructive" : "secondary"} className="text-[7px] md:text-[9px] font-black uppercase px-1 md:px-2">
                             {Math.round(pillar.utilization)}%
                           </Badge>
+                          <div className={cn("p-1.5 rounded-lg text-white shadow-md transition-transform group-hover:scale-110", Config.bg)}>
+                            <Icon className="h-3 w-3" />
+                          </div>
                         </div>
                         
                         <div className="space-y-0.5">
