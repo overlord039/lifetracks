@@ -30,7 +30,8 @@ import {
   Unlock,
   Plus,
   Trash2,
-  BrainCircuit
+  BrainCircuit,
+  Check
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
