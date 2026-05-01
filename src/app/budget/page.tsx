@@ -139,7 +139,6 @@ export default function BudgetPage() {
     decryptAll();
   }, [rawCategories, rawBudget, rawFixed, rawExpenses, user, mounted]);
 
-  // Aggregate Sync Effect - Specifically for 'expense' pillar pool
   useEffect(() => {
     const syncAggregates = async () => {
       if (!user || !monthlyBudgetRef || isDecrypting || !mounted || !decryptedBudget) return;
@@ -186,11 +185,9 @@ export default function BudgetPage() {
       });
   }, [decryptedCategories]);
 
-  // Only count fixed expenses belonging to the 'expense' pillar towards the month pool reduction
   const totalIncludedFixed = decryptedFixed?.filter(f => f.includeInBudget && (f.allocationBucket || 'expense') === 'expense').reduce((s, f) => s + f.amount, 0) || 0;
   const netMonthlyPool = (decryptedBudget?.totalBudgetAmount || 0) - totalIncludedFixed;
   
-  // Only count variable expenses belonging to the 'expense' pillar towards the pool consumption
   const totalSpentThisMonth = decryptedExpenses?.filter(exp => (exp.allocationBucket || 'expense') === 'expense').reduce((sum, exp) => sum + exp.amount, 0) || 0;
   const remainingNetPool = netMonthlyPool - totalSpentThisMonth;
   const dailyBase = netMonthlyPool / daysInMonth;
@@ -200,7 +197,6 @@ export default function BudgetPage() {
     if (!decryptedBudget || !decryptedExpenses || !mounted) return null;
     const dailyExpensesMap: Record<string, number> = {};
     
-    // Filtering for 'expense' pillar only to impact rolling budget
     decryptedExpenses
       .filter(exp => (exp.allocationBucket || 'expense') === 'expense')
       .forEach(exp => {
@@ -416,8 +412,6 @@ export default function BudgetPage() {
     toast({ title: "Export Complete", description: "CSV has been saved to your downloads." });
   };
 
-  // Immediate layout transition once component is mounted.
-  // Cached Firestore data will populate almost instantly.
   if (!mounted) {
     return (
       <AppShell>
@@ -436,12 +430,30 @@ export default function BudgetPage() {
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-12">
         <div className="lg:col-span-8 flex flex-col gap-4">
           <Card className={cn("shadow-lg border-t-4 border-t-primary rounded-2xl overflow-hidden transition-opacity", isDecrypting && "opacity-60")}>
-            <CardHeader className="bg-muted/30 pb-3 md:pb-4 px-4 md:px-6">
-              <CardTitle className="flex items-center gap-2 text-base md:text-lg font-black tracking-tight"><Wallet className="h-5 w-5 text-primary" /> Monthly Vault</CardTitle>
-              <CardDescription className="text-[10px] uppercase font-bold tracking-tight">Protected targets for {monthName}.</CardDescription>
+            <CardHeader className="bg-muted/30 pb-3 md:pb-4 px-4 md:px-6 flex flex-row items-center justify-between space-y-0">
+              <div className="space-y-0.5">
+                <CardTitle className="flex items-center gap-2 text-base md:text-lg font-black tracking-tight"><Wallet className="h-5 w-5 text-primary" /> Monthly Vault</CardTitle>
+                <CardDescription className="text-[10px] uppercase font-bold tracking-tight">Protected targets for {monthName}.</CardDescription>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 border-r pr-4 border-dashed h-8">
+                   <div className="flex flex-col items-end">
+                      <Label className="text-[8px] font-black uppercase tracking-wider text-muted-foreground leading-none">Weekend</Label>
+                      {decryptedBudget?.isWeekendExtraBudgetEnabled && <span className="text-[9px] font-black text-primary leading-none mt-1">+₹{calculatedWeekendBonus}</span>}
+                   </div>
+                   <Switch className="scale-75 origin-right" checked={decryptedBudget?.isWeekendExtraBudgetEnabled || false} onCheckedChange={(checked) => saveMonthlyBudget({ isWeekendExtraBudgetEnabled: checked })} />
+                </div>
+                <div className="flex items-center gap-2">
+                   <div className="flex flex-col items-end">
+                      <Label className="text-[8px] font-black uppercase tracking-wider text-muted-foreground leading-none">Tracking</Label>
+                      <span className="text-[8px] text-primary/60 font-black uppercase leading-none mt-1">{isDailyEnabled ? "Rolling" : "Pool"}</span>
+                   </div>
+                   <Switch className="scale-75 origin-right" checked={isDailyEnabled} onCheckedChange={(checked) => saveMonthlyBudget({ isDailyLimitEnabled: checked })} />
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4 md:space-y-6 pt-4 md:pt-6 px-4 md:px-6">
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-1">
                 <div className="space-y-3">
                   <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Expense Pool (E2EE)</Label>
                   {decryptedBudget?.totalBudgetAmount > 0 ? (
@@ -483,34 +495,6 @@ export default function BudgetPage() {
                   ) : (
                     <div className="h-12 w-full animate-pulse bg-muted rounded-xl" />
                   )}
-                </div>
-                
-                <div className="grid grid-cols-2 md:grid-cols-1 gap-2.5">
-                  <div className="p-3 border rounded-2xl bg-muted/5 relative overflow-hidden group min-h-[72px] flex flex-col justify-center">
-                    <div className="flex items-center justify-between relative z-10">
-                      <Label className="flex items-center gap-1.5 font-black text-[9px] uppercase tracking-wider text-muted-foreground"><CalendarDays className="h-3.5 w-3.5 text-primary" /> Weekend</Label>
-                      <Switch className="scale-75 origin-right" checked={decryptedBudget?.isWeekendExtraBudgetEnabled || false} onCheckedChange={(checked) => saveMonthlyBudget({ isWeekendExtraBudgetEnabled: checked })} />
-                    </div>
-                    {decryptedBudget?.isWeekendExtraBudgetEnabled && (
-                      <p className="text-sm font-black text-primary tracking-tighter mt-0.5 ml-5 animate-in slide-in-from-top-1">₹{calculatedWeekendBonus}</p>
-                    )}
-                    <ShieldCheck className="absolute -bottom-2 -right-2 w-10 h-10 text-primary/5 -rotate-12" />
-                  </div>
-
-                  <div className="p-3 border rounded-2xl bg-muted/5 relative overflow-hidden group min-h-[72px] flex flex-col justify-center">
-                    <div className="flex items-center justify-between relative z-10">
-                      <Label className="flex items-center gap-1.5 font-black text-[9px] uppercase tracking-wider text-muted-foreground"><Activity className="h-3.5 w-3.5 text-primary" /> Tracking</Label>
-                      <Switch 
-                        className="scale-75 origin-right"
-                        checked={isDailyEnabled} 
-                        onCheckedChange={(checked) => saveMonthlyBudget({ isDailyLimitEnabled: checked })} 
-                      />
-                    </div>
-                    <p className="text-[8px] text-primary/60 font-black uppercase mt-0.5 ml-5">
-                      {isDailyEnabled ? "Rolling" : "Pool"}
-                    </p>
-                    <History className="absolute -bottom-2 -right-2 w-10 h-10 text-primary/5 -rotate-12" />
-                  </div>
                 </div>
               </div>
             </CardContent>
