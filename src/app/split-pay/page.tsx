@@ -805,7 +805,7 @@ export default function SplitPayPage() {
           <Tabs defaultValue="shared" className="w-full">
             <TabsList className="grid w-full grid-cols-2 h-12 p-1 bg-muted rounded-2xl mb-8">
               <TabsTrigger value="shared" className="rounded-xl font-black text-xs gap-2"><Users className="h-4 w-4" /> Shared Ledgers</TabsTrigger>
-              <TabsTrigger value="personal" className="rounded-xl font-black text-xs gap-2"><HandCoins className="h-4 w-4" /> Personal Ledger</TabsTrigger>
+              <TabsTrigger value="personal" className="rounded-xl font-black text-xs gap-2"><HandCoins className="h-4 w-4" /> Personal Debt Ledger</TabsTrigger>
             </TabsList>
 
             <TabsContent value="shared" className="animate-in fade-in slide-in-from-left-2">
@@ -898,7 +898,7 @@ export default function SplitPayPage() {
                   <CardHeader className="bg-muted/30 border-b">
                     <CardTitle className="text-base font-black flex items-center gap-2">
                       <UserPlus className="h-5 w-5 text-primary" />
-                      Secure New Receivable
+                      Secure New Debt Record
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-6">
@@ -917,15 +917,15 @@ export default function SplitPayPage() {
                       </div>
                     </div>
                     <Button onClick={addDebt} className="w-full mt-8 h-12 rounded-2xl font-black shadow-lg text-base">
-                      <Plus className="mr-2 h-5 w-5" /> Secure Debt Record
+                      <Plus className="mr-2 h-5 w-5" /> Secure Record in Debt Ledger
                     </Button>
                   </CardContent>
                 </Card>
 
                 <div className="space-y-4">
                   <h3 className="text-lg font-black flex items-center gap-2 pl-2">
-                    <Info className="h-4 w-4 text-primary" />
-                    Vault Records
+                    <HandCoins className="h-4 w-4 text-primary" />
+                    Personal Debt Records
                   </h3>
                   
                   <div className="grid gap-3">
@@ -1656,7 +1656,7 @@ export default function SplitPayPage() {
                             <span className="text-[8px] text-muted-foreground font-bold uppercase">Room Label</span>
                           </div>
                         </div>
-                        <span className="text-xs font-black">₹{cat.value.toLocaleString()}</span>
+                        <span className="text-xs font-black">₹{cat.value.toLocaleString() || '0'}</span>
                       </div>
                     ))}
                     {!stats?.categorySpendData.length && <p className="text-[10px] text-muted-foreground italic text-center py-10">No categorized bills found.</p>}
