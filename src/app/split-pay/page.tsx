@@ -960,9 +960,9 @@ export default function SplitPayPage() {
                               )}>
                                 {debt.debtorName}
                               </h4>
-                              <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest flex items-center gap-2">
+                              <div className="text-[10px] text-muted-foreground font-black uppercase tracking-widest flex items-center gap-2">
                                 {debt.description || "Secured Note"} <Separator orientation="vertical" className="h-2" /> {new Date(debt.createdAt).toLocaleDateString()}
-                              </p>
+                              </div>
                             </div>
                           </div>
                           <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto relative z-10">
@@ -1672,7 +1672,7 @@ export default function SplitPayPage() {
       <AlertDialog open={!!roomToDelete} onOpenChange={(open) => !open && setRoomToDelete(null)}>
         <AlertDialogContent className="rounded-3xl border-none shadow-2xl max-w-[90vw] sm:max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-2"><AlertTriangle className="h-6 w-6 text-destructive" /> Decommission Room?</AlertDialogTitle>
+            <AlertDialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-3"><AlertTriangle className="h-6 w-6 text-destructive" /> Decommission Room?</AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground font-medium">This action is permanent. All expenses, settlements, and ledger history for this room will be wiped.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:gap-0">
@@ -1684,3 +1684,4 @@ export default function SplitPayPage() {
     </AppShell>
   );
 }
+
