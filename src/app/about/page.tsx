@@ -15,9 +15,15 @@ import {
   Calculator,
   GraduationCap,
   Wallet,
-  BookText
+  BookText,
+  Smartphone,
+  Download,
+  Share,
+  PlusSquare,
+  MoreVertical
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 
 export default function AboutPage() {
   return (
@@ -27,6 +33,60 @@ export default function AboutPage() {
           <h2 className="text-3xl md:text-5xl font-black tracking-tighter">Holistic Life Tracking</h2>
           <p className="text-muted-foreground text-sm md:text-lg font-medium">A unified system for your finances, learning, and self-reflection.</p>
         </div>
+
+        <Card className="shadow-2xl border-none ring-2 ring-primary/20 overflow-hidden rounded-3xl bg-primary/5">
+          <CardHeader className="bg-primary/10 border-b py-6 text-center">
+            <div className="mx-auto bg-primary text-white p-3 rounded-2xl w-fit shadow-lg mb-4">
+              <Smartphone className="h-8 w-8" />
+            </div>
+            <CardTitle className="text-2xl font-black tracking-tight">Install LifeTrack</CardTitle>
+            <CardDescription className="text-xs uppercase font-black tracking-widest text-primary">Transform this site into a native app</CardDescription>
+          </CardHeader>
+          <CardContent className="p-6 md:p-10">
+            <div className="grid gap-8 md:grid-cols-2">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Badge className="bg-blue-500 h-6 w-6 rounded-full flex items-center justify-center p-0">1</Badge>
+                  <h4 className="font-black text-sm uppercase">iOS / iPhone</h4>
+                </div>
+                <ul className="space-y-3 pl-9">
+                  <li className="flex items-start gap-3 text-xs font-medium text-muted-foreground">
+                    <Share className="h-4 w-4 shrink-0 text-primary" />
+                    Open Safari and tap the Share button at the bottom.
+                  </li>
+                  <li className="flex items-start gap-3 text-xs font-medium text-muted-foreground">
+                    <PlusSquare className="h-4 w-4 shrink-0 text-primary" />
+                    Scroll down and select "Add to Home Screen".
+                  </li>
+                  <li className="flex items-start gap-3 text-xs font-medium text-muted-foreground">
+                    <Smartphone className="h-4 w-4 shrink-0 text-primary" />
+                    Launch LifeTrack from your home screen icons.
+                  </li>
+                </ul>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Badge className="bg-green-500 h-6 w-6 rounded-full flex items-center justify-center p-0">2</Badge>
+                  <h4 className="font-black text-sm uppercase">Android / Chrome</h4>
+                </div>
+                <ul className="space-y-3 pl-9">
+                  <li className="flex items-start gap-3 text-xs font-medium text-muted-foreground">
+                    <MoreVertical className="h-4 w-4 shrink-0 text-primary" />
+                    Open Chrome and tap the three dots in the top right.
+                  </li>
+                  <li className="flex items-start gap-3 text-xs font-medium text-muted-foreground">
+                    <Download className="h-4 w-4 shrink-0 text-primary" />
+                    Tap "Install app" or "Add to Home Screen".
+                  </li>
+                  <li className="flex items-start gap-3 text-xs font-medium text-muted-foreground">
+                    <Smartphone className="h-4 w-4 shrink-0 text-primary" />
+                    Access your secure vault instantly from your apps.
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid gap-6 md:grid-cols-2">
           <Card className="shadow-md border-t-4 border-t-primary">
