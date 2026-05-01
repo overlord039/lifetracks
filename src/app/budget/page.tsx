@@ -435,21 +435,35 @@ export default function BudgetPage() {
                 <CardTitle className="flex items-center gap-2 text-base md:text-lg font-black tracking-tight"><Wallet className="h-5 w-5 text-primary" /> Monthly Vault</CardTitle>
                 <CardDescription className="text-[10px] uppercase font-bold tracking-tight">Protected targets for {monthName}.</CardDescription>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 border-r pr-4 border-dashed h-8">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 border-r pr-3 sm:pr-4 border-dashed h-8">
                    <div className="flex flex-col items-end">
                       <Label className="text-[8px] font-black uppercase tracking-wider text-muted-foreground leading-none">Weekend</Label>
                       {decryptedBudget?.isWeekendExtraBudgetEnabled && <span className="text-[9px] font-black text-primary leading-none mt-1">+₹{calculatedWeekendBonus}</span>}
                    </div>
                    <Switch className="scale-75 origin-right" checked={decryptedBudget?.isWeekendExtraBudgetEnabled || false} onCheckedChange={(checked) => saveMonthlyBudget({ isWeekendExtraBudgetEnabled: checked })} />
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 border-r pr-3 sm:pr-4 border-dashed h-8">
                    <div className="flex flex-col items-end">
                       <Label className="text-[8px] font-black uppercase tracking-wider text-muted-foreground leading-none">Tracking</Label>
                       <span className="text-[8px] text-primary/60 font-black uppercase leading-none mt-1">{isDailyEnabled ? "Rolling" : "Pool"}</span>
                    </div>
                    <Switch className="scale-75 origin-right" checked={isDailyEnabled} onCheckedChange={(checked) => saveMonthlyBudget({ isDailyLimitEnabled: checked })} />
                 </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setIsActivityModalOpen(true)}
+                  className="h-8 w-8 relative hover:bg-primary/10 transition-all ml-1 group"
+                  title="View Activity History"
+                >
+                  <History className="h-4 w-4 text-primary group-hover:rotate-[-15deg] transition-transform" />
+                  {decryptedExpenses?.length > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[7px] font-black text-white ring-2 ring-background">
+                      {decryptedExpenses.length}
+                    </span>
+                  )}
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-4 md:space-y-6 pt-4 md:pt-6 px-4 md:px-6">
@@ -657,18 +671,6 @@ export default function BudgetPage() {
               </TabsContent>
             </Tabs>
           </Card>
-
-          <Button 
-            variant="outline" 
-            onClick={() => setIsActivityModalOpen(true)}
-            className="w-full h-14 rounded-2xl font-black gap-3 shadow-sm border-dashed border-2 hover:bg-primary/5 hover:border-primary/30 transition-all group"
-          >
-            <History className="h-5 w-5 text-primary group-hover:rotate-[-30deg] transition-transform" />
-            <span className="flex-1 text-left">View Activity History</span>
-            <Badge variant="secondary" className="text-[10px] font-black uppercase bg-primary/10 text-primary px-3">
-              {decryptedExpenses?.length || 0} Records
-            </Badge>
-          </Button>
         </div>
 
         <div className="lg:col-span-4 flex flex-col gap-4">
