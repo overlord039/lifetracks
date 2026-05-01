@@ -139,21 +139,21 @@ export default function BudgetPage() {
     decryptAll();
   }, [rawCategories, rawBudget, rawFixed, rawExpenses, user, mounted]);
 
-  // Aggregate Sync Effect
+  // Aggregate Sync Effect - Specifically for 'expense' pillar pool
   useEffect(() => {
     const syncAggregates = async () => {
       if (!user || !monthlyBudgetRef || isDecrypting || !mounted || !decryptedBudget) return;
       
-      const spent = decryptedExpenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
-      const fixedSpent = decryptedFixed?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
+      const spent = decryptedExpenses?.filter(e => (e.allocationBucket || 'expense') === 'expense').reduce((sum, exp) => sum + exp.amount, 0) || 0;
+      const fixedSpent = decryptedFixed?.filter(f => f.includeInBudget && (f.allocationBucket || 'expense') === 'expense').reduce((s, f) => s + f.amount, 0) || 0;
       
       const prevSpent = decryptedBudget.actualSpent || 0;
       const prevFixed = decryptedBudget.actualFixedSpent || 0;
 
       if (Math.abs(spent - prevSpent) > 0.01 || Math.abs(fixedSpent - prevFixed) > 0.01) {
         setDocumentNonBlocking(monthlyBudgetRef, {
-          actualSpent: await encryptData(spent.toString(), user.uid),
-          actualFixedSpent: await encryptData(fixedSpent.toString(), user.uid),
+          actualSpent: await encryptData(spent.toFixed(2), user.uid),
+          actualFixedSpent: await encryptData(fixedSpent.toFixed(2), user.uid),
           updatedAt: new Date().toISOString()
         }, { merge: true });
       }
@@ -186,9 +186,12 @@ export default function BudgetPage() {
       });
   }, [decryptedCategories]);
 
-  const totalIncludedFixed = decryptedFixed?.filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0) || 0;
+  // Only count fixed expenses belonging to the 'expense' pillar towards the month pool reduction
+  const totalIncludedFixed = decryptedFixed?.filter(f => f.includeInBudget && (f.allocationBucket || 'expense') === 'expense').reduce((s, f) => s + f.amount, 0) || 0;
   const netMonthlyPool = (decryptedBudget?.totalBudgetAmount || 0) - totalIncludedFixed;
-  const totalSpentThisMonth = decryptedExpenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
+  
+  // Only count variable expenses belonging to the 'expense' pillar towards the pool consumption
+  const totalSpentThisMonth = decryptedExpenses?.filter(exp => (exp.allocationBucket || 'expense') === 'expense').reduce((sum, exp) => sum + exp.amount, 0) || 0;
   const remainingNetPool = netMonthlyPool - totalSpentThisMonth;
   const dailyBase = netMonthlyPool / daysInMonth;
   const calculatedWeekendBonus = Math.round(dailyBase * 0.5);
@@ -196,14 +199,24 @@ export default function BudgetPage() {
   const budgetReport = useMemo(() => {
     if (!decryptedBudget || !decryptedExpenses || !mounted) return null;
     const dailyExpensesMap: Record<string, number> = {};
-    decryptedExpenses.forEach(exp => {
-      dailyExpensesMap[exp.date] = (dailyExpensesMap[exp.date] || 0) + exp.amount;
-    });
+    
+    // Filtering for 'expense' pillar only to impact rolling budget
+    decryptedExpenses
+      .filter(exp => (exp.allocationBucket || 'expense') === 'expense')
+      .forEach(exp => {
+        dailyExpensesMap[exp.date] = (dailyExpensesMap[exp.date] || 0) + exp.amount;
+      });
+
     const config: MonthlyConfig = {
       totalBudget: decryptedBudget.totalBudgetAmount || 0,
       month: now.getMonth(),
       year: now.getFullYear(),
-      fixedExpenses: (decryptedFixed || []).map(f => ({ id: f.id, name: f.name, amount: f.amount, included: f.includeInBudget })),
+      fixedExpenses: (decryptedFixed || []).map(f => ({ 
+        id: f.id, 
+        name: f.name, 
+        amount: f.amount, 
+        included: f.includeInBudget && (f.allocationBucket || 'expense') === 'expense' 
+      })),
       saturdayExtra: decryptedBudget.isWeekendExtraBudgetEnabled ? calculatedWeekendBonus : 0,
       sundayExtra: decryptedBudget.isWeekendExtraBudgetEnabled ? calculatedWeekendBonus : 0,
       holidayExtra: 0,
@@ -428,7 +441,7 @@ export default function BudgetPage() {
             <CardContent className="space-y-4 md:space-y-6 pt-4 md:pt-6 px-4 md:px-6">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-3">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Financial Pool (E2EE)</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Expense Pool (E2EE)</Label>
                   {decryptedBudget?.totalBudgetAmount > 0 ? (
                     <div className="space-y-3 md:space-y-4">
                       <div className="grid grid-cols-2 gap-2 md:gap-3">
@@ -502,7 +515,7 @@ export default function BudgetPage() {
               </div>
             </CardContent>
             <CardFooter className="bg-muted/10 grid grid-cols-2 gap-4 py-4 md:py-5 border-t px-4 md:px-6">
-              <div className="flex flex-col"><span className="text-muted-foreground text-[8px] md:text-[9px] uppercase font-black tracking-widest">Net Month Pool</span><span className="text-lg md:text-xl font-black tracking-tighter">₹{remainingNetPool.toLocaleString()}</span></div>
+              <div className="flex flex-col"><span className="text-muted-foreground text-[8px] md:text-[9px] uppercase font-black tracking-widest">Net Month Pool</span><span className="text-lg md:text-xl font-black tracking-tighter">₹{remainingNetPool.toFixed(0)}</span></div>
               {isDailyEnabled && (
                 <div className="flex flex-col border-l pl-4"><span className="text-muted-foreground text-[8px] md:text-[9px] uppercase font-black tracking-widest">Daily Base Limit</span><span className="text-lg md:text-xl font-black tracking-tighter">₹{dailyBase.toFixed(0)}</span></div>
               )}

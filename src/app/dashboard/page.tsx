@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -99,6 +100,7 @@ export default function Dashboard() {
           ...f,
           amount: f.isEncrypted ? await decryptNumber(f.amount, user.uid) : (f.amount || 0),
           includeInBudget: f.includeInBudget ?? true,
+          allocationBucket: f.allocationBucket || 'expense'
         })));
         setDecryptedFixed(fixed);
       }
@@ -108,6 +110,7 @@ export default function Dashboard() {
           ...e,
           amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : (e.amount || 0),
           date: e.date || '',
+          allocationBucket: e.allocationBucket || 'expense'
         })));
         setDecryptedExpenses(exps);
       }
@@ -129,9 +132,11 @@ export default function Dashboard() {
     if (!decryptedBudget || !mounted) return null;
 
     const dailyExpensesMap: Record<string, number> = {};
-    (decryptedExpenses || []).forEach(exp => {
-      dailyExpensesMap[exp.date] = (dailyExpensesMap[exp.date] || 0) + exp.amount;
-    });
+    (decryptedExpenses || [])
+      .filter(exp => (exp.allocationBucket || 'expense') === 'expense') // Only expenses impact rolling budget
+      .forEach(exp => {
+        dailyExpensesMap[exp.date] = (dailyExpensesMap[exp.date] || 0) + exp.amount;
+      });
 
     const config: MonthlyConfig = {
       totalBudget: decryptedBudget.totalBudgetAmount || 0,
@@ -141,7 +146,7 @@ export default function Dashboard() {
         id: f.id,
         name: f.name,
         amount: f.amount,
-        included: f.includeInBudget
+        included: f.includeInBudget && (f.allocationBucket || 'expense') === 'expense'
       })),
       saturdayExtra: decryptedBudget.saturdayExtraAmount || 0,
       sundayExtra: decryptedBudget.sundayExtraAmount || 0,

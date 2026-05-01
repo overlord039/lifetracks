@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -216,6 +217,7 @@ export default function ReportsPage() {
         const pExps = await Promise.all(rawPrevExpenses.map(async e => ({
           ...e,
           amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : (e.amount || 0),
+          allocationBucket: e.allocationBucket || 'expense'
         })));
         setDecryptedPrevExpenses(pExps);
       }
@@ -260,12 +262,14 @@ export default function ReportsPage() {
 
   const totals = useMemo(() => {
     const budget = decryptedBudget?.totalBudgetAmount || 0;
-    const fixed = (decryptedFixed || []).filter(f => f.includeInBudget).reduce((s, f) => s + f.amount, 0);
-    const daily = (decryptedExpenses || []).reduce((s, e) => s + e.amount, 0);
+    // Only tally fixed costs targeting the 'expense' pool
+    const fixed = (decryptedFixed || []).filter(f => f.includeInBudget && (f.allocationBucket || 'expense') === 'expense').reduce((s, f) => s + f.amount, 0);
+    // Only tally variable spends targeting the 'expense' pool
+    const daily = (decryptedExpenses || []).filter(e => (e.allocationBucket || 'expense') === 'expense').reduce((s, e) => s + e.amount, 0);
     const spent = fixed + daily;
     const remaining = budget - spent;
 
-    const prevDaily = (decryptedPrevExpenses || []).reduce((s, e) => s + e.amount, 0);
+    const prevDaily = (decryptedPrevExpenses || []).filter(e => (e.allocationBucket || 'expense') === 'expense').reduce((s, e) => s + e.amount, 0);
     const prevBudget = decryptedPrevBudget?.totalBudgetAmount || 0;
 
     return {
@@ -332,6 +336,7 @@ export default function ReportsPage() {
     const weeklyData = weeks.map((weekStart, idx) => {
       const weekEnd = endOfWeek(weekStart);
       const spent = decryptedExpenses
+        .filter(exp => (exp.allocationBucket || 'expense') === 'expense')
         .filter(exp => {
           const d = new Date(exp.date);
           return d >= weekStart && d <= weekEnd;
@@ -353,10 +358,12 @@ export default function ReportsPage() {
 
     if (isSelectedMonthCurrent) {
        currentWeekSpent = decryptedExpenses
+        .filter(exp => (exp.allocationBucket || 'expense') === 'expense')
         .filter(exp => isSameWeek(new Date(exp.date), today))
         .reduce((sum, exp) => sum + exp.amount, 0);
        
        lastWeekSpent = decryptedExpenses
+        .filter(exp => (exp.allocationBucket || 'expense') === 'expense')
         .filter(exp => isSameWeek(new Date(exp.date), subWeeks(today, 1)))
         .reduce((sum, exp) => sum + exp.amount, 0);
     } else {
@@ -399,9 +406,11 @@ export default function ReportsPage() {
       const monthEnd = endOfMonth(selectedDate);
       const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
       const dailyExpensesMap: Record<string, number> = {};
-      decryptedExpenses.forEach(exp => {
-        dailyExpensesMap[exp.date] = (dailyExpensesMap[exp.date] || 0) + exp.amount;
-      });
+      decryptedExpenses
+        .filter(e => (e.allocationBucket || 'expense') === 'expense')
+        .forEach(exp => {
+          dailyExpensesMap[exp.date] = (dailyExpensesMap[exp.date] || 0) + exp.amount;
+        });
 
       sData = days
         .map(d => {
@@ -575,7 +584,7 @@ export default function ReportsPage() {
             <CardHeader className="pb-2 pt-4 px-4 md:px-6">
               <CardTitle className="text-base md:text-lg flex items-center gap-2 font-black">
                 <TableProperties className="h-4 w-4 md:h-5 md:w-5 text-primary" />
-                Monthly Tally
+                Expense Pool Tally
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 md:space-y-6 p-4 md:p-6">
@@ -583,21 +592,21 @@ export default function ReportsPage() {
                 <div className="flex justify-between items-start text-xs md:sm">
                   <div className="flex flex-col">
                     <span className="text-foreground font-black uppercase text-[10px] tracking-tight">Monthly Pool</span>
-                    <span className="text-muted-foreground text-[9px] font-medium leading-tight">Total target budget for this period</span>
+                    <span className="text-muted-foreground text-[9px] font-medium leading-tight">Total target for Expenses pillar</span>
                   </div>
                   <span className="font-black text-lg tracking-tighter">₹{totals.budget.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-start text-xs md:sm">
                   <div className="flex flex-col">
                     <span className="text-foreground font-black uppercase text-[10px] tracking-tight">Fixed Vault</span>
-                    <span className="text-muted-foreground text-[9px] font-medium leading-tight">Scheduled non-negotiable costs</span>
+                    <span className="text-muted-foreground text-[9px] font-medium leading-tight">Scheduled Expense costs only</span>
                   </div>
                   <span className="font-bold text-destructive">₹{totals.fixed.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-start text-xs md:sm">
                   <div className="flex flex-col">
                     <span className="text-foreground font-black uppercase text-[10px] tracking-tight">Daily Spends</span>
-                    <span className="text-muted-foreground text-[9px] font-medium leading-tight">Cumulative records for variable labels</span>
+                    <span className="text-muted-foreground text-[9px] font-medium leading-tight">Cumulative variable Expense logs</span>
                   </div>
                   <div className="flex flex-col items-end">
                     <span className="font-bold">₹{totals.daily.toLocaleString()}</span>
@@ -792,7 +801,7 @@ export default function ReportsPage() {
               ) : (
                 <div className="grid gap-3 md:gap-6 grid-cols-3 sm:grid-cols-2 lg:grid-cols-5">
                   {allocationReport.map(pillar => {
-                    const Config = PILLAR_ICONS[pillar.id];
+                    const Config = PILLAR_ICONS[pillar.id] || PILLAR_ICONS['expense'];
                     const Icon = Config.icon;
                     const isOverspent = pillar.utilization > 100;
                     
