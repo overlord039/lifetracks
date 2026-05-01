@@ -38,16 +38,13 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const navItems = [
   { id: 'dashboard', title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
@@ -104,32 +101,42 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="font-headline font-black text-xl tracking-tighter">LifeTrack</span>
             </div>
             
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/5">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
                   <Settings2 className="h-4 w-4" />
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md rounded-3xl">
-                <DialogHeader>
-                  <DialogTitle className="text-2xl font-black tracking-tighter">Workspace Layout</DialogTitle>
-                  <DialogDescription className="text-sm font-medium">Toggle the sections you want to display in your sidebar.</DialogDescription>
-                </DialogHeader>
-                <div className="py-4 space-y-1">
-                  {navItems.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between p-3 rounded-2xl hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-muted rounded-xl">
-                          <item.icon className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <Label htmlFor={`nav-${item.id}`} className="font-black text-sm uppercase tracking-tight cursor-pointer">{item.title}</Label>
-                      </div>
-                      <Switch id={`nav-${item.id}`} checked={visibleSections[item.id] !== false} onCheckedChange={() => toggleSection(item.id)} />
-                    </div>
-                  ))}
+              </PopoverTrigger>
+              <PopoverContent side="right" align="start" className="w-64 p-0 rounded-2xl shadow-2xl border-none ring-1 ring-border overflow-hidden">
+                <div className="p-4 bg-muted/30 border-b">
+                  <h3 className="text-sm font-black uppercase tracking-tight">Workspace Layout</h3>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase mt-0.5">Toggle Visible Sections</p>
                 </div>
-              </DialogContent>
-            </Dialog>
+                <ScrollArea className="max-h-[300px]">
+                  <div className="p-2 space-y-0.5">
+                    {navItems.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between p-2 rounded-xl hover:bg-muted/50 transition-colors group">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-1.5 bg-background rounded-lg border shadow-sm group-hover:border-primary/30 transition-colors">
+                            <item.icon className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                          </div>
+                          <Label htmlFor={`nav-${item.id}`} className="font-bold text-[11px] uppercase tracking-tighter cursor-pointer">{item.title}</Label>
+                        </div>
+                        <Switch 
+                          id={`nav-${item.id}`} 
+                          className="scale-75 origin-right" 
+                          checked={visibleSections[item.id] !== false} 
+                          onCheckedChange={() => toggleSection(item.id)} 
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+                <div className="p-3 bg-primary/5 border-t">
+                   <p className="text-[9px] font-black text-primary uppercase text-center tracking-widest">Layout Saved Locally</p>
+                </div>
+              </PopoverContent>
+            </Popover>
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu className="px-2 pt-2">
