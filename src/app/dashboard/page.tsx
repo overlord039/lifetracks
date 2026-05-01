@@ -169,9 +169,6 @@ export default function Dashboard() {
 
   const totalOwed = useMemo(() => decryptedDebts?.filter(d => !d.isPaid).reduce((sum, d) => sum + d.amount, 0) || 0, [decryptedDebts]);
 
-  const isOverspent = spentToday > rollingAllowance;
-  const isWithinBudget = spentToday <= rollingAllowance && spentToday > 0;
-
   const hasActiveGoals = !!(learningGoals && learningGoals.length > 0);
 
   if (!mounted || isDecrypting) {
@@ -187,38 +184,8 @@ export default function Dashboard() {
 
   return (
     <AppShell>
-      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3">
-        {totalOwed > 0 && (
-          <DashboardCard 
-            href="/split-pay"
-            title="Split & Debt"
-            value={`₹${totalOwed.toFixed(0)}`}
-            subtext="Receivable total"
-            icon={<HandCoins className="w-4 h-4" />}
-            variant="default"
-          />
-        )}
-
-        <DashboardCard 
-          href="/learning"
-          title="Skill Mastery"
-          value={`${goalsProgress}%`}
-          subtext="Completion rate"
-          icon={<BookOpen className="w-4 h-4" />}
-          progress={goalsProgress}
-        />
-
-        <DashboardCard 
-          href="/diary"
-          title="Daily Reflection"
-          value={todayDiary ? "Logged" : "Pending"}
-          subtext={todayDiary ? "Well done!" : "Record thoughts"}
-          icon={todayDiary ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-          variant={todayDiary ? "secondary" : "default"}
-        />
-      </div>
-
-      <div className="grid gap-4 md:gap-6 mt-4 md:mt-6 lg:grid-cols-12">
+      {/* Primary Insights Grid */}
+      <div className="grid gap-4 md:gap-6 lg:grid-cols-12 mb-4 md:mb-6">
         <div className={cn("space-y-4 md:space-y-6", hasActiveGoals ? "lg:col-span-7" : "lg:col-span-12")}>
           <Link href="/reports" className="block group">
             <Card className="shadow-lg overflow-hidden border-none ring-1 ring-border group-hover:ring-primary/30 transition-all duration-300 rounded-2xl">
@@ -306,6 +273,38 @@ export default function Dashboard() {
             </Link>
           </div>
         )}
+      </div>
+
+      {/* Secondary Status Grid */}
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3">
+        {totalOwed > 0 && (
+          <DashboardCard 
+            href="/split-pay"
+            title="Split & Debt"
+            value={`₹${totalOwed.toFixed(0)}`}
+            subtext="Receivable total"
+            icon={<HandCoins className="w-4 h-4" />}
+            variant="default"
+          />
+        )}
+
+        <DashboardCard 
+          href="/learning"
+          title="Skill Mastery"
+          value={`${goalsProgress}%`}
+          subtext="Completion rate"
+          icon={<BookOpen className="w-4 h-4" />}
+          progress={goalsProgress}
+        />
+
+        <DashboardCard 
+          href="/diary"
+          title="Daily Reflection"
+          value={todayDiary ? "Logged" : "Pending"}
+          subtext={todayDiary ? "Well done!" : "Record thoughts"}
+          icon={todayDiary ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+          variant={todayDiary ? "secondary" : "default"}
+        />
       </div>
     </AppShell>
   );
