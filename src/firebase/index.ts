@@ -7,8 +7,12 @@ import {
   getFirestore, 
   initializeFirestore, 
   persistentLocalCache, 
-  persistentMultipleTabManager 
+  persistentMultipleTabManager,
+  Firestore
 } from 'firebase/firestore'
+
+// Singleton instance to prevent re-initialization errors
+let firestoreInstance: Firestore | null = null;
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
@@ -35,14 +39,22 @@ export function initializeFirebase() {
   }
 
   // Initialize Firestore with persistent cache enabled for instant loading of cached data
-  const firestore = initializeFirestore(firebaseApp, {
-    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
-  });
+  // Ensure we only call initializeFirestore once to avoid "already been called" error
+  if (!firestoreInstance) {
+    try {
+      firestoreInstance = initializeFirestore(firebaseApp, {
+        localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+      });
+    } catch (e) {
+      // Fallback if initialization happened elsewhere (e.g. hot reloading)
+      firestoreInstance = getFirestore(firebaseApp);
+    }
+  }
 
   return {
     firebaseApp,
     auth: getAuth(firebaseApp),
-    firestore
+    firestore: firestoreInstance
   };
 }
 
