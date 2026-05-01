@@ -237,11 +237,8 @@ export default function ReportsPage() {
         setDecryptedSalaryProfile({
           ...rawSalaryProfile,
           salary: rawSalaryProfile.isEncrypted ? await decryptNumber(rawSalaryProfile.salary, user.uid) : (rawSalaryProfile.salary || 0),
-          expensePercent: rawSalaryProfile.expensePercent ?? 50,
-          savingsPercent: rawSalaryProfile.savingsPercent ?? 20,
-          investmentPercent: rawSalaryProfile.investmentPercent ?? 20,
-          healthPercent: rawSalaryProfile.healthPercent ?? 5,
-          personalPercent: rawSalaryProfile.personalPercent ?? 5,
+          pillars: rawSalaryProfile.pillars || [],
+          percents: rawSalaryProfile.percents || {},
         });
       }
 
@@ -262,9 +259,7 @@ export default function ReportsPage() {
 
   const totals = useMemo(() => {
     const budget = decryptedBudget?.totalBudgetAmount || 0;
-    // Only tally fixed costs targeting the 'expense' pool
     const fixed = (decryptedFixed || []).filter(f => f.includeInBudget && (f.allocationBucket || 'expense') === 'expense').reduce((s, f) => s + f.amount, 0);
-    // Only tally variable spends targeting the 'expense' pool
     const daily = (decryptedExpenses || []).filter(e => (e.allocationBucket || 'expense') === 'expense').reduce((s, e) => s + e.amount, 0);
     const spent = fixed + daily;
     const remaining = budget - spent;
@@ -289,23 +284,23 @@ export default function ReportsPage() {
     if (!decryptedSalaryProfile || !decryptedFixed || !decryptedExpenses) return null;
 
     const salary = decryptedSalaryProfile.salary || 0;
-    const buckets = [
-      { id: 'expense', label: 'Expenses', percent: decryptedSalaryProfile.expensePercent || 50 },
-      { id: 'savings', label: 'Savings', percent: decryptedSalaryProfile.savingsPercent || 20 },
-      { id: 'investment', label: 'Investments', percent: decryptedSalaryProfile.investmentPercent || 20 },
-      { id: 'health', label: 'Health', percent: decryptedSalaryProfile.healthPercent || 5 },
-      { id: 'personal', label: 'Personal', percent: decryptedSalaryProfile.personalPercent || 5 },
-    ];
+    const profilePillars = decryptedSalaryProfile.pillars || [];
+    const profilePercents = decryptedSalaryProfile.percents || {};
 
-    return buckets.map(b => {
-      const target = (salary * (b.percent / 100));
-      const fixedSpent = decryptedFixed.filter(f => f.allocationBucket === b.id).reduce((s, f) => s + f.amount, 0);
-      const dailySpent = decryptedExpenses.filter(e => (e.allocationBucket || 'expense') === b.id).reduce((s, e) => s + e.amount, 0);
+    if (profilePillars.length === 0) return null;
+
+    return profilePillars.map((p: any) => {
+      const percent = profilePercents[p.id] || 0;
+      const target = (salary * (percent / 100));
+      const fixedSpent = decryptedFixed.filter(f => f.allocationBucket === p.id).reduce((s, f) => s + f.amount, 0);
+      const dailySpent = decryptedExpenses.filter(e => (e.allocationBucket || 'expense') === p.id).reduce((s, e) => s + e.amount, 0);
       const totalSpent = fixedSpent + dailySpent;
       const utilization = target > 0 ? (totalSpent / target) * 100 : 0;
 
       return {
-        ...b,
+        id: p.id,
+        label: p.label,
+        percent,
         target,
         spent: totalSpent,
         utilization,
@@ -799,34 +794,34 @@ export default function ReportsPage() {
                   </Button>
                 </div>
               ) : (
-                <div className="grid gap-3 md:gap-6 grid-cols-3 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="grid gap-3 md:gap-4 grid-cols-3 sm:grid-cols-2 lg:grid-cols-5">
                   {allocationReport.map(pillar => {
                     const Config = PILLAR_ICONS[pillar.id] || PILLAR_ICONS['expense'];
                     const Icon = Config.icon;
                     const isOverspent = pillar.utilization > 100;
                     
                     return (
-                      <div key={pillar.id} className="space-y-2 md:space-y-4 p-2 md:p-4 rounded-2xl md:rounded-3xl border bg-muted/5 transition-all hover:bg-muted/10 group">
+                      <div key={pillar.id} className="space-y-2 md:space-y-3 p-2 md:p-4 rounded-2xl border bg-muted/5 transition-all hover:bg-muted/10 group">
                         <div className="flex items-center justify-between">
-                          <div className={cn("p-1.5 md:p-2 rounded-lg md:rounded-xl text-white shadow-md transition-transform group-hover:scale-110", Config.bg)}>
-                            <Icon className="h-3 w-3 md:h-4 md:w-4" />
+                          <div className={cn("p-1 md:p-2 rounded-lg text-white shadow-md transition-transform group-hover:scale-110", Config.bg)}>
+                            <Icon className="h-3 w-3" />
                           </div>
-                          <Badge variant={isOverspent ? "destructive" : "secondary"} className="text-[6px] md:text-[8px] font-black uppercase px-1 md:px-2">
+                          <Badge variant={isOverspent ? "destructive" : "secondary"} className="text-[7px] md:text-[9px] font-black uppercase px-1 md:px-2">
                             {Math.round(pillar.utilization)}%
                           </Badge>
                         </div>
                         
-                        <div className="space-y-0.5 md:space-y-1">
+                        <div className="space-y-0.5">
                           <p className="text-[7px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground truncate">{pillar.label}</p>
                           <div className="flex flex-col md:flex-row md:items-baseline gap-0 md:gap-1">
-                            <span className="text-xs md:text-xl font-black tracking-tighter">₹{Math.round(pillar.spent).toLocaleString()}</span>
-                            <span className="text-[6px] md:text-[9px] font-bold text-muted-foreground opacity-60">/ ₹{Math.round(pillar.target).toLocaleString()}</span>
+                            <span className="text-[10px] md:text-lg font-black tracking-tighter">₹{Math.round(pillar.spent).toLocaleString()}</span>
+                            <span className="text-[6px] md:text-[8px] font-bold text-muted-foreground opacity-60">/ ₹{Math.round(pillar.target).toLocaleString()}</span>
                           </div>
                         </div>
 
-                        <div className="space-y-1 md:space-y-1.5">
-                          <Progress value={Math.min(100, pillar.utilization)} className={cn("h-1 md:h-1.5", isOverspent ? "bg-destructive/20" : "bg-muted")} />
-                          <div className="hidden md:flex justify-between items-center text-[8px] font-black uppercase tracking-tighter">
+                        <div className="space-y-1">
+                          <Progress value={Math.min(100, pillar.utilization)} className={cn("h-1", isOverspent ? "bg-destructive/20" : "bg-muted")} />
+                          <div className="flex justify-between items-center text-[6px] md:text-[8px] font-black uppercase tracking-tighter">
                             <span className={cn(isOverspent ? "text-destructive" : "text-muted-foreground")}>
                               {isOverspent ? "Over" : "Free"}
                             </span>
