@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -39,7 +40,9 @@ import {
   HandCoins,
   Circle,
   CheckCircle,
-  Info
+  Info,
+  ShieldCheck,
+  Wallet
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -47,6 +50,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -494,6 +498,7 @@ export default function SplitPayPage() {
       memberUids: [user.uid],
       members: [{ userId: user.uid, userName }],
       isEncrypted: true,
+      isBudgetSynced: true, // Default to true for new rooms
       createdAt: new Date().toISOString()
     };
 
@@ -542,6 +547,7 @@ export default function SplitPayPage() {
         members: roomMembers,
         isEncrypted: true,
         isManual: true,
+        isBudgetSynced: false, // Default to false for manual rooms
         createdAt: new Date().toISOString()
       };
 
@@ -571,6 +577,18 @@ export default function SplitPayPage() {
     
     setIsEditingRoomName(false);
     toast({ title: "Room Renamed" });
+  };
+
+  const toggleRoomBudgetSync = (id: string, currentStatus: boolean) => {
+    if (!db) return;
+    updateDocumentNonBlocking(doc(db, 'sharedGroups', id), {
+      isBudgetSynced: !currentStatus,
+      updatedAt: new Date().toISOString()
+    });
+    toast({ 
+      title: !currentStatus ? "Budget Sync Active" : "Budget Sync Disabled", 
+      description: !currentStatus ? "Shared expenses will log to personal budget." : "This room is now isolated from your budget." 
+    });
   };
 
   const handleUpdateMemberName = async (targetUserId: string) => {
@@ -691,7 +709,7 @@ export default function SplitPayPage() {
     });
 
     const myShare = previewSplits[user.uid] || 0;
-    if (myShare > 0) {
+    if (myShare > 0 && activeGroup.isBudgetSynced !== false) {
       const syncToPersonalBudget = async () => {
         const monthId = format(new Date(), 'yyyyMM');
         const personalExpensesRef = collection(db, 'users', user.uid, 'monthlyBudgets', monthId, 'expenses');
@@ -826,6 +844,7 @@ export default function SplitPayPage() {
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 px-1">
                   {decryptedGroups?.map(group => {
                     const members = Array.isArray(group.members) ? group.members : [];
+                    const isBudgetSynced = group.isBudgetSynced !== false;
                     return (
                       <Card 
                         key={group.id} 
@@ -854,14 +873,30 @@ export default function SplitPayPage() {
                             </Button>
                           )}
                         </CardHeader>
-                        <CardContent className="pt-4 flex items-center justify-between">
-                          <div className="flex -space-x-2">
-                            {members.slice(0, 4).map((m: any) => (
-                              <div key={m.userId} title={m.userName} className={cn("h-8 w-8 rounded-full border-2 border-background flex items-center justify-center text-[10px] font-black text-white", group.isManual ? "bg-secondary" : "bg-primary")}>{(m.userName || 'U')[0].toUpperCase()}</div>
-                            ))}
-                            {members.length > 4 && <div className="h-8 w-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[8px] font-black">+{members.length - 4}</div>}
+                        <CardContent className="pt-4 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex -space-x-2">
+                              {members.slice(0, 4).map((m: any) => (
+                                <div key={m.userId} title={m.userName} className={cn("h-8 w-8 rounded-full border-2 border-background flex items-center justify-center text-[10px] font-black text-white", group.isManual ? "bg-secondary" : "bg-primary")}>{(m.userName || 'U')[0].toUpperCase()}</div>
+                              ))}
+                              {members.length > 4 && <div className="h-8 w-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[8px] font-black">+{members.length - 4}</div>}
+                            </div>
+                            <Badge variant={group.isManual ? "secondary" : "default"} className={cn("font-black text-[10px] uppercase", group.isManual && "bg-secondary/20 text-secondary-foreground")}>{members.length} Members</Badge>
                           </div>
-                          <Badge variant={group.isManual ? "secondary" : "default"} className={cn("font-black text-[10px] uppercase", group.isManual && "bg-secondary/20 text-secondary-foreground")}>{members.length} Members</Badge>
+                          
+                          <Separator className="border-dashed" />
+                          
+                          <div className="flex items-center justify-between px-1" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-2">
+                              <Wallet className={cn("h-3.5 w-3.5", isBudgetSynced ? "text-primary" : "text-muted-foreground")} />
+                              <Label className="text-[9px] font-black uppercase tracking-widest cursor-pointer">Sync to Budget</Label>
+                            </div>
+                            <Switch 
+                              checked={isBudgetSynced} 
+                              onCheckedChange={() => toggleRoomBudgetSync(group.id, isBudgetSynced)} 
+                              className="scale-75"
+                            />
+                          </div>
                         </CardContent>
                       </Card>
                     );
@@ -938,7 +973,7 @@ export default function SplitPayPage() {
         </div>
       ) : (
         <div className="max-w-6xl mx-auto space-y-6">
-          <header className="flex items-center justify-between gap-4">
+          <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon" onClick={() => setSelectedGroupId(null)} className="h-10 w-10 rounded-xl"><ArrowLeft className="h-5 w-5" /></Button>
               <div className="flex flex-col">
@@ -957,9 +992,22 @@ export default function SplitPayPage() {
                   )}
                   <Badge className={cn("hover:opacity-100 border-none font-black text-[8px] uppercase tracking-widest hidden sm:inline-flex", activeGroup?.isManual ? "bg-secondary/20 text-secondary-foreground" : "bg-green-100 text-green-700")}>{activeGroup?.isManual ? "Manual Ledger" : "Live Ledger"}</Badge>
                 </div>
-                <div className="flex items-center gap-2 group">
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{activeGroup?.isManual ? "Standalone Ledger Mode" : `Room ID: ${selectedGroupId}`}</p>
-                  {!activeGroup?.isManual && <button onClick={() => copyToClipboard(selectedGroupId || '')} className="opacity-50 hover:opacity-100 transition-opacity"><Copy className="h-3 w-3 text-muted-foreground hover:text-primary" /></button>}
+                <div className="flex items-center gap-3 group">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{activeGroup?.isManual ? "Standalone Ledger Mode" : `Room ID: ${selectedGroupId}`}</p>
+                    {!activeGroup?.isManual && <button onClick={() => copyToClipboard(selectedGroupId || '')} className="opacity-50 hover:opacity-100 transition-opacity"><Copy className="h-3 w-3 text-muted-foreground hover:text-primary" /></button>}
+                  </div>
+                  <Separator orientation="vertical" className="h-3" />
+                  <div className="flex items-center gap-2">
+                    <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-1">
+                      <Wallet className="h-2.5 w-2.5" /> Budget Sync
+                    </Label>
+                    <Switch 
+                      checked={activeGroup?.isBudgetSynced !== false} 
+                      onCheckedChange={() => toggleRoomBudgetSync(activeGroup.id, activeGroup?.isBudgetSynced !== false)} 
+                      className="scale-[0.6] origin-left"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -1023,7 +1071,16 @@ export default function SplitPayPage() {
                         </div>
                       )}
                     </CardContent>
-                    <CardFooter className="bg-muted/10 border-t py-4"><Button onClick={handleAddExpense} disabled={!splitValidation.isValid} className="w-full h-12 rounded-2xl font-black shadow-lg gap-2 text-base"><CheckCircle2 className="h-5 w-5" /> Sync to Shared Ledger</Button></CardFooter>
+                    <CardFooter className="bg-muted/10 border-t py-4">
+                      <div className="w-full space-y-3">
+                        {activeGroup.isBudgetSynced !== false && (
+                          <div className="flex items-center justify-center gap-2 text-[9px] font-black uppercase text-primary tracking-widest bg-primary/5 py-2 rounded-xl">
+                            <ShieldCheck className="h-3 w-3" /> Auto-Sync to Budget Enabled
+                          </div>
+                        )}
+                        <Button onClick={handleAddExpense} disabled={!splitValidation.isValid} className="w-full h-12 rounded-2xl font-black shadow-lg gap-2 text-base"><CheckCircle2 className="h-5 w-5" /> Sync to Shared Ledger</Button>
+                      </div>
+                    </CardFooter>
                   </Card>
                   <div className="lg:col-span-5 space-y-6">
                     <Card className="shadow-lg rounded-3xl border-none ring-1 ring-border overflow-hidden">
