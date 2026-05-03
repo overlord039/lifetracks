@@ -174,91 +174,102 @@ export default function ReportsPage() {
   }, [firestore, user]);
   const { data: rawAllBudgets } = useCollection(allBudgetsQuery);
 
+  // Decryption Effect - Handles data fetching and processing
   useEffect(() => {
     const decryptAll = async () => {
       if (!user || !mounted) return;
       setIsDecrypting(true);
 
-      if (rawBudget) {
-        setDecryptedBudget({
-          ...rawBudget,
-          totalBudgetAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.totalBudgetAmount, user.uid) : (rawBudget.totalBudgetAmount || 0),
-          actualSpent: rawBudget.isEncrypted ? await decryptNumber(rawBudget.actualSpent, user.uid) : (rawBudget.actualSpent || 0),
-          actualFixedSpent: rawBudget.isEncrypted ? await decryptNumber(rawBudget.actualFixedSpent, user.uid) : (rawBudget.actualFixedSpent || 0),
-        });
-      }
-
-      if (rawPrevBudget) {
-        setDecryptedPrevBudget({
-          ...rawPrevBudget,
-          totalBudgetAmount: rawPrevBudget.isEncrypted ? await decryptNumber(rawPrevBudget.totalBudgetAmount, user.uid) : (rawPrevBudget.totalBudgetAmount || 0),
-        });
-      }
-
-      if (rawFixed) {
-        const fixed = await Promise.all(rawFixed.map(async f => ({
-          ...f,
-          name: f.isEncrypted ? await decryptData(f.name, user.uid) : (f.name || ''),
-          amount: f.isEncrypted ? await decryptNumber(f.amount, user.uid) : (f.amount || 0),
-          allocationBucket: f.allocationBucket || 'expense'
-        })));
-        setDecryptedFixed(fixed);
-      }
-
-      if (rawExpenses) {
-        const exps = await Promise.all(rawExpenses.map(async e => ({
-          ...e,
-          description: e.isEncrypted ? await decryptData(e.description, user.uid) : (e.description || ''),
-          amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : (e.amount || 0),
-          allocationBucket: e.allocationBucket || 'expense'
-        })));
-        setDecryptedExpenses(exps);
-        setSelectedTransactionIds(new Set(exps.map(e => e.id)));
-      }
-
-      if (rawPrevExpenses) {
-        const pExps = await Promise.all(rawPrevExpenses.map(async e => ({
-          ...e,
-          amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : (e.amount || 0),
-          allocationBucket: e.allocationBucket || 'expense'
-        })));
-        setDecryptedPrevExpenses(pExps);
-      }
-
-      if (rawCategories) {
-        const cats = await Promise.all(rawCategories.map(async c => ({
-          ...c,
-          name: c.isEncrypted ? await decryptData(c.name, user.uid) : (c.name || ''),
-        })));
-        setDecryptedCategories(cats);
-        if (selectedAuditCategories.size === 0) {
-          setSelectedAuditCategories(new Set(cats.map(c => c.id).concat(['misc'])));
+      try {
+        if (rawBudget) {
+          setDecryptedBudget({
+            ...rawBudget,
+            totalBudgetAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.totalBudgetAmount, user.uid) : (rawBudget.totalBudgetAmount || 0),
+            actualSpent: rawBudget.isEncrypted ? await decryptNumber(rawBudget.actualSpent, user.uid) : (rawBudget.actualSpent || 0),
+            actualFixedSpent: rawBudget.isEncrypted ? await decryptNumber(rawBudget.actualFixedSpent, user.uid) : (rawBudget.actualFixedSpent || 0),
+          });
         }
-      }
 
-      if (rawSalaryProfile) {
-        setDecryptedSalaryProfile({
-          ...rawSalaryProfile,
-          salary: rawSalaryProfile.isEncrypted ? await decryptNumber(rawSalaryProfile.salary, user.uid) : (rawSalaryProfile.salary || 0),
-          pillars: rawSalaryProfile.pillars || [],
-          percents: rawSalaryProfile.percents || {},
-        });
-      }
+        if (rawPrevBudget) {
+          setDecryptedPrevBudget({
+            ...rawPrevBudget,
+            totalBudgetAmount: rawPrevBudget.isEncrypted ? await decryptNumber(rawPrevBudget.totalBudgetAmount, user.uid) : (rawPrevBudget.totalBudgetAmount || 0),
+          });
+        }
 
-      if (rawAllBudgets) {
-        const budgets = await Promise.all(rawAllBudgets.map(async b => ({
-          ...b,
-          actualSpent: b.isEncrypted ? await decryptNumber(b.actualSpent, user.uid) : (b.actualSpent || 0),
-          actualFixedSpent: b.isEncrypted ? await decryptNumber(b.actualFixedSpent, user.uid) : (b.actualFixedSpent || 0),
-          totalBudgetAmount: b.isEncrypted ? await decryptNumber(b.totalBudgetAmount, user.uid) : (b.totalBudgetAmount || 0),
-        })));
-        setDecryptedAllBudgets(budgets);
-      }
+        if (rawFixed) {
+          const fixed = await Promise.all(rawFixed.map(async f => ({
+            ...f,
+            name: f.isEncrypted ? await decryptData(f.name, user.uid) : (f.name || ''),
+            amount: f.isEncrypted ? await decryptNumber(f.amount, user.uid) : (f.amount || 0),
+            allocationBucket: f.allocationBucket || 'expense'
+          })));
+          setDecryptedFixed(fixed);
+        }
 
-      setIsDecrypting(false);
+        if (rawExpenses) {
+          const exps = await Promise.all(rawExpenses.map(async e => ({
+            ...e,
+            description: e.isEncrypted ? await decryptData(e.description, user.uid) : (e.description || ''),
+            amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : (e.amount || 0),
+            allocationBucket: e.allocationBucket || 'expense'
+          })));
+          setDecryptedExpenses(exps);
+        }
+
+        if (rawPrevExpenses) {
+          const pExps = await Promise.all(rawPrevExpenses.map(async e => ({
+            ...e,
+            amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : (e.amount || 0),
+            allocationBucket: e.allocationBucket || 'expense'
+          })));
+          setDecryptedPrevExpenses(pExps);
+        }
+
+        if (rawCategories) {
+          const cats = await Promise.all(rawCategories.map(async c => ({
+            ...c,
+            name: c.isEncrypted ? await decryptData(c.name, user.uid) : (c.name || ''),
+          })));
+          setDecryptedCategories(cats);
+        }
+
+        if (rawSalaryProfile) {
+          setDecryptedSalaryProfile({
+            ...rawSalaryProfile,
+            salary: rawSalaryProfile.isEncrypted ? await decryptNumber(rawSalaryProfile.salary, user.uid) : (rawSalaryProfile.salary || 0),
+            pillars: rawSalaryProfile.pillars || [],
+            percents: rawSalaryProfile.percents || {},
+          });
+        }
+
+        if (rawAllBudgets) {
+          const budgets = await Promise.all(rawAllBudgets.map(async b => ({
+            ...b,
+            actualSpent: b.isEncrypted ? await decryptNumber(b.actualSpent, user.uid) : (b.actualSpent || 0),
+            actualFixedSpent: b.isEncrypted ? await decryptNumber(b.actualFixedSpent, user.uid) : (b.actualFixedSpent || 0),
+            totalBudgetAmount: b.isEncrypted ? await decryptNumber(b.totalBudgetAmount, user.uid) : (b.totalBudgetAmount || 0),
+          })));
+          setDecryptedAllBudgets(budgets);
+        }
+      } catch (err) {
+        console.error("Decryption failed in Reports", err);
+      } finally {
+        setIsDecrypting(false);
+      }
     };
     decryptAll();
-  }, [rawBudget, rawPrevBudget, rawFixed, rawExpenses, rawPrevExpenses, rawCategories, rawSalaryProfile, rawAllBudgets, user, mounted, selectedAuditCategories.size]);
+  }, [rawBudget, rawPrevBudget, rawFixed, rawExpenses, rawPrevExpenses, rawCategories, rawSalaryProfile, rawAllBudgets, user, mounted]);
+
+  // Initial Selection Logic - only runs when data is first loaded and set is empty
+  useEffect(() => {
+    if (!isDecrypting && decryptedExpenses.length > 0 && selectedTransactionIds.size === 0) {
+      setSelectedTransactionIds(new Set(decryptedExpenses.map(e => e.id)));
+    }
+    if (!isDecrypting && decryptedCategories.length > 0 && selectedAuditCategories.size === 0) {
+      setSelectedAuditCategories(new Set(decryptedCategories.map(c => c.id).concat(['misc'])));
+    }
+  }, [isDecrypting, decryptedExpenses, decryptedCategories]);
 
   const totals = useMemo(() => {
     const budget = decryptedBudget?.totalBudgetAmount || 0;
@@ -466,6 +477,7 @@ export default function ReportsPage() {
     const nextCats = new Set(selectedAuditCategories);
     const nextTxns = new Set(selectedTransactionIds);
     const isAdding = !nextCats.has(catId);
+    
     if (isAdding) {
       nextCats.add(catId);
       decryptedExpenses.filter(e => (e.expenseCategoryId || 'misc') === catId).forEach(e => nextTxns.add(e.id));
@@ -473,6 +485,7 @@ export default function ReportsPage() {
       nextCats.delete(catId);
       decryptedExpenses.filter(e => (e.expenseCategoryId || 'misc') === catId).forEach(e => nextTxns.delete(e.id));
     }
+    
     setSelectedAuditCategories(nextCats);
     setSelectedTransactionIds(nextTxns);
   };
@@ -528,7 +541,7 @@ export default function ReportsPage() {
     toast({ title: "Audit Exported", description: "CSV has been saved to your downloads." });
   };
 
-  if (!mounted || isDecrypting) {
+  if (!mounted || (isDecrypting && decryptedExpenses.length === 0)) {
     return (
       <AppShell>
         <div className="flex h-[60vh] w-full items-center justify-center flex-col gap-4">
