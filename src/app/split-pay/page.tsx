@@ -1016,7 +1016,7 @@ export default function SplitPayPage() {
                                 {editingMemberId === m.userId ? (
                                   <div className="flex items-center gap-2 animate-in slide-in-from-left-1 w-full"><Input value={editedMemberName} onChange={e => setEditedMemberName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleUpdateMemberName(m.userId)} className="h-7 text-xs font-black uppercase py-0 px-2 bg-background border-primary/30" autoFocus /><button onClick={() => handleUpdateMemberName(m.userId)} className="text-green-600"><Check className="h-3.5 w-3.5" /></button><button onClick={() => setEditingMemberId(null)} className="text-destructive"><X className="h-3.5 w-3.5" /></button></div>
                                 ) : (
-                                  <div className="flex items-center gap-2 group/name"><span className="text-sm font-black uppercase tracking-tight truncate">{m.userName}</span>{user?.uid === activeGroup?.createdBy && (<button onClick={() => { setEditingMemberId(m.userId); setEditedMemberName(m.userName); }} className="opacity-0 group-hover/name:opacity-100 text-muted-foreground hover:text-primary transition-opacity"><Pencil className="h-3 w-3" /></button>)}</div>
+                                  <div className="flex items-center gap-2 group/name"><span className="text-sm font-black uppercase tracking-tight truncate">{m.userName}</span>{user?.uid === activeGroup?.createdBy && (<button onClick={() => { setEditingMemberId(m.userId); setEditedMemberName(m.userName); }} className="opacity-0 group-hover/name:opacity-100 text-muted-foreground hover:text-primary transition-opacity"><Pencil className="h-3.5 w-3.5" /></button>)}</div>
                                 )}{m.userId === activeGroup?.createdBy && <span className="text-[8px] font-black uppercase text-orange-600">Room Admin</span>}
                               </div>
                             </div>
@@ -1063,6 +1063,8 @@ export default function SplitPayPage() {
         </div>
       )}
 
+      {/* --- Modals Section --- */}
+
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
         <DialogContent className="rounded-3xl max-w-[95vw] sm:max-w-md">
           <DialogHeader><DialogTitle className="text-2xl font-black tracking-tighter">Initialize Room</DialogTitle><DialogDescription className="text-sm font-medium">Setup a private collaborative workspace.</DialogDescription></DialogHeader>
@@ -1070,6 +1072,148 @@ export default function SplitPayPage() {
           <DialogFooter><Button onClick={handleCreateRoom} disabled={isProcessing} className="w-full h-12 rounded-2xl font-black">{isProcessing ? <Loader2 className="animate-spin h-5 w-5" /> : "Launch Room"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={isManualRoomModalOpen} onOpenChange={setIsManualRoomModalOpen}>
+        <DialogContent className="rounded-3xl max-w-[95vw] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black tracking-tighter">Manual Ledger</DialogTitle>
+            <DialogDescription className="text-sm font-medium">Create a standalone ledger with virtual members.</DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-6">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest">Room Name</Label>
+              <Input placeholder="e.g. FAMILY EXPENSES" value={manualRoomName} onChange={e => setManualRoomName(e.target.value)} className="h-11 rounded-xl uppercase font-bold" />
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-[10px] font-black uppercase tracking-widest">Virtual Members</Label>
+                <Button variant="ghost" size="sm" onClick={handleManualAddMember} className="h-7 text-[10px] font-black uppercase text-primary gap-1"><Plus className="h-3 w-3" /> Add</Button>
+              </div>
+              <ScrollArea className="max-h-[200px] border rounded-2xl p-2 bg-muted/20">
+                <div className="space-y-2">
+                  {manualMembers.map((m, idx) => (
+                    <div key={m.id} className="flex gap-2 items-center">
+                      <Input 
+                        placeholder={`Member ${idx + 1}`} 
+                        value={m.name} 
+                        onChange={e => {
+                          const updated = [...manualMembers];
+                          updated[idx].name = e.target.value;
+                          setManualMembers(updated);
+                        }} 
+                        className="h-9 text-[11px] font-bold uppercase rounded-lg"
+                      />
+                      {manualMembers.length > 2 && (
+                        <Button variant="ghost" size="icon" onClick={() => handleManualRemoveMember(m.id)} className="h-8 w-8 text-destructive opacity-40 hover:opacity-100"><X className="h-4 w-4" /></Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          </div>
+          <DialogFooter><Button onClick={handleCreateManualRoom} disabled={isProcessing} className="w-full h-12 rounded-2xl font-black">{isProcessing ? <Loader2 className="animate-spin h-5 w-5" /> : "Launch Manual Room"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isJoiningModalOpen} onOpenChange={setIsJoiningModalOpen}>
+        <DialogContent className="rounded-3xl max-w-[95vw] sm:max-w-md">
+          <DialogHeader><DialogTitle className="text-2xl font-black tracking-tighter">Join Shared Room</DialogTitle><DialogDescription className="text-sm font-medium">Enter the Room ID to sync with an existing shared ledger.</DialogDescription></DialogHeader>
+          <div className="py-6 space-y-4"><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest">Room ID</Label><Input placeholder="e.g. A1B2C3D4" value={joinCode} onChange={e => setJoinCode(e.target.value)} className="h-12 rounded-2xl uppercase font-bold tracking-widest text-center text-lg" /></div></div>
+          <DialogFooter><Button onClick={handleJoinRoom} disabled={isProcessing} className="w-full h-12 rounded-2xl font-black">{isProcessing ? <Loader2 className="animate-spin h-5 w-5" /> : "Sync Membership"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isStatsModalOpen} onOpenChange={setIsStatsModalOpen}>
+        <DialogContent className="max-w-[95vw] sm:max-w-3xl rounded-3xl p-0 overflow-hidden">
+          <DialogHeader className="bg-muted/30 border-b py-4 px-6">
+             <DialogTitle className="text-xl font-black tracking-tighter flex items-center gap-2"><BarChart3 className="h-5 w-5 text-primary" /> Shared Room Insights</DialogTitle>
+             <DialogDescription className="text-[10px] uppercase font-bold tracking-tight">Strategy performance & allocation tallies</DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[80vh]">
+            <div className="p-6 space-y-8">
+              <div className="grid gap-6 md:grid-cols-2">
+                <Card className="rounded-2xl shadow-sm border-none bg-muted/10 p-5">
+                   <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-4">Contribution vs Consumption</p>
+                   <div className="h-[200px] w-full">
+                     {stats && stats.contributionData.length > 0 ? (
+                       <ResponsiveContainer width="100%" height="100%">
+                         <PieChart>
+                            <Pie data={stats.contributionData} innerRadius={40} outerRadius={60} paddingAngle={5} dataKey="value">
+                              {stats.contributionData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                            </Pie>
+                            <Tooltip />
+                            <Legend verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold' }} />
+                         </PieChart>
+                       </ResponsiveContainer>
+                     ) : <div className="h-full flex items-center justify-center opacity-30 italic text-xs">No contribution logs yet</div>}
+                   </div>
+                </Card>
+
+                <Card className="rounded-2xl shadow-sm border-none bg-muted/10 p-5">
+                   <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-4">Expense Categorization</p>
+                   <div className="h-[200px] w-full">
+                     {stats && stats.categorySpendData.length > 0 ? (
+                       <ResponsiveContainer width="100%" height="100%">
+                         <PieChart>
+                            <Pie data={stats.categorySpendData} innerRadius={40} outerRadius={60} paddingAngle={5} dataKey="value">
+                              {stats.categorySpendData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                            </Pie>
+                            <Tooltip />
+                            <Legend verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold' }} />
+                         </PieChart>
+                       </ResponsiveContainer>
+                     ) : <div className="h-full flex items-center justify-center opacity-30 italic text-xs">No category data yet</div>}
+                   </div>
+                </Card>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Detailed Allocation Ledger</p>
+                <div className="grid gap-2">
+                  {stats?.balances.map(b => (
+                    <div key={b.userId} className="flex items-center justify-between p-4 rounded-2xl border bg-card shadow-sm group">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-xs">{(b.userName || 'U')[0].toUpperCase()}</div>
+                        <span className="font-bold text-sm">{b.userName}</span>
+                      </div>
+                      <div className="flex items-center gap-8">
+                        <div className="text-right"><p className="text-[8px] font-black uppercase opacity-40">Paid</p><p className="text-xs font-black">₹{b.paid.toFixed(0)}</p></div>
+                        <div className="text-right"><p className="text-[8px] font-black uppercase opacity-40">Usage</p><p className="text-xs font-black">₹{b.share.toFixed(0)}</p></div>
+                        <div className="text-right w-20"><p className="text-[8px] font-black uppercase opacity-40">Net</p><p className={cn("text-xs font-black", b.net > 0 ? "text-green-600" : b.net < 0 ? "text-red-600" : "text-muted-foreground")}>{b.net > 0 ? `+${b.net.toFixed(0)}` : b.net.toFixed(0)}</p></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </ScrollArea>
+          <div className="p-4 border-t bg-muted/10 flex justify-end">
+            <Button variant="secondary" onClick={() => setIsStatsModalOpen(false)} className="rounded-xl font-black h-9 text-[10px] uppercase px-6">Close Insights</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAddMemberModalOpen} onOpenChange={setIsAddMemberModalOpen}>
+        <DialogContent className="rounded-3xl max-w-[95vw] sm:max-w-sm">
+          <DialogHeader><DialogTitle className="text-xl font-black tracking-tighter">Add Member</DialogTitle><DialogDescription className="text-xs">Add a new virtual participant to this room.</DialogDescription></DialogHeader>
+          <div className="py-4"><Input placeholder="DISPLAY NAME" value={newMemberName} onChange={e => setNewMemberName(e.target.value)} className="h-11 rounded-xl uppercase font-bold" autoFocus onKeyDown={e => e.key === 'Enter' && handleAddMemberManually()} /></div>
+          <DialogFooter><Button onClick={handleAddMemberManually} disabled={!newMemberName.trim()} className="w-full h-11 rounded-xl font-black shadow-md">Add to Ledger</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!roomToDelete} onOpenChange={v => !v && setRoomToDelete(null)}>
+        <AlertDialogContent className="rounded-3xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-black">Decommission Shared Room?</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs font-medium">This will permanently erase all expense tallies and membership records for this room. This action cannot be reversed.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl font-bold">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteRoom} className="rounded-xl font-black bg-destructive hover:bg-destructive/90 text-white">Permanently Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }
