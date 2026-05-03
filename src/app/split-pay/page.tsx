@@ -506,37 +506,58 @@ export default function SplitPayPage() {
   };
 
   const handleCreateManualRoom = async () => {
-    if (!manualRoomName.trim() || manualMembers.length < 1 || !user || !db) return;
+    if (!user || !db) {
+      toast({ variant: "destructive", title: "Auth Error", description: "You must be signed in." });
+      return;
+    }
+    
+    if (!manualRoomName.trim()) {
+      toast({ variant: "destructive", title: "Name Required", description: "Please enter a room name." });
+      return;
+    }
+
+    if (manualMembers.some(m => !(m.name || '').trim())) {
+       toast({ variant: "destructive", title: "Invalid Members", description: "All members must have names." });
+       return;
+    }
+
     setIsProcessing(true);
-    
-    const roomId = Math.random().toString(36).substring(2, 10).toUpperCase();
-    const groupRef = doc(db, 'sharedGroups', roomId);
-    
-    const roomMembers = manualMembers.map((m, idx) => ({
-      userId: idx === 0 && m.name.toLowerCase() === 'me' ? user.uid : `virtual_${Math.random().toString(36).substring(2, 7)}`,
-      userName: m.name.toUpperCase()
-    }));
+    try {
+      const roomId = Math.random().toString(36).substring(2, 10).toUpperCase();
+      const groupRef = doc(db, 'sharedGroups', roomId);
+      
+      const roomMembers = manualMembers.map((m, idx) => ({
+        userId: (idx === 0 && (m.name || '').toLowerCase() === 'me') ? user.uid : `virtual_${Math.random().toString(36).substring(2, 7)}`,
+        userName: (m.name || '').trim().toUpperCase()
+      }));
 
-    const newRoom = {
-      id: roomId,
-      name: await encryptData(manualRoomName.trim().toUpperCase(), user.uid),
-      createdBy: user.uid,
-      creatorName: userName,
-      memberUids: [user.uid],
-      members: roomMembers,
-      isEncrypted: true,
-      isManual: true,
-      createdAt: new Date().toISOString()
-    };
+      const encryptedName = await encryptData(manualRoomName.trim().toUpperCase(), user.uid);
 
-    setDocumentNonBlocking(groupRef, newRoom, { merge: true });
-    
-    setManualRoomName('');
-    setManualMemberCount('2');
-    setIsManualRoomModalOpen(false);
-    setSelectedGroupId(roomId);
-    setIsProcessing(false);
-    toast({ title: "Manual Ledger Launched" });
+      const newRoom = {
+        id: roomId,
+        name: encryptedName,
+        createdBy: user.uid,
+        creatorName: userName,
+        memberUids: [user.uid],
+        members: roomMembers,
+        isEncrypted: true,
+        isManual: true,
+        createdAt: new Date().toISOString()
+      };
+
+      setDocumentNonBlocking(groupRef, newRoom, { merge: true });
+      
+      setManualRoomName('');
+      setManualMembers([{ id: '1', name: 'Me', share: '' }, { id: '2', name: 'Member 2', share: '' }]);
+      setManualMemberCount('2');
+      setIsManualRoomModalOpen(false);
+      setSelectedGroupId(roomId);
+      toast({ title: "Manual Ledger Launched" });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Creation Failed", description: error.message });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleUpdateRoomName = async () => {
@@ -894,7 +915,7 @@ export default function SplitPayPage() {
                             <div className="min-w-0">
                               <h4 className={cn("font-black text-xl truncate tracking-tight", debt.isPaid && "line-through text-muted-foreground opacity-70")}>{debt.debtorName}</h4>
                               <div className="text-[10px] text-muted-foreground font-black uppercase tracking-widest flex items-center gap-2">
-                                {debt.description || "Secured Note"} <Separator orientation="vertical" className="h-2" /> {new Date(debt.createdAt).toLocaleDateString()}
+                                <span className="truncate max-w-[200px]">{debt.description || "Secured Note"}</span> <Separator orientation="vertical" className="h-2" /> {new Date(debt.createdAt).toLocaleDateString()}
                               </div>
                             </div>
                           </div>
@@ -1037,7 +1058,7 @@ export default function SplitPayPage() {
                   {stats?.balances.map(b => (
                     <Card key={b.userId} className={cn("rounded-3xl border-none ring-1 shadow-md transition-all", b.net > 0 ? "ring-green-500/30 bg-green-50/10" : b.net < 0 ? "ring-red-500/30 bg-red-50/10" : "ring-border")}>
                       <CardHeader className="pb-2"><CardTitle className="text-base font-black flex items-center gap-3"><div className={cn("h-8 w-8 rounded-xl border flex items-center justify-center font-black", activeGroup?.isManual ? "bg-secondary text-secondary-foreground" : "bg-background text-primary")}>{(b.userName || 'U')[0].toUpperCase()}</div>{b.userName}</CardTitle></CardHeader>
-                      <CardContent className="space-y-4"><div className="grid grid-cols-2 gap-2 text-[10px] font-black uppercase opacity-60"><div className="p-2 bg-background rounded-xl border">Paid: ₹{b.paid.toLocaleString()}</div><div className="p-2 bg-background rounded-xl border">Share: ₹{b.share.toLocaleString()}</div></div><div className="pt-3 border-t"><p className="text-[9px] font-black uppercase tracking-widest opacity-60">Net Ledger Balance</p><div className="flex items-center justify-between"><p className={cn("text-2xl font-black tracking-tighter", b.net > 0 ? "text-green-600" : b.net < 0 ? "text-red-600" : "text-muted-foreground")}>{b.net > 0 ? `+₹${b.net.toFixed(0)}` : b.net < 0 ? `-₹${Math.abs(b.net).toFixed(0)}` : 'Settled'}</p>{b.net > 0 ? <TrendingUp className="h-6 w-6 text-green-600 opacity-20" /> : <TrendingDown className="h-6 w-6 text-red-600 opacity-20" />}</div></div></CardContent>
+                      <CardContent className="space-y-4"><div className="grid grid-cols-2 gap-2 text-[10px] font-black uppercase opacity-60"><div className="p-2 bg-background rounded-xl border">Paid: ₹{b.paid.toLocaleString()}</div><div className="p-2 bg-background rounded-xl border">Share: ₹{b.share.toLocaleString()}</div></div><div className="pt-3 border-t"><p className="text-[9px] font-black uppercase tracking-widest opacity-60">Net Ledger Balance</p><div className="flex items-center justify-between"><p className={cn("text-2xl font-black tracking-tighter", b.net > 0 ? `+₹${b.net.toFixed(0)}` : b.net < 0 ? `-₹${Math.abs(b.net).toFixed(0)}` : 'Settled')}>{b.net > 0 ? <TrendingUp className="h-6 w-6 text-green-600 opacity-20" /> : <TrendingDown className="h-6 w-6 text-red-600 opacity-20" />}</p></div></div></CardContent>
                       {b.net < 0 && b.userId === user?.uid && (<CardFooter className="pt-0"><Select onValueChange={(toUid) => handleSettle(b.userId, b.userName, toUid, Math.abs(b.net))}><SelectTrigger className="h-10 text-[10px] font-black uppercase rounded-xl"><SelectValue placeholder="Settle Bill To..." /></SelectTrigger><SelectContent>{(Array.isArray(activeGroup?.members) ? activeGroup.members : []).filter((m: any) => m.userId !== b.userId).map((m: any) => (<SelectItem key={m.userId} value={m.userId} className="text-[10px] font-black">{m.userName}</SelectItem>))}</SelectContent></Select></CardFooter>)}
                     </Card>
                   ))}
@@ -1140,7 +1161,7 @@ export default function SplitPayPage() {
                        <ResponsiveContainer width="100%" height="100%">
                          <PieChart>
                             <Pie data={stats.contributionData} innerRadius={40} outerRadius={60} paddingAngle={5} dataKey="value">
-                              {stats.contributionData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                              {stats.contributionData.map((entry: any, index: number) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                             </Pie>
                             <Tooltip />
                             <Legend verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold' }} />
@@ -1157,7 +1178,7 @@ export default function SplitPayPage() {
                        <ResponsiveContainer width="100%" height="100%">
                          <PieChart>
                             <Pie data={stats.categorySpendData} innerRadius={40} outerRadius={60} paddingAngle={5} dataKey="value">
-                              {stats.categorySpendData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                              {stats.categorySpendData.map((entry: any, index: number) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                             </Pie>
                             <Tooltip />
                             <Legend verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold' }} />

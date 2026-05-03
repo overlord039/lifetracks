@@ -719,7 +719,7 @@ export default function SalaryPlannerPage() {
                           ].map(item => (
                             <div key={item.label} className="p-2 md:p-3 border rounded-2xl bg-muted/5 text-center space-y-1">
                               <p className="text-[7px] md:text-[8px] font-black text-muted-foreground uppercase truncate">{item.label}</p>
-                              <p className="text-[10px] md:text-xs font-black tracking-tighter">₹{Math.round(item.amt).toLocaleString()}</p>
+                              <p className="text-[10px] font-black tracking-tighter">₹{Math.round(item.amt).toLocaleString()}</p>
                               <span className="text-[8px] md:text-[9px] font-black text-primary">{item.p}%</span>
                             </div>
                           ))}
