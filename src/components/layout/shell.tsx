@@ -107,24 +107,38 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Settings2 className="h-4 w-4" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent side="right" align="start" className="w-64 p-0 rounded-2xl shadow-2xl border-none ring-1 ring-border overflow-hidden">
+              <PopoverContent side="right" align="start" className="w-[340px] p-0 rounded-3xl shadow-2xl border-none ring-1 ring-border overflow-hidden">
                 <div className="p-4 bg-muted/30 border-b">
                   <h3 className="text-sm font-black uppercase tracking-tight">Workspace Layout</h3>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase mt-0.5">Toggle Visible Sections</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase mt-0.5">Customize Sidebar Sections</p>
                 </div>
-                <ScrollArea className="max-h-[300px]">
-                  <div className="p-2 space-y-0.5">
+                <ScrollArea className="max-h-[400px]">
+                  <div className="p-3 grid grid-cols-3 gap-2">
                     {navItems.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between p-2 rounded-xl hover:bg-muted/50 transition-colors group">
-                        <div className="flex items-center gap-2.5">
-                          <div className="p-1.5 bg-background rounded-lg border shadow-sm group-hover:border-primary/30 transition-colors">
-                            <item.icon className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <div 
+                        key={item.id} 
+                        className={cn(
+                          "flex flex-col items-center justify-between p-3 rounded-2xl border transition-all duration-300 hover:bg-muted/50 group",
+                          visibleSections[item.id] === false ? "bg-muted/10 opacity-60" : "bg-card shadow-sm"
+                        )}
+                      >
+                        <div className="flex flex-col items-center gap-2 mb-3">
+                          <div className={cn(
+                            "p-2 bg-background rounded-xl border shadow-inner transition-colors",
+                            visibleSections[item.id] !== false ? "group-hover:border-primary/30 text-primary" : "text-muted-foreground"
+                          )}>
+                            <item.icon className="h-4 w-4" />
                           </div>
-                          <Label htmlFor={`nav-${item.id}`} className="font-bold text-[11px] uppercase tracking-tighter cursor-pointer">{item.title}</Label>
+                          <Label 
+                            htmlFor={`nav-${item.id}`} 
+                            className="font-black text-[8px] uppercase tracking-widest text-center leading-tight cursor-pointer line-clamp-2 h-6 flex items-center"
+                          >
+                            {item.title}
+                          </Label>
                         </div>
                         <Switch 
                           id={`nav-${item.id}`} 
-                          className="scale-75 origin-right" 
+                          className="scale-[0.65] origin-center" 
                           checked={visibleSections[item.id] !== false} 
                           onCheckedChange={() => toggleSection(item.id)} 
                         />
@@ -133,7 +147,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </div>
                 </ScrollArea>
                 <div className="p-3 bg-primary/5 border-t">
-                   <p className="text-[9px] font-black text-primary uppercase text-center tracking-widest">Layout Saved Locally</p>
+                   <p className="text-[9px] font-black text-primary uppercase text-center tracking-[0.2em]">Local Persistence Enabled</p>
                 </div>
               </PopoverContent>
             </Popover>
