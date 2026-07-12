@@ -390,395 +390,391 @@ export default function BudgetPage() {
     toast({ title: "Export Complete" });
   };
 
-  if (!mounted) {
-    return (
-      <AppShell>
-        <div className="flex h-[60vh] w-full items-center justify-center flex-col gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Opening Privacy Vault...</p>
-        </div>
-      </AppShell>
-    );
-  }
-
   const isDailyEnabled = decryptedBudget?.isDailyLimitEnabled !== false;
 
   return (
     <AppShell>
-      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-12">
-        <div className="lg:col-span-8 flex flex-col gap-4">
-          <Card className={cn("shadow-lg border-t-4 border-t-primary rounded-2xl overflow-hidden transition-opacity", isDecrypting && "opacity-60")}>
-            <CardHeader className="bg-muted/30 pb-3 md:pb-4 px-4 md:px-6 flex flex-row items-center justify-between space-y-0">
-              <div className="space-y-0.5">
-                <CardTitle className="flex items-center gap-2 text-base md:text-lg font-black tracking-tight"><Wallet className="h-5 w-5 text-primary" /> Monthly Vault</CardTitle>
-                <CardDescription className="text-[10px] uppercase font-bold tracking-tight">Protected targets for {monthName}.</CardDescription>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 border-r pr-3 sm:pr-4 border-dashed h-8">
-                   <div className="flex flex-col items-end">
-                      <Label className="text-[8px] font-black uppercase tracking-wider text-muted-foreground leading-none">Weekend</Label>
-                      {decryptedBudget?.isWeekendExtraBudgetEnabled && <span className="text-[9px] font-black text-primary leading-none mt-1">+₹{calculatedWeekendBonus}</span>}
-                   </div>
-                   <Switch className="scale-75 origin-right" checked={decryptedBudget?.isWeekendExtraBudgetEnabled || false} onCheckedChange={(checked) => saveMonthlyBudget({ isWeekendExtraBudgetEnabled: checked })} />
+      {!mounted ? (
+        <div className="flex h-[60vh] w-full items-center justify-center flex-col gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Opening Privacy Vault...</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-12">
+          <div className="lg:col-span-8 flex flex-col gap-4">
+            <Card className={cn("shadow-lg border-t-4 border-t-primary rounded-2xl overflow-hidden transition-opacity", isDecrypting && "opacity-60")}>
+              <CardHeader className="bg-muted/30 pb-3 md:pb-4 px-4 md:px-6 flex flex-row items-center justify-between space-y-0">
+                <div className="space-y-0.5">
+                  <CardTitle className="flex items-center gap-2 text-base md:text-lg font-black tracking-tight"><Wallet className="h-5 w-5 text-primary" /> Monthly Vault</CardTitle>
+                  <CardDescription className="text-[10px] uppercase font-bold tracking-tight">Protected targets for {monthName}.</CardDescription>
                 </div>
-                <div className="flex items-center gap-2 border-r pr-3 sm:pr-4 border-dashed h-8">
-                   <div className="flex flex-col items-end">
-                      <Label className="text-[8px] font-black uppercase tracking-wider text-muted-foreground leading-none">Tracking</Label>
-                      <span className="text-[8px] text-primary/60 font-black uppercase leading-none mt-1">{isDailyEnabled ? "Rolling" : "Pool"}</span>
-                   </div>
-                   <Switch className="scale-75 origin-right" checked={isDailyEnabled} onCheckedChange={(checked) => saveMonthlyBudget({ isDailyLimitEnabled: checked })} />
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 border-r pr-3 sm:pr-4 border-dashed h-8">
+                     <div className="flex flex-col items-end">
+                        <Label className="text-[8px] font-black uppercase tracking-wider text-muted-foreground leading-none">Weekend</Label>
+                        {decryptedBudget?.isWeekendExtraBudgetEnabled && <span className="text-[9px] font-black text-primary leading-none mt-1">+₹{calculatedWeekendBonus}</span>}
+                     </div>
+                     <Switch className="scale-75 origin-right" checked={decryptedBudget?.isWeekendExtraBudgetEnabled || false} onCheckedChange={(checked) => saveMonthlyBudget({ isWeekendExtraBudgetEnabled: checked })} />
+                  </div>
+                  <div className="flex items-center gap-2 border-r pr-3 sm:pr-4 border-dashed h-8">
+                     <div className="flex flex-col items-end">
+                        <Label className="text-[8px] font-black uppercase tracking-wider text-muted-foreground leading-none">Tracking</Label>
+                        <span className="text-[8px] text-primary/60 font-black uppercase leading-none mt-1">{isDailyEnabled ? "Rolling" : "Pool"}</span>
+                     </div>
+                     <Switch className="scale-75 origin-right" checked={isDailyEnabled} onCheckedChange={(checked) => saveMonthlyBudget({ isDailyLimitEnabled: checked })} />
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => setIsActivityModalOpen(true)}
+                    className="h-8 w-8 relative hover:bg-primary/10 transition-all ml-1 group"
+                    title="View Activity History"
+                  >
+                    <History className="h-4 w-4 text-primary group-hover:rotate-[-15deg] transition-transform" />
+                    {decryptedExpenses?.length > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[7px] font-black text-white ring-2 ring-background">
+                        {decryptedExpenses.length}
+                      </span>
+                    )}
+                  </Button>
                 </div>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => setIsActivityModalOpen(true)}
-                  className="h-8 w-8 relative hover:bg-primary/10 transition-all ml-1 group"
-                  title="View Activity History"
-                >
-                  <History className="h-4 w-4 text-primary group-hover:rotate-[-15deg] transition-transform" />
-                  {decryptedExpenses?.length > 0 && (
-                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[7px] font-black text-white ring-2 ring-background">
-                      {decryptedExpenses.length}
-                    </span>
-                  )}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4 md:space-y-6 pt-4 md:pt-6 px-4 md:px-6">
-              <div className="grid gap-4 md:grid-cols-1">
-                <div className="space-y-3">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Expense Pool (E2EE)</Label>
-                  {decryptedBudget?.totalBudgetAmount > 0 ? (
-                    <div className="space-y-3 md:space-y-4">
-                      <div className="grid grid-cols-2 gap-2 md:gap-3">
-                        <div className="p-2 md:p-3 border rounded-xl bg-muted/20">
-                          <span className="text-muted-foreground block text-[8px] md:text-[9px] uppercase font-black">Base</span>
-                          <span className="font-black text-xs md:text-sm">₹{decryptedBudget.baseBudgetAmount.toLocaleString()}</span>
-                        </div>
-                        <div className="p-2 md:p-3 border rounded-xl bg-muted/20">
-                          <span className="text-muted-foreground block text-[8px] md:text-[9px] uppercase font-black">Extra</span>
-                          <span className="font-black text-xs md:text-sm text-primary">₹{decryptedBudget.extraBudgetAmount.toLocaleString()}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-12 md:h-14 px-3 md:px-4 py-2 rounded-2xl border bg-primary/5 font-black text-xl md:text-2xl flex items-center justify-between shadow-inner">
-                          <span className="text-[8px] md:text-[9px] uppercase text-primary font-black">Total</span>
-                          <span className="tracking-tighter">₹{decryptedBudget.totalBudgetAmount.toLocaleString()}</span>
-                        </div>
-                        <Button variant="outline" size="icon" onClick={() => setIsAddingExtra(!isAddingExtra)} className={cn("h-12 w-12 md:h-14 md:w-14 rounded-2xl", isAddingExtra && "bg-primary text-white")}>
-                          {isAddingExtra ? <X className="h-4 w-4 md:h-5 md:w-5" /> : <Plus className="h-4 w-4 md:h-5 md:w-5" />}
-                        </Button>
-                      </div>
-                      {isAddingExtra && (
-                        <div className="p-3 md:p-4 border rounded-2xl bg-primary/5 animate-in slide-in-from-top-2">
-                          <Label className="text-[9px] md:text-[10px] font-black uppercase mb-2 md:mb-3 block text-primary">Add Private Extra</Label>
-                          <div className="flex gap-2">
-                            <Input type="number" placeholder="₹ Amount" value={extraAmount} onChange={(e) => setExtraAmount(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddExtra()} autoFocus className="h-10 text-sm" />
-                            <Button onClick={handleAddExtra} className="h-10 font-bold px-4 text-xs">Add</Button>
+              </CardHeader>
+              <CardContent className="space-y-4 md:space-y-6 pt-4 md:pt-6 px-4 md:px-6">
+                <div className="grid gap-4 md:grid-cols-1">
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Expense Pool (E2EE)</Label>
+                    {decryptedBudget?.totalBudgetAmount > 0 ? (
+                      <div className="space-y-3 md:space-y-4">
+                        <div className="grid grid-cols-2 gap-2 md:gap-3">
+                          <div className="p-2 md:p-3 border rounded-xl bg-muted/20">
+                            <span className="text-muted-foreground block text-[8px] md:text-[9px] uppercase font-black">Base</span>
+                            <span className="font-black text-xs md:text-sm">₹{decryptedBudget.baseBudgetAmount.toLocaleString()}</span>
+                          </div>
+                          <div className="p-2 md:p-3 border rounded-xl bg-muted/20">
+                            <span className="text-muted-foreground block text-[8px] md:text-[9px] uppercase font-black">Extra</span>
+                            <span className="font-black text-xs md:text-sm text-primary">₹{decryptedBudget.extraBudgetAmount.toLocaleString()}</span>
                           </div>
                         </div>
-                      )}
-                    </div>
-                  ) : !isDecrypting ? (
-                    <div className="flex gap-2">
-                      <Input type="number" placeholder="Enter Monthly Limit..." value={tempInitialBudget} onChange={(e) => setTempInitialBudget(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSetInitialBudget()} className="h-12 text-base md:text-lg font-bold rounded-xl" />
-                      <Button onClick={handleSetInitialBudget} className="h-12 font-bold px-4 md:px-6 rounded-xl">Set</Button>
-                    </div>
-                  ) : (
-                    <div className="h-12 w-full animate-pulse bg-muted rounded-xl" />
-                  )}
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="bg-muted/10 grid grid-cols-2 gap-4 py-4 md:py-5 border-t px-4 md:px-6">
-              <div className="flex flex-col"><span className="text-muted-foreground text-[8px] md:text-[9px] uppercase font-black tracking-widest">Net Month Pool</span><span className="text-lg md:text-xl font-black tracking-tighter">₹{remainingNetPool.toFixed(0)}</span></div>
-              {isDailyEnabled && (
-                <div className="flex flex-col border-l pl-4"><span className="text-muted-foreground text-[8px] md:text-[9px] uppercase font-black tracking-widest">Daily Base Limit</span><span className="text-lg md:text-xl font-black tracking-tighter">₹{dailyBase.toFixed(0)}</span></div>
-              )}
-            </CardFooter>
-          </Card>
-
-          <Card className={cn("shadow-lg rounded-2xl border-none ring-1 ring-border overflow-hidden transition-all", (editingExpenseId || editingFixedId) ? "ring-2 ring-orange-400 bg-orange-50/10" : "")}>
-            <Tabs value={activeInputTab} onValueChange={setActiveInputTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 h-11 p-1 bg-muted/30 rounded-none border-b">
-                <TabsTrigger value="logger" className="rounded-none font-black text-[10px] uppercase gap-2 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                  <Wallet className="h-3.5 w-3.5" /> Expense Logger
-                </TabsTrigger>
-                <TabsTrigger value="fixed" className="rounded-none font-black text-[10px] uppercase gap-2 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                  <ReceiptText className="h-3.5 w-3.5" /> Fixed Vault
-                </TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="logger" className="mt-0 p-4 md:p-6 space-y-4 animate-in fade-in slide-in-from-left-2">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Private Description</Label>
-                    <Input placeholder="What was this for?..." value={newExpense.description} onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })} className="h-11 text-[11px] md:text-sm rounded-xl" />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Category Label</Label>
-                      <Select value={newExpense.categoryId} onValueChange={(val) => setNewExpense({ ...newExpense, categoryId: val })}>
-                        <SelectTrigger className="h-11 text-[11px] rounded-xl"><SelectValue placeholder="Select Label" /></SelectTrigger>
-                        <SelectContent>{allCategories.map(cat => <SelectItem key={cat.id} value={cat.id} className="font-bold">{cat.name}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Strategy Pillar</Label>
-                      <Select value={newExpense.allocationBucket} onValueChange={(val) => setNewExpense({ ...newExpense, allocationBucket: val })}>
-                        <SelectTrigger className="h-11 text-[11px] rounded-xl"><SelectValue placeholder="Select Pillar" /></SelectTrigger>
-                        <SelectContent>
-                          {ALLOCATION_BUCKETS.map(b => (
-                            <SelectItem key={b.id} value={b.id}>
-                              <div className="flex items-center gap-2">
-                                <b.icon className={cn("h-3 w-3", b.color)} />
-                                <span className="text-[10px] font-bold uppercase">{b.label}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Amount (₹)</Label>
-                      <Input type="number" placeholder="0.00" value={newExpense.amount} onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })} className="h-11 text-base md:text-lg font-black tracking-tighter rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={handleLogExpense} className={cn("flex-1 h-12 font-black shadow-md rounded-2xl text-xs", editingExpenseId && "bg-orange-500 hover:bg-orange-600")} disabled={loading}>
-                      {loading ? "Encrypting..." : editingExpenseId ? "Update Record" : "Log Daily Spent"}
-                    </Button>
-                    {editingExpenseId && <Button variant="outline" className="h-12 px-4 rounded-2xl" onClick={() => { setEditingExpenseId(null); setNewExpense({ description: '', amount: '', categoryId: '', allocationBucket: 'expense' }); }}><X className="h-5 w-5" /></Button>}
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="fixed" className="mt-0 p-4 md:p-6 space-y-4 animate-in fade-in slide-in-from-right-2">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Item Name (Optional)</Label>
-                    <Input placeholder="Rent, SIP, Insurance, etc. ..." value={newFixed.name} onChange={(e) => setNewFixed({ ...newFixed, name: e.target.value })} className="h-11 text-[11px] md:text-sm rounded-xl" />
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Category Label</Label>
-                      <Select value={newFixed.categoryId} onValueChange={(val) => setNewFixed({ ...newFixed, categoryId: val })}>
-                        <SelectTrigger className="h-11 text-[11px] rounded-xl"><SelectValue placeholder="Select Label" /></SelectTrigger>
-                        <SelectContent>{allCategories.map(cat => <SelectItem key={cat.id} value={cat.id} className="font-bold">{cat.name}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Strategy Pillar</Label>
-                      <Select value={newFixed.allocationBucket} onValueChange={(val) => setNewFixed({ ...newFixed, allocationBucket: val })}>
-                        <SelectTrigger className="h-11 text-[11px] rounded-xl"><SelectValue placeholder="Select Pillar" /></SelectTrigger>
-                        <SelectContent>
-                          {ALLOCATION_BUCKETS.map(b => (
-                            <SelectItem key={b.id} value={b.id}>
-                              <div className="flex items-center gap-2">
-                                <b.icon className={cn("h-3 w-3", b.color)} />
-                                <span className="text-[10px] font-bold uppercase">{b.label}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Amount (₹)</Label>
-                      <Input type="number" placeholder="0.00" value={newFixed.amount} onChange={(e) => setNewFixed({ ...newFixed, amount: e.target.value })} className="h-11 text-base md:text-lg font-black tracking-tighter rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Button onClick={addFixedExpense} className={cn("flex-1 h-12 font-black shadow-md rounded-2xl text-xs", editingFixedId && "bg-orange-500 hover:bg-orange-600")} disabled={loading}>
-                      {loading ? "Encrypting..." : editingFixedId ? "Update Fixed Cost" : "Secure Fixed Record"}
-                    </Button>
-                    {editingFixedId && <Button variant="outline" className="h-12 px-4 rounded-2xl" onClick={() => { setEditingFixedId(null); setNewFixed({ name: '', amount: '', categoryId: '', allocationBucket: 'expense' }); }}><X className="h-5 w-5" /></Button>}
-                  </div>
-
-                  <Separator className="my-2" />
-                  
-                  <div className="space-y-3">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Fixed Records History</p>
-                    <ScrollArea className="h-[200px] border rounded-2xl bg-muted/10">
-                      <Table>
-                        <TableBody>
-                          {decryptedFixed?.length ? decryptedFixed.map((expense) => {
-                            const bucket = ALLOCATION_BUCKETS.find(b => b.id === expense.allocationBucket) || ALLOCATION_BUCKETS[0];
-                            const catName = allCategories.find(c => c.id === expense.expenseCategoryId)?.name || 'MISC';
-                            return (
-                              <TableRow key={expense.id} className={cn("h-12 hover:bg-muted/20", editingFixedId === expense.id && "bg-orange-50/50")}>
-                                <TableCell className="py-2">
-                                  <div className="flex flex-col">
-                                    <span className="font-bold text-[11px] truncate max-w-[120px]">{expense.name || 'UNNAMED'}</span>
-                                    <span className="text-[7px] uppercase font-black text-muted-foreground flex items-center gap-1"><Tag className="h-2 w-2" /> {catName}</span>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="py-2">
-                                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-background/50 border border-dashed w-fit">
-                                    <bucket.icon className={cn("h-2.5 w-2.5", bucket.color)} />
-                                    <span className="text-[8px] font-black uppercase tracking-tighter opacity-70">{bucket.label}</span>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-[11px] font-black py-2">₹{expense.amount.toLocaleString()}</TableCell>
-                                <TableCell className="w-16 text-right py-2">
-                                  <div className="flex items-center justify-end gap-1">
-                                    <Button variant="ghost" size="icon" onClick={() => {
-                                      setEditingFixedId(expense.id);
-                                      setNewFixed({
-                                        name: expense.name,
-                                        amount: expense.amount.toString(),
-                                        categoryId: expense.expenseCategoryId,
-                                        allocationBucket: expense.allocationBucket || 'expense'
-                                      });
-                                    }} className="h-8 w-8 text-muted-foreground hover:text-primary">
-                                      <Pencil className="h-3.5 w-3.5" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" onClick={() => deleteDocumentNonBlocking(doc(fixedExpensesRef!, expense.id))} className="h-8 w-8 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          }) : <TableRow><TableCell className="text-center py-12 text-[10px] italic text-muted-foreground">No secure fixed items found.</TableCell></TableRow>}
-                        </TableBody>
-                      </Table>
-                    </ScrollArea>
-                  </div>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </Card>
-        </div>
-
-        <div className="lg:col-span-4 flex flex-col gap-4">
-          <SustainableTodayCard isOverspentToday={isOverspentToday} isWithinBudget={isWithinBudget} todayStr={todayStr} dailyAllocationToday={dailyAllocationToday} todayReport={todayReport} isDailyEnabled={isDailyEnabled} remainingNetPool={remainingNetPool} totalSpentThisMonth={totalSpentThisMonth} monthName={monthName} isDecrypting={isDecrypting} />
-          
-          <Card className="shadow-lg rounded-2xl border-none ring-1 ring-border overflow-hidden">
-            <CardHeader className="bg-muted/30 border-b py-2.5 px-4">
-              <CardTitle className="text-sm md:text-base flex items-center gap-2 font-black">
-                <LayoutGrid className="h-4 w-4 text-primary" /> Label Vault
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4 md:pt-6 px-4">
-              <Tabs defaultValue="daily" onValueChange={(v) => setNewCategory({ ...newCategory, type: v as any })}>
-                <TabsList className="grid w-full grid-cols-2 mb-4 md:mb-6 h-9 md:h-10 p-1 bg-muted rounded-xl"><TabsTrigger value="daily" className="rounded-lg font-bold text-[11px] md:text-xs">Daily</TabsTrigger><TabsTrigger value="fixed" className="rounded-lg font-bold text-[11px] md:text-xs">Fixed</TabsTrigger></TabsList>
-                
-                <div className="space-y-3 mb-4 md:mb-6">
-                  <div className="flex gap-2">
-                    <Input placeholder="New private label..." value={newCategory.name} onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && addCategory()} className="h-9 text-[11px]" />
-                    <Button size="icon" onClick={addCategory} className="h-9 w-9 shrink-0 rounded-xl"><Plus className="h-4 w-4" /></Button>
-                  </div>
-                  {newCategory.type === 'daily' && (
-                    <div className="flex items-center justify-between px-1">
-                      <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                        <Lock className="h-3 w-3" /> Isolation Mode (Private)
-                      </Label>
-                      <Switch 
-                        checked={newCategory.isPrivate} 
-                        onCheckedChange={(checked) => setNewCategory({ ...newCategory, isPrivate: checked })}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <TabsContent value="daily" className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-right-2">
-                  {decryptedCategories.filter(c => c.type === 'daily').map(c => (
-                    <div key={c.id} className="flex items-center gap-1.5 pl-2 pr-1 py-1 bg-primary/10 text-primary rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-tighter border border-primary/20 whitespace-nowrap">
-                      <button 
-                        onClick={() => toggleCategoryPrivacy(c.id, c.isPrivate)}
-                        title={c.isPrivate ? "Make Public (Visible to Split Pay)" : "Make Private (Isolated from Split Pay)"}
-                        className={cn(
-                          "p-1 rounded-full transition-all duration-200",
-                          c.isPrivate ? "bg-primary text-white shadow-sm" : "text-primary/40 hover:text-primary hover:bg-primary/10"
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-12 md:h-14 px-3 md:px-4 py-2 rounded-2xl border bg-primary/5 font-black text-xl md:text-2xl flex items-center justify-between shadow-inner">
+                            <span className="text-[8px] md:text-[9px] uppercase text-primary font-black">Total</span>
+                            <span className="tracking-tighter">₹{decryptedBudget.totalBudgetAmount.toLocaleString()}</span>
+                          </div>
+                          <Button variant="outline" size="icon" onClick={() => setIsAddingExtra(!isAddingExtra)} className={cn("h-12 w-12 md:h-14 md:w-14 rounded-2xl", isAddingExtra && "bg-primary text-white")}>
+                            {isAddingExtra ? <X className="h-4 w-4 md:h-5 md:w-5" /> : <Plus className="h-4 w-4 md:h-5 md:w-5" />}
+                          </Button>
+                        </div>
+                        {isAddingExtra && (
+                          <div className="p-3 md:p-4 border rounded-2xl bg-primary/5 animate-in slide-in-from-top-2">
+                            <Label className="text-[9px] md:text-[10px] font-black uppercase mb-2 md:mb-3 block text-primary">Add Private Extra</Label>
+                            <div className="flex gap-2">
+                              <Input type="number" placeholder="₹ Amount" value={extraAmount} onChange={(e) => setExtraAmount(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddExtra()} autoFocus className="h-10 text-sm" />
+                              <Button onClick={handleAddExtra} className="h-10 font-bold px-4 text-xs">Add</Button>
+                            </div>
+                          </div>
                         )}
-                      >
-                        <Lock className="h-2.5 w-2.5" />
-                      </button>
-                      <span className="px-1">{c.name}</span>
-                      <button onClick={() => deleteDocumentNonBlocking(doc(categoriesRef!, c.id))} className="ml-1 text-destructive p-1 hover:bg-destructive/10 rounded-full transition-colors"><Trash2 className="h-3 w-3" /></button>
+                      </div>
+                    ) : !isDecrypting ? (
+                      <div className="flex gap-2">
+                        <Input type="number" placeholder="Enter Monthly Limit..." value={tempInitialBudget} onChange={(e) => setTempInitialBudget(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSetInitialBudget()} className="h-12 text-base md:text-lg font-bold rounded-xl" />
+                        <Button onClick={handleSetInitialBudget} className="h-12 font-bold px-4 md:px-6 rounded-xl">Set</Button>
+                      </div>
+                    ) : (
+                      <div className="h-12 w-full animate-pulse bg-muted rounded-xl" />
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter className="bg-muted/10 grid grid-cols-2 gap-4 py-4 md:py-5 border-t px-4 md:px-6">
+                <div className="flex flex-col"><span className="text-muted-foreground text-[8px] md:text-[9px] uppercase font-black tracking-widest">Net Month Pool</span><span className="text-lg md:text-xl font-black tracking-tighter">₹{remainingNetPool.toFixed(0)}</span></div>
+                {isDailyEnabled && (
+                  <div className="flex flex-col border-l pl-4"><span className="text-muted-foreground text-[8px] md:text-[9px] uppercase font-black tracking-widest">Daily Base Limit</span><span className="text-lg md:text-xl font-black tracking-tighter">₹{dailyBase.toFixed(0)}</span></div>
+                )}
+              </CardFooter>
+            </Card>
+
+            <Card className={cn("shadow-lg rounded-2xl border-none ring-1 ring-border overflow-hidden transition-all", (editingExpenseId || editingFixedId) ? "ring-2 ring-orange-400 bg-orange-50/10" : "")}>
+              <Tabs value={activeInputTab} onValueChange={setActiveInputTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-2 h-11 p-1 bg-muted/30 rounded-none border-b">
+                  <TabsTrigger value="logger" className="rounded-none font-black text-[10px] uppercase gap-2 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary">
+                    <Wallet className="h-3.5 w-3.5" /> Expense Logger
+                  </TabsTrigger>
+                  <TabsTrigger value="fixed" className="rounded-none font-black text-[10px] uppercase gap-2 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary">
+                    <ReceiptText className="h-3.5 w-3.5" /> Fixed Vault
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="logger" className="mt-0 p-4 md:p-6 space-y-4 animate-in fade-in slide-in-from-left-2">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Private Description</Label>
+                      <Input placeholder="What was this for?..." value={newExpense.description} onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })} className="h-11 text-[11px] md:text-sm rounded-xl" />
                     </div>
-                  ))}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Category Label</Label>
+                        <Select value={newExpense.categoryId} onValueChange={(val) => setNewExpense({ ...newExpense, categoryId: val })}>
+                          <SelectTrigger className="h-11 text-[11px] rounded-xl"><SelectValue placeholder="Select Label" /></SelectTrigger>
+                          <SelectContent>{allCategories.map(cat => <SelectItem key={cat.id} value={cat.id} className="font-bold">{cat.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Strategy Pillar</Label>
+                        <Select value={newExpense.allocationBucket} onValueChange={(val) => setNewExpense({ ...newExpense, allocationBucket: val })}>
+                          <SelectTrigger className="h-11 text-[11px] rounded-xl"><SelectValue placeholder="Select Pillar" /></SelectTrigger>
+                          <SelectContent>
+                            {ALLOCATION_BUCKETS.map(b => (
+                              <SelectItem key={b.id} value={b.id}>
+                                <div className="flex items-center gap-2">
+                                  <b.icon className={cn("h-3 w-3", b.color)} />
+                                  <span className="text-[10px] font-bold uppercase">{b.label}</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Amount (₹)</Label>
+                        <Input type="number" placeholder="0.00" value={newExpense.amount} onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })} className="h-11 text-base md:text-lg font-black tracking-tighter rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={handleLogExpense} className={cn("flex-1 h-12 font-black shadow-md rounded-2xl text-xs", editingExpenseId && "bg-orange-500 hover:bg-orange-600")} disabled={loading}>
+                        {loading ? "Encrypting..." : editingExpenseId ? "Update Record" : "Log Daily Spent"}
+                      </Button>
+                      {editingExpenseId && <Button variant="outline" className="h-12 px-4 rounded-2xl" onClick={() => { setEditingExpenseId(null); setNewExpense({ description: '', amount: '', categoryId: '', allocationBucket: 'expense' }); }}><X className="h-5 w-5" /></Button>}
+                    </div>
+                  </div>
                 </TabsContent>
-                <TabsContent value="fixed" className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-left-2">
-                  {decryptedCategories.filter(c => c.type === 'fixed').map(c => (
-                    <div key={c.id} className="flex items-center gap-1.5 pl-3 pr-1 py-1 bg-secondary/20 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-tighter border border-secondary/30 whitespace-nowrap">
-                      {c.name}
-                      <button onClick={() => deleteDocumentNonBlocking(doc(categoriesRef!, c.id))} className="ml-1 text-destructive p-0.5 hover:bg-destructive/10 rounded-full transition-colors"><Trash2 className="h-3 w-3" /></button>
+
+                <TabsContent value="fixed" className="mt-0 p-4 md:p-6 space-y-4 animate-in fade-in slide-in-from-right-2">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Item Name (Optional)</Label>
+                      <Input placeholder="Rent, SIP, Insurance, etc. ..." value={newFixed.name} onChange={(e) => setNewFixed({ ...newFixed, name: e.target.value })} className="h-11 text-[11px] md:text-sm rounded-xl" />
                     </div>
-                  ))}
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Category Label</Label>
+                        <Select value={newFixed.categoryId} onValueChange={(val) => setNewFixed({ ...newFixed, categoryId: val })}>
+                          <SelectTrigger className="h-11 text-[11px] rounded-xl"><SelectValue placeholder="Select Label" /></SelectTrigger>
+                          <SelectContent>{allCategories.map(cat => <SelectItem key={cat.id} value={cat.id} className="font-bold">{cat.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Strategy Pillar</Label>
+                        <Select value={newFixed.allocationBucket} onValueChange={(val) => setNewFixed({ ...newFixed, allocationBucket: val })}>
+                          <SelectTrigger className="h-11 text-[11px] rounded-xl"><SelectValue placeholder="Select Pillar" /></SelectTrigger>
+                          <SelectContent>
+                            {ALLOCATION_BUCKETS.map(b => (
+                              <SelectItem key={b.id} value={b.id}>
+                                <div className="flex items-center gap-2">
+                                  <b.icon className={cn("h-3 w-3", b.color)} />
+                                  <span className="text-[10px] font-bold uppercase">{b.label}</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Amount (₹)</Label>
+                        <Input type="number" placeholder="0.00" value={newFixed.amount} onChange={(e) => setNewFixed({ ...newFixed, amount: e.target.value })} className="h-11 text-base md:text-lg font-black tracking-tighter rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <Button onClick={addFixedExpense} className={cn("flex-1 h-12 font-black shadow-md rounded-2xl text-xs", editingFixedId && "bg-orange-500 hover:bg-orange-600")} disabled={loading}>
+                        {loading ? "Encrypting..." : editingFixedId ? "Update Fixed Cost" : "Secure Fixed Record"}
+                      </Button>
+                      {editingFixedId && <Button variant="outline" className="h-12 px-4 rounded-2xl" onClick={() => { setEditingFixedId(null); setNewFixed({ name: '', amount: '', categoryId: '', allocationBucket: 'expense' }); }}><X className="h-5 w-5" /></Button>}
+                    </div>
+
+                    <Separator className="my-2" />
+                    
+                    <div className="space-y-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Fixed Records History</p>
+                      <ScrollArea className="h-[200px] border rounded-2xl bg-muted/10">
+                        <Table>
+                          <TableBody>
+                            {decryptedFixed?.length ? decryptedFixed.map((expense) => {
+                              const bucket = ALLOCATION_BUCKETS.find(b => b.id === expense.allocationBucket) || ALLOCATION_BUCKETS[0];
+                              const catName = allCategories.find(c => c.id === expense.expenseCategoryId)?.name || 'MISC';
+                              return (
+                                <TableRow key={expense.id} className={cn("h-12 hover:bg-muted/20", editingFixedId === expense.id && "bg-orange-50/50")}>
+                                  <TableCell className="py-2">
+                                    <div className="flex flex-col">
+                                      <span className="font-bold text-[11px] truncate max-w-[120px]">{expense.name || 'UNNAMED'}</span>
+                                      <span className="text-[7px] uppercase font-black text-muted-foreground flex items-center gap-1"><Tag className="h-2 w-2" /> {catName}</span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-2">
+                                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-background/50 border border-dashed w-fit">
+                                      <bucket.icon className={cn("h-2.5 w-2.5", bucket.color)} />
+                                      <span className="text-[8px] font-black uppercase tracking-tighter opacity-70">{bucket.label}</span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-[11px] font-black py-2">₹{expense.amount.toLocaleString()}</TableCell>
+                                  <TableCell className="w-16 text-right py-2">
+                                    <div className="flex items-center justify-end gap-1">
+                                      <Button variant="ghost" size="icon" onClick={() => {
+                                        setEditingFixedId(expense.id);
+                                        setNewFixed({
+                                          name: expense.name,
+                                          amount: expense.amount.toString(),
+                                          categoryId: expense.expenseCategoryId,
+                                          allocationBucket: expense.allocationBucket || 'expense'
+                                        });
+                                      }} className="h-8 w-8 text-muted-foreground hover:text-primary">
+                                        <Pencil className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon" onClick={() => deleteDocumentNonBlocking(doc(fixedExpensesRef!, expense.id))} className="h-8 w-8 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            }) : <TableRow><TableCell className="text-center py-12 text-[10px] italic text-muted-foreground">No secure fixed items found.</TableCell></TableRow>}
+                          </TableBody>
+                        </Table>
+                      </ScrollArea>
+                    </div>
+                  </div>
                 </TabsContent>
               </Tabs>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      <Dialog open={isActivityModalOpen} onOpenChange={setIsActivityModalOpen}>
-        <DialogContent className="max-w-3xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
-          <DialogHeader className="bg-muted/30 border-b py-4 px-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <DialogTitle className="text-base flex items-center gap-2 font-black">
-                  <History className="h-5 w-5 text-primary" />
-                  Transaction Ledger
-                </DialogTitle>
-                <DialogDescription className="text-[10px] uppercase font-bold tracking-tight">Comprehensive history of your secured spends</DialogDescription>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={downloadActivityCsv} className="h-8 px-3 text-[10px] font-black uppercase gap-2 bg-background shadow-sm hover:bg-primary/5">
-                  <Download className="h-3.5 w-3.5 text-primary" /> Export CSV
-                </Button>
-                <Badge variant="outline" className="text-[10px] font-black uppercase px-3 py-1 bg-background h-8">
-                  {decryptedExpenses?.length || 0} Records
-                </Badge>
-              </div>
-            </div>
-          </DialogHeader>
-          <ScrollArea className="h-[60vh] w-full">
-            <Table>
-              <TableHeader className="bg-muted/50 sticky top-0 z-10">
-                <TableRow className="h-10">
-                  <TableHead className="text-[10px] font-black uppercase tracking-widest px-6">Date</TableHead>
-                  <TableHead className="text-[10px] font-black uppercase tracking-widest px-6">Item Details</TableHead>
-                  <TableHead className="text-[10px] font-black uppercase tracking-widest px-6">Amount</TableHead>
-                  <TableHead className="w-20 text-right px-6"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {decryptedExpenses?.length ? [...decryptedExpenses].sort((a,b) => b.date.localeCompare(a.date)).map((exp) => (
-                  <TableRow key={exp.id} className={cn("h-14 text-[12px] hover:bg-muted/30 group", editingExpenseId === exp.id && "bg-orange-50/50")}>
-                    <TableCell className="text-muted-foreground font-black px-6">{format(new Date(exp.date), 'dd MMM yyyy')}</TableCell>
-                    <TableCell className="px-6">
-                      <div className="flex flex-col gap-1">
-                        <span className="font-bold truncate max-w-[200px] text-sm">{exp.description || 'SECURED ITEM'}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[8px] uppercase font-black px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/10">{exp.allocationBucket}</span>
-                          <span className="text-[8px] uppercase font-black px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-muted-foreground/10">
-                            {allCategories.find(c => c.id === exp.expenseCategoryId)?.name || 'MISC'}
-                          </span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-black text-sm px-6">₹{exp.amount.toLocaleString()}</TableCell>
-                    <TableCell className="text-right px-6">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" onClick={() => { setEditingExpenseId(exp.id); setNewExpense({ description: exp.description || '', amount: exp.amount.toString(), categoryId: exp.expenseCategoryId, allocationBucket: exp.allocationBucket || 'expense' }); setIsActivityModalOpen(false); }} className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors"><Pencil className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => deleteDocumentNonBlocking(doc(expensesRef!, exp.id))} className="h-8 w-8 hover:bg-destructive/10 text-destructive transition-colors"><Trash2 className="h-4 w-4" /></Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )) : (
-                  <TableRow><TableCell colSpan={4} className="text-center py-24 text-muted-foreground uppercase font-black text-[10px] tracking-widest italic">No activity recorded</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-          <div className="p-4 border-t bg-muted/10 flex justify-end">
-            <Button variant="secondary" onClick={() => setIsActivityModalOpen(false)} className="rounded-xl font-black h-9 text-[10px] uppercase px-6">Close Ledger</Button>
+            </Card>
           </div>
-        </DialogContent>
-      </Dialog>
+
+          <div className="lg:col-span-4 flex flex-col gap-4">
+            <SustainableTodayCard isOverspentToday={isOverspentToday} isWithinBudget={isWithinBudget} todayStr={todayStr} dailyAllocationToday={dailyAllocationToday} todayReport={todayReport} isDailyEnabled={isDailyEnabled} remainingNetPool={remainingNetPool} totalSpentThisMonth={totalSpentThisMonth} monthName={monthName} isDecrypting={isDecrypting} />
+            
+            <Card className="shadow-lg rounded-2xl border-none ring-1 ring-border overflow-hidden">
+              <CardHeader className="bg-muted/30 border-b py-2.5 px-4">
+                <CardTitle className="text-sm md:text-base flex items-center gap-2 font-black">
+                  <LayoutGrid className="h-4 w-4 text-primary" /> Label Vault
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 md:pt-6 px-4">
+                <Tabs defaultValue="daily" onValueChange={(v) => setNewCategory({ ...newCategory, type: v as any })}>
+                  <TabsList className="grid w-full grid-cols-2 mb-4 md:mb-6 h-9 md:h-10 p-1 bg-muted rounded-xl"><TabsTrigger value="daily" className="rounded-lg font-bold text-[11px] md:text-xs">Daily</TabsTrigger><TabsTrigger value="fixed" className="rounded-lg font-bold text-[11px] md:text-xs">Fixed</TabsTrigger></TabsList>
+                  
+                  <div className="space-y-3 mb-4 md:mb-6">
+                    <div className="flex gap-2">
+                      <Input placeholder="New private label..." value={newCategory.name} onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && addCategory()} className="h-9 text-[11px]" />
+                      <Button size="icon" onClick={addCategory} className="h-9 w-9 shrink-0 rounded-xl"><Plus className="h-4 w-4" /></Button>
+                    </div>
+                    {newCategory.type === 'daily' && (
+                      <div className="flex items-center justify-between px-1">
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                          <Lock className="h-3 w-3" /> Isolation Mode (Private)
+                        </Label>
+                        <Switch 
+                          checked={newCategory.isPrivate} 
+                          onCheckedChange={(checked) => setNewCategory({ ...newCategory, isPrivate: checked })}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <TabsContent value="daily" className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-right-2">
+                    {decryptedCategories.filter(c => c.type === 'daily').map(c => (
+                      <div key={c.id} className="flex items-center gap-1.5 pl-2 pr-1 py-1 bg-primary/10 text-primary rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-tighter border border-primary/20 whitespace-nowrap">
+                        <button 
+                          onClick={() => toggleCategoryPrivacy(c.id, c.isPrivate)}
+                          title={c.isPrivate ? "Make Public (Visible to Split Pay)" : "Make Private (Isolated from Split Pay)"}
+                          className={cn(
+                            "p-1 rounded-full transition-all duration-200",
+                            c.isPrivate ? "bg-primary text-white shadow-sm" : "text-primary/40 hover:text-primary hover:bg-primary/10"
+                          )}
+                        >
+                          <Lock className="h-2.5 w-2.5" />
+                        </button>
+                        <span className="px-1">{c.name}</span>
+                        <button onClick={() => deleteDocumentNonBlocking(doc(categoriesRef!, c.id))} className="ml-1 text-destructive p-1 hover:bg-destructive/10 rounded-full transition-colors"><Trash2 className="h-3 w-3" /></button>
+                      </div>
+                    ))}
+                  </TabsContent>
+                  <TabsContent value="fixed" className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-left-2">
+                    {decryptedCategories.filter(c => c.type === 'fixed').map(c => (
+                      <div key={c.id} className="flex items-center gap-1.5 pl-3 pr-1 py-1 bg-secondary/20 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-tighter border border-secondary/30 whitespace-nowrap">
+                        {c.name}
+                        <button onClick={() => deleteDocumentNonBlocking(doc(categoriesRef!, c.id))} className="ml-1 text-destructive p-0.5 hover:bg-destructive/10 rounded-full transition-colors"><Trash2 className="h-3 w-3" /></button>
+                      </div>
+                    ))}
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Dialog open={isActivityModalOpen} onOpenChange={setIsActivityModalOpen}>
+            <DialogContent className="max-w-3xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
+              <DialogHeader className="bg-muted/30 border-b py-4 px-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <DialogTitle className="text-base flex items-center gap-2 font-black">
+                      <History className="h-5 w-5 text-primary" />
+                      Transaction Ledger
+                    </DialogTitle>
+                    <DialogDescription className="text-[10px] uppercase font-bold tracking-tight">Comprehensive history of your secured spends</DialogDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={downloadActivityCsv} className="h-8 px-3 text-[10px] font-black uppercase gap-2 bg-background shadow-sm hover:bg-primary/5">
+                      <Download className="h-3.5 w-3.5 text-primary" /> Export CSV
+                    </Button>
+                    <Badge variant="outline" className="text-[10px] font-black uppercase px-3 py-1 bg-background h-8">
+                      {decryptedExpenses?.length || 0} Records
+                    </Badge>
+                  </div>
+                </div>
+              </DialogHeader>
+              <ScrollArea className="h-[60vh] w-full">
+                <Table>
+                  <TableHeader className="bg-muted/50 sticky top-0 z-10">
+                    <TableRow className="h-10">
+                      <TableHead className="text-[10px] font-black uppercase tracking-widest px-6">Date</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase tracking-widest px-6">Item Details</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase tracking-widest px-6">Amount</TableHead>
+                      <TableHead className="w-20 text-right px-6"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {decryptedExpenses?.length ? [...decryptedExpenses].sort((a,b) => b.date.localeCompare(a.date)).map((exp) => (
+                      <TableRow key={exp.id} className={cn("h-14 text-[12px] hover:bg-muted/30 group", editingExpenseId === exp.id && "bg-orange-50/50")}>
+                        <TableCell className="text-muted-foreground font-black px-6">{format(new Date(exp.date), 'dd MMM yyyy')}</TableCell>
+                        <TableCell className="px-6">
+                          <div className="flex flex-col gap-1">
+                            <span className="font-bold truncate max-w-[200px] text-sm">{exp.description || 'SECURED ITEM'}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[8px] uppercase font-black px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/10">{exp.allocationBucket}</span>
+                              <span className="text-[8px] uppercase font-black px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-muted-foreground/10">
+                                {allCategories.find(c => c.id === exp.expenseCategoryId)?.name || 'MISC'}
+                              </span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-black text-sm px-6">₹{exp.amount.toLocaleString()}</TableCell>
+                        <TableCell className="text-right px-6">
+                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button variant="ghost" size="icon" onClick={() => { setEditingExpenseId(exp.id); setNewExpense({ description: exp.description || '', amount: exp.amount.toString(), categoryId: exp.expenseCategoryId, allocationBucket: exp.allocationBucket || 'expense' }); setIsActivityModalOpen(false); }} className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors"><Pencil className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" onClick={() => deleteDocumentNonBlocking(doc(expensesRef!, exp.id))} className="h-8 w-8 hover:bg-destructive/10 text-destructive transition-colors"><Trash2 className="h-4 w-4" /></Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )) : (
+                      <TableRow><TableCell colSpan={4} className="text-center py-24 text-muted-foreground uppercase font-black text-[10px] tracking-widest italic">No activity recorded</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+              <div className="p-4 border-t bg-muted/10 flex justify-end">
+                <Button variant="secondary" onClick={() => setIsActivityModalOpen(false)} className="rounded-xl font-black h-9 text-[10px] uppercase px-6">Close Ledger</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      )}
     </AppShell>
   );
 }

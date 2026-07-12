@@ -168,115 +168,113 @@ export default function Dashboard() {
   const totalOwed = useMemo(() => decryptedDebts?.filter(d => !d.isPaid).reduce((sum, d) => sum + d.amount, 0) || 0, [decryptedDebts]);
   const hasActiveGoals = !!(learningGoals && learningGoals.length > 0);
 
-  if (!mounted) {
-    return (
-      <AppShell>
+  return (
+    <AppShell>
+      {!mounted ? (
         <div className="flex h-[60vh] w-full items-center justify-center flex-col gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Unlocking Vault...</p>
         </div>
-      </AppShell>
-    );
-  }
-
-  return (
-    <AppShell>
-      <div className="grid gap-4 md:gap-6 lg:grid-cols-12 mb-4 md:mb-6">
-        <div className={cn("space-y-4 md:space-y-6", hasActiveGoals ? "lg:col-span-7" : "lg:col-span-12")}>
-          <Link href="/reports" className="block group">
-            <Card className="shadow-lg overflow-hidden border-none ring-1 ring-border group-hover:ring-primary/30 transition-all duration-300 rounded-2xl">
-              <CardHeader className="bg-muted/30 border-b py-3 md:py-4 px-4 md:px-6">
-                <CardTitle className="text-sm md:text-base font-black flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-primary" />
-                  Budget Insight
-                </CardTitle>
-                <CardDescription className="text-[9px] md:text-[10px] font-medium uppercase tracking-tight">
-                  {isDecrypting ? "Syncing metrics..." : "Real-time performance metrics"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 md:p-6 space-y-4 md:space-y-6">
-                <div className={cn(
-                  "p-4 md:p-5 rounded-2xl border transition-all grid grid-cols-2 gap-4",
-                  isDecrypting ? "opacity-50 grayscale" : (
-                    baseRemaining >= 0 
-                      ? 'bg-green-50/50 border-green-100 dark:bg-green-950/20 dark:border-green-900/30' 
-                      : 'bg-red-50/50 border-red-100 dark:bg-red-950/20 dark:border-red-900/30'
-                  )
-                )}>
-                  <div className="flex items-center gap-3">
+      ) : (
+        <>
+          <div className="grid gap-4 md:gap-6 lg:grid-cols-12 mb-4 md:mb-6">
+            <div className={cn("space-y-4 md:space-y-6", hasActiveGoals ? "lg:col-span-7" : "lg:col-span-12")}>
+              <Link href="/reports" className="block group">
+                <Card className="shadow-lg overflow-hidden border-none ring-1 ring-border group-hover:ring-primary/30 transition-all duration-300 rounded-2xl">
+                  <CardHeader className="bg-muted/30 border-b py-3 md:py-4 px-4 md:px-6">
+                    <CardTitle className="text-sm md:text-base font-black flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-primary" />
+                      Budget Insight
+                    </CardTitle>
+                    <CardDescription className="text-[9px] md:text-[10px] font-medium uppercase tracking-tight">
+                      {isDecrypting ? "Syncing metrics..." : "Real-time performance metrics"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-4 md:p-6 space-y-4 md:space-y-6">
                     <div className={cn(
-                      "p-2 rounded-xl shadow-sm",
-                      baseRemaining >= 0 
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400' 
-                        : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400'
+                      "p-4 md:p-5 rounded-2xl border transition-all grid grid-cols-2 gap-4",
+                      isDecrypting ? "opacity-50 grayscale" : (
+                        baseRemaining >= 0 
+                          ? 'bg-green-50/50 border-green-100 dark:bg-green-950/20 dark:border-green-900/30' 
+                          : 'bg-red-50/50 border-red-100 dark:bg-red-950/20 dark:border-red-900/30'
+                      )
                     )}>
-                      {baseRemaining >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
-                    </div>
-                    <div>
-                      <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground tracking-widest">Base Remaining</p>
-                      <p className={cn(
-                        "text-xl md:text-2xl font-black tracking-tighter",
-                        baseRemaining >= 0 ? "text-green-700" : "text-red-700"
-                      )}>₹{baseRemaining.toFixed(0)}</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col justify-center items-end border-l border-dashed border-muted-foreground/20 pl-4">
-                    <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground tracking-widest">Spent Today</p>
-                    <p className="text-xl md:text-2xl font-black tracking-tighter">₹{spentToday.toFixed(0)}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-0.5 md:space-y-1">
-                    <p className="text-[8px] md:text-[10px] font-bold text-muted-foreground uppercase">Base Target</p>
-                    <p className="text-xs md:text-sm font-black">₹{baseAllocation.toFixed(0)}</p>
-                  </div>
-                  <div className="space-y-0.5 md:space-y-1 text-right">
-                    <p className="text-[8px] md:text-[10px] font-bold text-muted-foreground uppercase">Total Safe</p>
-                    <p className={cn(
-                      "text-xs md:text-sm font-black",
-                      remaining > 0 ? 'text-green-600' : 'text-red-600'
-                    )}>₹{remaining.toFixed(0)}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        </div>
-        {hasActiveGoals && (
-          <div className="lg:col-span-5">
-            <Link href="/learning" className="block group h-full">
-              <Card className="shadow-lg h-full border-none ring-1 ring-border group-hover:ring-primary/30 transition-all duration-300 rounded-2xl">
-                <CardHeader className="bg-muted/30 border-b py-3 md:py-4 px-4 md:px-6">
-                  <CardTitle className="text-sm md:text-base font-black">Active Skills</CardTitle>
-                  <CardDescription className="text-[9px] md:text-[10px] font-medium uppercase tracking-tight">Daily Progress tracker</CardDescription>
-                </CardHeader>
-                <CardContent className="p-4 md:p-6 space-y-3 md:space-y-4">
-                  {learningGoals!.slice(0, 4).map((goal) => {
-                    const p = Math.min(100, Math.round(((goal.completedCount || 0) / (goal.target || 1)) * 100));
-                    return (
-                      <div key={goal.id} className="space-y-1.5">
-                        <div className="flex justify-between items-center text-[10px] md:text-[11px] font-black uppercase tracking-tighter">
-                          <span className="truncate max-w-[70%]">{goal.skill}</span>
-                          <span className="text-muted-foreground">{p}%</span>
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "p-2 rounded-xl shadow-sm",
+                          baseRemaining >= 0 
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400' 
+                            : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400'
+                        )}>
+                          {baseRemaining >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
                         </div>
-                        <Progress value={p} className="h-1 md:h-1.5" />
+                        <div>
+                          <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground tracking-widest">Base Remaining</p>
+                          <p className={cn(
+                            "text-xl md:text-2xl font-black tracking-tighter",
+                            baseRemaining >= 0 ? "text-green-700" : "text-red-700"
+                          )}>₹{baseRemaining.toFixed(0)}</p>
+                        </div>
                       </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-            </Link>
+                      <div className="flex flex-col justify-center items-end border-l border-dashed border-muted-foreground/20 pl-4">
+                        <p className="text-[8px] md:text-[10px] font-black uppercase text-muted-foreground tracking-widest">Spent Today</p>
+                        <p className="text-xl md:text-2xl font-black tracking-tighter">₹{spentToday.toFixed(0)}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-0.5 md:space-y-1">
+                        <p className="text-[8px] md:text-[10px] font-bold text-muted-foreground uppercase">Base Target</p>
+                        <p className="text-xs md:text-sm font-black">₹{baseAllocation.toFixed(0)}</p>
+                      </div>
+                      <div className="space-y-0.5 md:space-y-1 text-right">
+                        <p className="text-[8px] md:text-[10px] font-bold text-muted-foreground uppercase">Total Safe</p>
+                        <p className={cn(
+                          "text-xs md:text-sm font-black",
+                          remaining > 0 ? 'text-green-600' : 'text-red-600'
+                        )}>₹{remaining.toFixed(0)}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            </div>
+            {hasActiveGoals && (
+              <div className="lg:col-span-5">
+                <Link href="/learning" className="block group h-full">
+                  <Card className="shadow-lg h-full border-none ring-1 ring-border group-hover:ring-primary/30 transition-all duration-300 rounded-2xl">
+                    <CardHeader className="bg-muted/30 border-b py-3 md:py-4 px-4 md:px-6">
+                      <CardTitle className="text-sm md:text-base font-black">Active Skills</CardTitle>
+                      <CardDescription className="text-[9px] md:text-[10px] font-medium uppercase tracking-tight">Daily Progress tracker</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-4 md:p-6 space-y-3 md:space-y-4">
+                      {learningGoals!.slice(0, 4).map((goal) => {
+                        const p = Math.min(100, Math.round(((goal.completedCount || 0) / (goal.target || 1)) * 100));
+                        return (
+                          <div key={goal.id} className="space-y-1.5">
+                            <div className="flex justify-between items-center text-[10px] md:text-[11px] font-black uppercase tracking-tighter">
+                              <span className="truncate max-w-[70%]">{goal.skill}</span>
+                              <span className="text-muted-foreground">{p}%</span>
+                            </div>
+                            <Progress value={p} className="h-1 md:h-1.5" />
+                          </div>
+                        );
+                      })}
+                    </CardContent>
+                  </Card>
+                </Link>
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3">
-        {totalOwed > 0 && (
-          <DashboardCard href="/split-pay" title="Split & Debt" value={`₹${totalOwed.toFixed(0)}`} subtext="Receivable total" icon={<HandCoins className="w-4 h-4" />} variant="default" loading={isDecrypting} />
-        )}
-        <DashboardCard href="/learning" title="Skill Mastery" value={`${goalsProgress}%`} subtext="Completion rate" icon={<BookOpen className="w-4 h-4" />} progress={goalsProgress} />
-        <DashboardCard href="/diary" title="Daily Reflection" value={todayDiary ? "Logged" : "Pending"} subtext={todayDiary ? "Well done!" : "Record thoughts"} icon={todayDiary ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />} variant={todayDiary ? "secondary" : "default"} />
-      </div>
+          <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3">
+            {totalOwed > 0 && (
+              <DashboardCard href="/split-pay" title="Split & Debt" value={`₹${totalOwed.toFixed(0)}`} subtext="Receivable total" icon={<HandCoins className="w-4 h-4" />} variant="default" loading={isDecrypting} />
+            )}
+            <DashboardCard href="/learning" title="Skill Mastery" value={`${goalsProgress}%`} subtext="Completion rate" icon={<BookOpen className="w-4 h-4" />} progress={goalsProgress} />
+            <DashboardCard href="/diary" title="Daily Reflection" value={todayDiary ? "Logged" : "Pending"} subtext={todayDiary ? "Well done!" : "Record thoughts"} icon={todayDiary ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />} variant={todayDiary ? "secondary" : "default"} />
+          </div>
+        </>
+      )}
     </AppShell>
   );
 }
