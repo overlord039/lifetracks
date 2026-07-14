@@ -539,6 +539,8 @@ export default function ReportsPage() {
     toast({ title: "Audit Exported", description: "CSV has been saved to your downloads." });
   };
 
+  const weekDiff = weeklyReport.currentWeekSpent - weeklyReport.lastWeekSpent;
+
   return (
     <AppShell>
       {!mounted || (isDecrypting && decryptedExpenses.length === 0) ? (
