@@ -172,6 +172,14 @@ export default function BudgetPage() {
       });
   }, [decryptedCategories]);
 
+  const dailyCategories = useMemo(() => {
+    return decryptedCategories.filter(c => c.type === 'daily');
+  }, [decryptedCategories]);
+
+  const fixedCategories = useMemo(() => {
+    return decryptedCategories.filter(c => c.type === 'fixed');
+  }, [decryptedCategories]);
+
   const totalIncludedFixed = decryptedFixed?.filter(f => f.includeInBudget && (f.allocationBucket || 'expense') === 'expense').reduce((s, f) => s + f.amount, 0) || 0;
   const netMonthlyPool = (decryptedBudget?.totalBudgetAmount || 0) - totalIncludedFixed;
   
@@ -515,7 +523,9 @@ export default function BudgetPage() {
                         <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Category Label</Label>
                         <Select value={newExpense.categoryId} onValueChange={(val) => setNewExpense({ ...newExpense, categoryId: val })}>
                           <SelectTrigger className="h-11 text-[11px] rounded-xl"><SelectValue placeholder="Select Label" /></SelectTrigger>
-                          <SelectContent>{allCategories.map(cat => <SelectItem key={cat.id} value={cat.id} className="font-bold">{cat.name}</SelectItem>)}</SelectContent>
+                          <SelectContent>
+                            {dailyCategories.map(cat => <SelectItem key={cat.id} value={cat.id} className="font-bold">{cat.name}</SelectItem>)}
+                          </SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-2">
@@ -560,7 +570,9 @@ export default function BudgetPage() {
                         <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Category Label</Label>
                         <Select value={newFixed.categoryId} onValueChange={(val) => setNewFixed({ ...newFixed, categoryId: val })}>
                           <SelectTrigger className="h-11 text-[11px] rounded-xl"><SelectValue placeholder="Select Label" /></SelectTrigger>
-                          <SelectContent>{allCategories.map(cat => <SelectItem key={cat.id} value={cat.id} className="font-bold">{cat.name}</SelectItem>)}</SelectContent>
+                          <SelectContent>
+                            {fixedCategories.map(cat => <SelectItem key={cat.id} value={cat.id} className="font-bold">{cat.name}</SelectItem>)}
+                          </SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-2">
