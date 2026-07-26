@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -52,7 +51,8 @@ import {
   Pie,
   Cell,
   LineChart,
-  Line
+  Line,
+  Legend
 } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -401,13 +401,13 @@ export default function CravingMeterPage() {
                   </CardHeader>
                   <CardContent className="h-[250px] pt-6">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={aggregateInsights?.dailyData}>
+                      <RechartsBarChart data={aggregateInsights?.dailyData}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
                         <XAxis dataKey="name" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} />
                         <YAxis fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} />
                         <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '10px', fontWeight: 'bold' }} />
                         <Bar dataKey="calories" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                      </BarChart>
+                      </RechartsBarChart>
                     </ResponsiveContainer>
                   </CardContent>
                 </Card>
