@@ -85,13 +85,30 @@ const CATEGORIES: Record<string, string> = {
 };
 
 const QUICK_SUGGESTIONS = [
-  { name: 'Ice Cream', emoji: '🍦' },
-  { name: 'Pizza', emoji: '🍕' },
-  { name: 'Chocolate', emoji: '🍫' },
-  { name: 'Coke', emoji: '🥤' },
-  { name: 'Burger', emoji: '🍔' },
-  { name: 'Fries', emoji: '🍟' },
-  { name: 'Biryani', emoji: '🍚' }
+  { name: 'Vanilla Ice Cream', emoji: '🍦', calories: 210, price: 35, category: 'desserts' },
+  { name: 'Chocolate Ice Cream', emoji: '🍫', calories: 230, price: 40, category: 'desserts' },
+  { name: 'Ice Cream Sundae', emoji: '🍨', calories: 450, price: 80, category: 'desserts' },
+  { name: 'Coca-Cola', emoji: '🥤', calories: 126, price: 40, category: 'drinks' },
+  { name: 'Pepsi', emoji: '🥤', calories: 126, price: 19, category: 'drinks' },
+  { name: 'Thums Up', emoji: '🥤', calories: 120, price: 40, category: 'drinks' },
+  { name: 'Thums Up (Value)', emoji: '🥤', calories: 135, price: 20, category: 'drinks' },
+  { name: 'Fanta', emoji: '🥤', calories: 125, price: 40, category: 'drinks' },
+  { name: 'Chocolate Milkshake', emoji: '🥛', calories: 380, price: 30, category: 'drinks' },
+  { name: 'Lay\'s Large Pack', emoji: '🍟', calories: 290, price: 20, category: 'snacks' },
+  { name: 'Potato Wafers', emoji: '🍟', calories: 290, price: 40, category: 'snacks' },
+  { name: 'Bingo Chips', emoji: '🍟', calories: 330, price: 50, category: 'snacks' },
+  { name: 'Doritos', emoji: '🌮', calories: 310, price: 60, category: 'snacks' },
+  { name: 'Cream Bun', emoji: '🍞', calories: 280, price: 10, category: 'others' },
+  { name: 'Chicken Fried Rice', emoji: '🍗', calories: 720, price: 250, category: 'fast_food' },
+  { name: 'Gulab Jamun (2 pcs)', emoji: '🍬', calories: 300, price: 60, category: 'desserts' },
+  { name: 'Jalebi', emoji: '🥨', calories: 520, price: 80, category: 'desserts' },
+  { name: 'Rasgulla (2 pcs)', emoji: '🍡', calories: 220, price: 50, category: 'desserts' },
+  { name: 'Laddu (2 pcs)', emoji: '🟠', calories: 420, price: 80, category: 'desserts' },
+  { name: 'Good Day Biscuits', emoji: '🍪', calories: 360, price: 35, category: 'snacks' },
+  { name: 'Bourbon Biscuits', emoji: '🍪', calories: 300, price: 30, category: 'snacks' },
+  { name: 'Marie Gold Biscuits', emoji: '🍪', calories: 270, price: 25, category: 'snacks' },
+  { name: 'Horliks (200ml)', emoji: '🍫', calories: 210, price: 10, category: 'drinks' },
+  { name: 'Bournavita (200ml)', emoji: '🥛', calories: 190, price: 10, category: 'drinks' },
 ];
 
 export default function CravingMeterPage() {
@@ -170,9 +187,12 @@ export default function CravingMeterPage() {
     }
   };
 
-  const handleSuggestionClick = (name: string) => {
-    setDescription(name);
-    handleAIAnalyze(name);
+  const handleSuggestionClick = (item: any) => {
+    setDescription(item.name);
+    setCalories(item.calories.toString());
+    setPrice(item.price.toString());
+    setCategory(item.category);
+    toast({ title: "Template Applied", description: `Baseline for ${item.name} loaded.` });
   };
 
   const getResistCount = (name: string) => {
@@ -301,7 +321,7 @@ export default function CravingMeterPage() {
           </header>
 
           <div className="grid gap-6 lg:grid-cols-12">
-            <div className="lg:col-span-4 space-y-6">
+            <div className="lg:col-span-5 space-y-6">
               <Card className="shadow-xl rounded-3xl border-none ring-1 ring-border overflow-hidden">
                 <CardHeader className="bg-muted/30 border-b pb-4">
                   <CardTitle className="text-base font-black flex items-center gap-2">
@@ -314,31 +334,31 @@ export default function CravingMeterPage() {
                     <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-1">
                       <LayoutGrid className="h-3 w-3" /> Quick Resists
                     </Label>
-                    <div className="flex flex-wrap gap-2">
-                      {QUICK_SUGGESTIONS.map(s => {
-                        const count = getResistCount(s.name);
-                        return (
-                          <button
-                            key={s.name}
-                            onClick={() => handleSuggestionClick(s.name)}
-                            disabled={isAIThinking}
-                            className={cn(
-                              "px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase transition-all flex items-center gap-2 relative",
-                              "hover:border-primary/50 hover:bg-primary/5 active:scale-95 group",
-                              isAIThinking ? "opacity-50 grayscale" : "bg-card shadow-sm"
-                            )}
-                          >
-                            <span>{s.emoji}</span>
-                            <span>{s.name}</span>
-                            {count > 0 && (
-                              <Badge className="h-4 min-w-4 p-0 px-1 bg-orange-500 text-white text-[7px] flex items-center justify-center rounded-full group-hover:scale-110 transition-transform">
-                                {count}
-                              </Badge>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <ScrollArea className="h-[200px] border rounded-2xl p-3 bg-muted/5">
+                      <div className="flex flex-wrap gap-2">
+                        {QUICK_SUGGESTIONS.map(s => {
+                          const count = getResistCount(s.name);
+                          return (
+                            <button
+                              key={s.name}
+                              onClick={() => handleSuggestionClick(s)}
+                              className={cn(
+                                "px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase transition-all flex items-center gap-2 relative",
+                                "hover:border-primary/50 hover:bg-primary/5 active:scale-95 group bg-card shadow-sm"
+                              )}
+                            >
+                              <span>{s.emoji}</span>
+                              <span className="truncate max-w-[120px]">{s.name}</span>
+                              {count > 0 && (
+                                <Badge className="h-4 min-w-4 p-0 px-1 bg-orange-500 text-white text-[7px] flex items-center justify-center rounded-full group-hover:scale-110 transition-transform">
+                                  {count}
+                                </Badge>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </ScrollArea>
                   </div>
 
                   <div className="space-y-4">
@@ -386,16 +406,31 @@ export default function CravingMeterPage() {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase text-muted-foreground">Resisted For</Label>
-                      <Select value={reason} onValueChange={setReason}>
-                        <SelectTrigger className="h-11 rounded-xl font-bold">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {REASONS.map(r => <SelectItem key={r} value={r} className="font-bold">{r}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Category</Label>
+                        <Select value={category} onValueChange={setCategory}>
+                          <SelectTrigger className="h-11 rounded-xl font-bold">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(CATEGORIES).map(([id, label]) => (
+                              <SelectItem key={id} value={id} className="font-bold">{label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Resisted For</Label>
+                        <Select value={reason} onValueChange={setReason}>
+                          <SelectTrigger className="h-11 rounded-xl font-bold">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {REASONS.map(r => <SelectItem key={r} value={r} className="font-bold">{r}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
 
                     <div className="space-y-2">
@@ -444,7 +479,7 @@ export default function CravingMeterPage() {
               </Card>
             </div>
 
-            <div className="lg:col-span-8 space-y-6">
+            <div className="lg:col-span-7 space-y-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <SummaryCard title="Saved Today" value={`₹${dashboardStats.todayMoney}`} icon={<IndianRupee className="h-4 w-4" />} />
                 <SummaryCard title="Avoided Today" value={`${dashboardStats.todayCals} kcal`} icon={<Scale className="h-4 w-4" />} />
