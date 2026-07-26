@@ -169,6 +169,36 @@
         "allocationBucket": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       }
+    },
+    "CravingLog": {
+      "title": "CravingLog",
+      "type": "object",
+      "description": "A log of a resisted food or drink craving.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "date": { "type": "string", "description": "YYYY-MM-DD" },
+        "foodName": { "type": "string", "description": "Encrypted food name" },
+        "quantity": { "type": "string", "description": "Encrypted quantity" },
+        "caloriesAvoided": { "type": "string", "description": "Encrypted calories" },
+        "moneySaved": { "type": "string", "description": "Encrypted money amount" },
+        "reason": { "type": "string" },
+        "notes": { "type": "string", "description": "Encrypted notes" },
+        "category": { "type": "string", "enum": ["drinks", "desserts", "fast_food", "snacks", "others"] },
+        "isEncrypted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "CravingStats": {
+      "title": "CravingStats",
+      "type": "object",
+      "description": "Aggregated stats for cravings.",
+      "properties": {
+        "userId": { "type": "string" },
+        "currentStreak": { "type": "number" },
+        "longestStreak": { "type": "number" },
+        "lastLogDate": { "type": "string" }
+      }
     }
   },
   "auth": {
@@ -185,6 +215,8 @@
       { "path": "/users/{userId}/debts/{debtId}", "definition": { "entityName": "Debt", "description": "Debt records." } },
       { "path": "/users/{userId}/learningGoals/{goalId}", "definition": { "entityName": "LearningGoal", "description": "Learning progress." } },
       { "path": "/users/{userId}/dailyDiaries/{date}", "definition": { "entityName": "DailyDiary", "description": "Diary entries." } },
+      { "path": "/users/{userId}/cravingLogs/{logId}", "definition": { "entityName": "CravingLog", "description": "Resisted craving records." } },
+      { "path": "/users/{userId}/cravingStats/summary", "definition": { "entityName": "CravingStats", "description": "Streak tracking." } },
       { "path": "/sharedGroups/{groupId}", "definition": { "entityName": "SharedGroup", "description": "Collaboration rooms." } },
       { "path": "/sharedGroups/{groupId}/expenses/{expenseId}", "definition": { "entityName": "RoomExpense", "description": "Shared bills." } }
     ]

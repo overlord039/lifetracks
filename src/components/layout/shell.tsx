@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -14,7 +15,8 @@ import {
   Users,
   Settings2,
   Check,
-  X
+  X,
+  Flame
 } from 'lucide-react';
 import { 
   Sidebar, 
@@ -51,6 +53,7 @@ const navItems = [
   { id: 'salary-planner', title: 'Salary Planner', url: '/salary-planner', icon: Calculator },
   { id: 'budget', title: 'Budget', url: '/budget', icon: Wallet },
   { id: 'split-pay', title: 'Split & Debt', url: '/split-pay', icon: Users },
+  { id: 'craving-meter', title: 'Craving Meter', url: '/craving-meter', icon: Flame },
   { id: 'learning', title: 'Learning', url: '/learning', icon: GraduationCap },
   { id: 'diary', title: 'Diary', url: '/diary', icon: BookText },
   { id: 'reports', title: 'Reports', url: '/reports', icon: BarChart3 },

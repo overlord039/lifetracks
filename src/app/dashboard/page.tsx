@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -16,7 +17,10 @@ import {
   Loader2,
   ShieldCheck,
   HandCoins,
-  Users
+  Users,
+  Flame,
+  Zap,
+  Scale
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
@@ -33,6 +37,7 @@ export default function Dashboard() {
   const [decryptedFixed, setDecryptedFixed] = useState<any[]>([]);
   const [decryptedExpenses, setDecryptedExpenses] = useState<any[]>([]);
   const [decryptedDebts, setDecryptedDebts] = useState<any[]>([]);
+  const [decryptedCravingLogs, setDecryptedCravingLogs] = useState<any[]>([]);
   const [isDecrypting, setIsDecrypting] = useState(false);
 
   useEffect(() => {
@@ -79,6 +84,18 @@ export default function Dashboard() {
   }, [firestore, user]);
   const { data: rawDebts } = useCollection(debtsRef);
 
+  const cravingLogsRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, 'users', user.uid, 'cravingLogs');
+  }, [firestore, user]);
+  const { data: rawCravingLogs } = useCollection(cravingLogsRef);
+
+  const cravingStatsRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'users', user.uid, 'cravingStats', 'summary');
+  }, [firestore, user]);
+  const { data: cravingStats } = useDoc(cravingStatsRef);
+
   useEffect(() => {
     const decryptAll = async () => {
       if (!user || !mounted) return;
@@ -122,10 +139,20 @@ export default function Dashboard() {
         setDecryptedDebts(debts);
       }
 
+      if (rawCravingLogs) {
+        const logs = await Promise.all(rawCravingLogs.map(async l => ({
+          ...l,
+          caloriesAvoided: l.isEncrypted ? await decryptNumber(l.caloriesAvoided, user.uid) : (l.caloriesAvoided || 0),
+          moneySaved: l.isEncrypted ? await decryptNumber(l.moneySaved, user.uid) : (l.moneySaved || 0),
+          date: l.date || ''
+        })));
+        setDecryptedCravingLogs(logs);
+      }
+
       setIsDecrypting(false);
     };
     decryptAll();
-  }, [rawBudget, rawFixed, rawExpenses, rawDebts, user, mounted]);
+  }, [rawBudget, rawFixed, rawExpenses, rawDebts, rawCravingLogs, user, mounted]);
 
   const budgetReport = useMemo(() => {
     if (!decryptedBudget || !mounted) return null;
@@ -163,6 +190,14 @@ export default function Dashboard() {
   const rollingAllowance = (todayReport?.baseBudget || 0) + (todayReport?.extraBudget || 0) + (todayReport?.carryForwardFromYesterday || 0);
   const remaining = Math.max(0, rollingAllowance - spentToday);
   const baseRemaining = baseAllocation - spentToday;
+
+  const cravingToday = useMemo(() => {
+    const today = decryptedCravingLogs.filter(l => l.date === todayStr);
+    return {
+      cals: today.reduce((s, l) => s + l.caloriesAvoided, 0),
+      money: today.reduce((s, l) => s + l.moneySaved, 0)
+    };
+  }, [decryptedCravingLogs, todayStr]);
 
   const goalsProgress = learningGoals?.length ? Math.round((learningGoals.filter(g => (g.completedCount || 0) >= (g.target || 0)).length / learningGoals.length) * 100) : 0;
   const totalOwed = useMemo(() => decryptedDebts?.filter(d => !d.isPaid).reduce((sum, d) => sum + d.amount, 0) || 0, [decryptedDebts]);
@@ -221,19 +256,6 @@ export default function Dashboard() {
                         <p className="text-xl md:text-2xl font-black tracking-tighter">₹{spentToday.toFixed(0)}</p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-0.5 md:space-y-1">
-                        <p className="text-[8px] md:text-[10px] font-bold text-muted-foreground uppercase">Base Target</p>
-                        <p className="text-xs md:text-sm font-black">₹{baseAllocation.toFixed(0)}</p>
-                      </div>
-                      <div className="space-y-0.5 md:space-y-1 text-right">
-                        <p className="text-[8px] md:text-[10px] font-bold text-muted-foreground uppercase">Total Safe</p>
-                        <p className={cn(
-                          "text-xs md:text-sm font-black",
-                          remaining > 0 ? 'text-green-600' : 'text-red-600'
-                        )}>₹{remaining.toFixed(0)}</p>
-                      </div>
-                    </div>
                   </CardContent>
                 </Card>
               </Link>
@@ -266,10 +288,17 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3">
-            {totalOwed > 0 && (
-              <DashboardCard href="/split-pay" title="Split & Debt" value={`₹${totalOwed.toFixed(0)}`} subtext="Receivable total" icon={<HandCoins className="w-4 h-4" />} variant="default" loading={isDecrypting} />
-            )}
+          <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
+            <DashboardCard 
+              href="/craving-meter" 
+              title="Craving Meter" 
+              value={`${cravingToday.cals} kcal`} 
+              subtext={`₹${cravingToday.money} Saved | ${cravingStats?.currentStreak || 0}d Streak`} 
+              icon={<Flame className="w-4 h-4" />} 
+              variant="primary" 
+              loading={isDecrypting} 
+            />
+            <DashboardCard href="/split-pay" title="Split & Debt" value={`₹${totalOwed.toFixed(0)}`} subtext="Receivable total" icon={<HandCoins className="w-4 h-4" />} variant="default" loading={isDecrypting} />
             <DashboardCard href="/learning" title="Skill Mastery" value={`${goalsProgress}%`} subtext="Completion rate" icon={<BookOpen className="w-4 h-4" />} progress={goalsProgress} />
             <DashboardCard href="/diary" title="Daily Reflection" value={todayDiary ? "Logged" : "Pending"} subtext={todayDiary ? "Well done!" : "Record thoughts"} icon={todayDiary ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />} variant={todayDiary ? "secondary" : "default"} />
           </div>
