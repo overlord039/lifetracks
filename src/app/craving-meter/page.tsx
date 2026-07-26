@@ -34,7 +34,9 @@ import {
   Weight,
   Heart,
   TrendingDown,
-  Info
+  Info,
+  Legend,
+  LayoutGrid
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -52,7 +54,7 @@ import {
   Cell,
   LineChart,
   Line,
-  Legend
+  Legend as RechartsLegend
 } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -81,6 +83,16 @@ const CATEGORIES: Record<string, string> = {
   snacks: "Snacks",
   others: "Others"
 };
+
+const QUICK_SUGGESTIONS = [
+  { name: 'Ice Cream', emoji: '🍦' },
+  { name: 'Pizza', emoji: '🍕' },
+  { name: 'Chocolate', emoji: '🍫' },
+  { name: 'Coke', emoji: '🥤' },
+  { name: 'Burger', emoji: '🍔' },
+  { name: 'Fries', emoji: '🍟' },
+  { name: 'Biryani', emoji: '🍚' }
+];
 
 export default function CravingMeterPage() {
   const { user } = useUser();
@@ -121,7 +133,10 @@ export default function CravingMeterPage() {
 
   useEffect(() => {
     const decryptAll = async () => {
-      if (!rawLogs || !user || !mounted) return;
+      if (!rawLogs || !user || !mounted) {
+        setDecryptedLogs(rawLogs || []);
+        return;
+      }
       setIsDecrypting(true);
       const logs = await Promise.all(rawLogs.map(async l => ({
         ...l,
@@ -137,11 +152,13 @@ export default function CravingMeterPage() {
     decryptAll();
   }, [rawLogs, user, mounted]);
 
-  const handleAIAnalyze = async () => {
-    if (!description.trim()) return;
+  const handleAIAnalyze = async (customDesc?: string) => {
+    const targetDesc = customDesc || description;
+    if (!targetDesc.trim()) return;
+    
     setIsAIThinking(true);
     try {
-      const result = await estimateCraving({ description });
+      const result = await estimateCraving({ description: targetDesc });
       setCalories(result.calories.toString());
       setPrice(result.estimatedPrice.toString());
       setCategory(result.category);
@@ -151,6 +168,17 @@ export default function CravingMeterPage() {
     } finally {
       setIsAIThinking(false);
     }
+  };
+
+  const handleSuggestionClick = (name: string) => {
+    setDescription(name);
+    handleAIAnalyze(name);
+  };
+
+  const getResistCount = (name: string) => {
+    if (!decryptedLogs) return 0;
+    const normName = name.trim().toUpperCase();
+    return decryptedLogs.filter(l => (l.foodName || '').trim().toUpperCase() === normName).length;
   };
 
   const handleLogCraving = async () => {
@@ -281,81 +309,114 @@ export default function CravingMeterPage() {
                     "I Resisted This!"
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-6 space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase text-muted-foreground">What was the craving?</Label>
-                    <div className="flex gap-2">
-                      <Input 
-                        placeholder="e.g. 1 Pizza slice, Large Coke..." 
-                        value={description} 
-                        onChange={e => setDescription(e.target.value)} 
-                        className="h-11 rounded-xl font-bold"
-                      />
-                      <Button 
-                        variant="outline" 
-                        size="icon" 
-                        onClick={handleAIAnalyze} 
-                        disabled={isAIThinking || !description}
-                        className="h-11 w-11 shrink-0 rounded-xl"
-                      >
-                        {isAIThinking ? <Loader2 className="h-4 w-4 animate-spin" /> : <BrainCircuit className="h-4 w-4 text-primary" />}
-                      </Button>
+                <CardContent className="pt-6 space-y-6 px-4 md:px-6">
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-1">
+                      <LayoutGrid className="h-3 w-3" /> Quick Resists
+                    </Label>
+                    <div className="flex flex-wrap gap-2">
+                      {QUICK_SUGGESTIONS.map(s => {
+                        const count = getResistCount(s.name);
+                        return (
+                          <button
+                            key={s.name}
+                            onClick={() => handleSuggestionClick(s.name)}
+                            disabled={isAIThinking}
+                            className={cn(
+                              "px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase transition-all flex items-center gap-2 relative",
+                              "hover:border-primary/50 hover:bg-primary/5 active:scale-95 group",
+                              isAIThinking ? "opacity-50 grayscale" : "bg-card shadow-sm"
+                            )}
+                          >
+                            <span>{s.emoji}</span>
+                            <span>{s.name}</span>
+                            {count > 0 && (
+                              <Badge className="h-4 min-w-4 p-0 px-1 bg-orange-500 text-white text-[7px] flex items-center justify-center rounded-full group-hover:scale-110 transition-transform">
+                                {count}
+                              </Badge>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase text-muted-foreground">Calories (kcal)</Label>
-                      <Input 
-                        type="number" 
-                        placeholder="0" 
-                        value={calories} 
-                        onChange={e => setCalories(e.target.value)} 
-                        className="h-11 rounded-xl font-black text-lg"
-                      />
+                      <Label className="text-[10px] font-black uppercase text-muted-foreground">What was the craving?</Label>
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="e.g. 1 Pizza slice, Large Coke..." 
+                          value={description} 
+                          onChange={e => setDescription(e.target.value)} 
+                          className="h-11 rounded-xl font-bold"
+                        />
+                        <Button 
+                          variant="outline" 
+                          size="icon" 
+                          onClick={() => handleAIAnalyze()} 
+                          disabled={isAIThinking || !description}
+                          className="h-11 w-11 shrink-0 rounded-xl"
+                        >
+                          {isAIThinking ? <Loader2 className="h-4 w-4 animate-spin" /> : <BrainCircuit className="h-4 w-4 text-primary" />}
+                        </Button>
+                      </div>
                     </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Calories (kcal)</Label>
+                        <Input 
+                          type="number" 
+                          placeholder="0" 
+                          value={calories} 
+                          onChange={e => setCalories(e.target.value)} 
+                          className="h-11 rounded-xl font-black text-lg"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Saved (₹)</Label>
+                        <Input 
+                          type="number" 
+                          placeholder="0" 
+                          value={price} 
+                          onChange={e => setPrice(e.target.value)} 
+                          className="h-11 rounded-xl font-black text-lg"
+                        />
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase text-muted-foreground">Saved (₹)</Label>
+                      <Label className="text-[10px] font-black uppercase text-muted-foreground">Resisted For</Label>
+                      <Select value={reason} onValueChange={setReason}>
+                        <SelectTrigger className="h-11 rounded-xl font-bold">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {REASONS.map(r => <SelectItem key={r} value={r} className="font-bold">{r}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase text-muted-foreground">Private Notes</Label>
                       <Input 
-                        type="number" 
-                        placeholder="0" 
-                        value={price} 
-                        onChange={e => setPrice(e.target.value)} 
-                        className="h-11 rounded-xl font-black text-lg"
+                        placeholder="Optional details..." 
+                        value={notes} 
+                        onChange={e => setNotes(e.target.value)} 
+                        className="h-11 rounded-xl"
                       />
                     </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase text-muted-foreground">Resisted For</Label>
-                    <Select value={reason} onValueChange={setReason}>
-                      <SelectTrigger className="h-11 rounded-xl font-bold">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {REASONS.map(r => <SelectItem key={r} value={r} className="font-bold">{r}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <Button 
+                      onClick={handleLogCraving} 
+                      disabled={loading || !calories || !price}
+                      className="w-full h-12 rounded-2xl font-black shadow-lg bg-orange-600 hover:bg-orange-700 text-white gap-2"
+                    >
+                      {loading ? <Loader2 className="animate-spin h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
+                      Log Resisted Item
+                    </Button>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase text-muted-foreground">Private Notes</Label>
-                    <Input 
-                      placeholder="Optional details..." 
-                      value={notes} 
-                      onChange={e => setNotes(e.target.value)} 
-                      className="h-11 rounded-xl"
-                    />
-                  </div>
-
-                  <Button 
-                    onClick={handleLogCraving} 
-                    disabled={loading || !calories || !price}
-                    className="w-full h-12 rounded-2xl font-black shadow-lg bg-orange-600 hover:bg-orange-700 text-white gap-2"
-                  >
-                    {loading ? <Loader2 className="animate-spin h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
-                    Log Resisted Item
-                  </Button>
                 </CardContent>
               </Card>
 
@@ -434,7 +495,7 @@ export default function CravingMeterPage() {
                           ))}
                         </Pie>
                         <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '10px', fontWeight: 'bold' }} />
-                        <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
+                        <RechartsLegend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
                       </PieChart>
                     </ResponsiveContainer>
                   </CardContent>
@@ -517,15 +578,5 @@ function SummaryCard({ title, value, icon }: { title: string, value: string, ico
       </div>
       <p className="text-xl font-black tracking-tighter">{value}</p>
     </Card>
-  );
-}
-
-function BarChart({ data, children }: any) {
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <RechartsBarChart data={data}>
-        {children}
-      </RechartsBarChart>
-    </ResponsiveContainer>
   );
 }
