@@ -1075,7 +1075,7 @@ export default function SplitPayPage() {
                           <div className="w-full space-y-3">
                             {activeGroup.isBudgetSynced !== false && (
                               <div className="flex items-center justify-center gap-2 text-[9px] font-black uppercase text-primary tracking-widest bg-primary/5 py-2 rounded-xl">
-                                <ShieldCheck className="h-3 <ShieldCheck className="h-3 w-3" /> Auto-Sync to Budget Enabled
+                                <ShieldCheck className="h-3 w-3" /> Auto-Sync to Budget Enabled
                               </div>
                             )}
                             <Button onClick={handleAddExpense} disabled={!splitValidation.isValid} className="w-full h-12 rounded-2xl font-black shadow-lg gap-2 text-base"><CheckCircle2 className="h-5 w-5" /> Sync to Shared Ledger</Button>
