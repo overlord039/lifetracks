@@ -173,11 +173,15 @@ export default function BudgetPage() {
   }, [decryptedCategories]);
 
   const dailyCategories = useMemo(() => {
-    return decryptedCategories.filter(c => c.type === 'daily');
+    return decryptedCategories
+      .filter(c => c.type === 'daily')
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [decryptedCategories]);
 
   const fixedCategories = useMemo(() => {
-    return decryptedCategories.filter(c => c.type === 'fixed');
+    return decryptedCategories
+      .filter(c => c.type === 'fixed')
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [decryptedCategories]);
 
   const totalIncludedFixed = decryptedFixed?.filter(f => f.includeInBudget && (f.allocationBucket || 'expense') === 'expense').reduce((s, f) => s + f.amount, 0) || 0;
