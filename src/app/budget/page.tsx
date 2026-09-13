@@ -663,7 +663,9 @@ export default function BudgetPage() {
           </div>
 
           <div className="lg:col-span-4 flex flex-col gap-4">
-            <SustainableTodayCard isOverspentToday={isOverspentToday} isWithinBudget={isWithinBudget} todayStr={todayStr} dailyAllocationToday={dailyAllocationToday} todayReport={todayReport} isDailyEnabled={isDailyEnabled} remainingNetPool={remainingNetPool} totalSpentThisMonth={totalSpentThisMonth} monthName={monthName} isDecrypting={isDecrypting} />
+            <div className="hidden lg:block">
+              <SustainableTodayCard isOverspentToday={isOverspentToday} isWithinBudget={isWithinBudget} todayStr={todayStr} dailyAllocationToday={dailyAllocationToday} todayReport={todayReport} isDailyEnabled={isDailyEnabled} remainingNetPool={remainingNetPool} totalSpentThisMonth={totalSpentThisMonth} monthName={monthName} isDecrypting={isDecrypting} />
+            </div>
             
             <Card className="shadow-lg rounded-2xl border-none ring-1 ring-border overflow-hidden">
               <CardHeader className="bg-muted/30 border-b py-2.5 px-4">
