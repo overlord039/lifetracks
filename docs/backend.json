@@ -199,6 +199,22 @@
         "longestStreak": { "type": "number" },
         "lastLogDate": { "type": "string" }
       }
+    },
+    "VisionItem": {
+      "title": "VisionItem",
+      "type": "object",
+      "description": "Long-term future achievements or bucket list items.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string", "description": "Encrypted title" },
+        "description": { "type": "string", "description": "Encrypted details" },
+        "category": { "type": "string", "enum": ["Travel", "Career", "Financial", "Health", "Personal", "Other"] },
+        "isAchieved": { "type": "boolean" },
+        "targetYear": { "type": "string", "description": "Encrypted year string" },
+        "isEncrypted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "auth": {
@@ -217,6 +233,7 @@
       { "path": "/users/{userId}/dailyDiaries/{date}", "definition": { "entityName": "DailyDiary", "description": "Diary entries." } },
       { "path": "/users/{userId}/cravingLogs/{logId}", "definition": { "entityName": "CravingLog", "description": "Resisted craving records." } },
       { "path": "/users/{userId}/cravingStats/summary", "definition": { "entityName": "CravingStats", "description": "Streak tracking." } },
+      { "path": "/users/{userId}/visionBoard/{itemId}", "definition": { "entityName": "VisionItem", "description": "Future achievements." } },
       { "path": "/sharedGroups/{groupId}", "definition": { "entityName": "SharedGroup", "description": "Collaboration rooms." } },
       { "path": "/sharedGroups/{groupId}/expenses/{expenseId}", "definition": { "entityName": "RoomExpense", "description": "Shared bills." } }
     ]

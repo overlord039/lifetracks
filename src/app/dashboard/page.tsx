@@ -20,7 +20,8 @@ import {
   Users,
   Flame,
   Zap,
-  Scale
+  Scale,
+  Mountain
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
@@ -95,6 +96,12 @@ export default function Dashboard() {
     return doc(firestore, 'users', user.uid, 'cravingStats', 'summary');
   }, [firestore, user]);
   const { data: cravingStats } = useDoc(cravingStatsRef);
+
+  const visionRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, 'users', user.uid, 'visionBoard');
+  }, [firestore, user]);
+  const { data: visionItems } = useCollection(visionRef);
 
   useEffect(() => {
     const decryptAll = async () => {
@@ -188,7 +195,6 @@ export default function Dashboard() {
   const baseAllocation = todayReport?.baseBudget || 0;
   const spentToday = todayReport?.spent || 0;
   const rollingAllowance = (todayReport?.baseBudget || 0) + (todayReport?.extraBudget || 0) + (todayReport?.carryForwardFromYesterday || 0);
-  const remaining = Math.max(0, rollingAllowance - spentToday);
   const baseRemaining = baseAllocation - spentToday;
 
   const cravingToday = useMemo(() => {
@@ -202,6 +208,14 @@ export default function Dashboard() {
   const goalsProgress = learningGoals?.length ? Math.round((learningGoals.filter(g => (g.completedCount || 0) >= (g.target || 0)).length / learningGoals.length) * 100) : 0;
   const totalOwed = useMemo(() => decryptedDebts?.filter(d => !d.isPaid).reduce((sum, d) => sum + d.amount, 0) || 0, [decryptedDebts]);
   const hasActiveGoals = !!(learningGoals && learningGoals.length > 0);
+
+  const visionStats = useMemo(() => {
+    if (!visionItems) return { active: 0, achieved: 0 };
+    return {
+      active: visionItems.filter(v => !v.isAchieved).length,
+      achieved: visionItems.filter(v => v.isAchieved).length
+    };
+  }, [visionItems]);
 
   return (
     <AppShell>
@@ -288,7 +302,7 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-5">
             <DashboardCard 
               href="/craving-meter" 
               title="Craving Meter" 
@@ -297,6 +311,14 @@ export default function Dashboard() {
               icon={<Flame className="w-4 h-4" />} 
               variant="primary" 
               loading={isDecrypting} 
+            />
+            <DashboardCard 
+              href="/future-vision" 
+              title="Future Vision" 
+              value={`${visionStats.active} Visions`} 
+              subtext={`${visionStats.achieved} Achievements`} 
+              icon={<Mountain className="w-4 h-4" />} 
+              variant="default" 
             />
             <DashboardCard href="/split-pay" title="Split & Debt" value={`₹${totalOwed.toFixed(0)}`} subtext="Receivable total" icon={<HandCoins className="w-4 h-4" />} variant="default" loading={isDecrypting} />
             <DashboardCard href="/learning" title="Skill Mastery" value={`${goalsProgress}%`} subtext="Completion rate" icon={<BookOpen className="w-4 h-4" />} progress={goalsProgress} />
@@ -334,7 +356,7 @@ function DashboardCard({ href, title, value, subtext, icon, variant = 'default',
           <div className={cn("p-1 rounded-lg shrink-0", variant === 'default' ? "bg-muted text-primary" : "bg-white/10")}>{icon}</div>
         </CardHeader>
         <CardContent className="pb-3 md:pb-4 px-3 md:px-4">
-          <div className="text-lg md:text-2xl font-black tracking-tighter truncate">{value}</div>
+          <div className="text-sm md:text-xl font-black tracking-tighter truncate">{value}</div>
           <p className={cn("text-[7px] md:text-[9px] font-bold uppercase mt-0.5 truncate", variant === 'default' ? "text-muted-foreground" : "text-inherit opacity-70")}>{subtext}</p>
           {progress !== undefined && <Progress value={progress} className="h-0.5 md:h-1 mt-2 md:mt-2.5 bg-muted/20" />}
         </CardContent>

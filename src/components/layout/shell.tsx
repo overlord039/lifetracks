@@ -16,7 +16,8 @@ import {
   Settings2,
   Check,
   X,
-  Flame
+  Flame,
+  Mountain
 } from 'lucide-react';
 import { 
   Sidebar, 
@@ -54,6 +55,7 @@ const navItems = [
   { id: 'budget', title: 'Budget', url: '/budget', icon: Wallet },
   { id: 'split-pay', title: 'Split & Debt', url: '/split-pay', icon: Users },
   { id: 'craving-meter', title: 'Craving Meter', url: '/craving-meter', icon: Flame },
+  { id: 'future-vision', title: 'Future Vision', url: '/future-vision', icon: Mountain },
   { id: 'learning', title: 'Learning', url: '/learning', icon: GraduationCap },
   { id: 'diary', title: 'Diary', url: '/diary', icon: BookText },
   { id: 'reports', title: 'Reports', url: '/reports', icon: BarChart3 },
@@ -61,7 +63,7 @@ const navItems = [
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const router = useRouter();
   const pathname = usePathname();
