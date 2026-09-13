@@ -130,19 +130,19 @@ export default function ReportsPage() {
     if (!firestore || !user) return null;
     return doc(firestore, 'users', user.uid, 'monthlyBudgets', monthId);
   }, [firestore, user, monthId]);
-  const { data: rawBudget } = useDoc(monthlyBudgetRef);
+  const { data: rawBudget, isLoading: isBudgetLoading } = useDoc(monthlyBudgetRef);
 
   const fixedExpensesRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return collection(firestore, 'users', user.uid, 'monthlyBudgets', monthId, 'fixedExpenses');
   }, [firestore, user, monthId]);
-  const { data: rawFixed } = useCollection(fixedExpensesRef);
+  const { data: rawFixed, isLoading: isFixedLoading } = useCollection(fixedExpensesRef);
 
   const monthExpensesRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return collection(firestore, 'users', user.uid, 'monthlyBudgets', monthId, 'expenses');
   }, [firestore, user, monthId]);
-  const { data: rawExpenses } = useCollection(monthExpensesRef);
+  const { data: rawExpenses, isLoading: isExpensesLoading } = useCollection(monthExpensesRef);
 
   const prevMonthlyBudgetRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -187,6 +187,8 @@ export default function ReportsPage() {
             actualSpent: rawBudget.isEncrypted ? await decryptNumber(rawBudget.actualSpent, user.uid) : (rawBudget.actualSpent || 0),
             actualFixedSpent: rawBudget.isEncrypted ? await decryptNumber(rawBudget.actualFixedSpent, user.uid) : (rawBudget.actualFixedSpent || 0),
           });
+        } else {
+          setDecryptedBudget(null);
         }
 
         if (rawPrevBudget) {
@@ -204,6 +206,8 @@ export default function ReportsPage() {
             allocationBucket: f.allocationBucket || 'expense'
           })));
           setDecryptedFixed(fixed);
+        } else {
+          setDecryptedFixed([]);
         }
 
         if (rawExpenses) {
@@ -214,6 +218,8 @@ export default function ReportsPage() {
             allocationBucket: e.allocationBucket || 'expense'
           })));
           setDecryptedExpenses(exps);
+        } else {
+          setDecryptedExpenses([]);
         }
 
         if (rawPrevExpenses) {
@@ -267,7 +273,7 @@ export default function ReportsPage() {
     if (!isDecrypting && decryptedCategories.length > 0 && selectedAuditCategories.size === 0) {
       setSelectedAuditCategories(new Set(decryptedCategories.map(c => c.id).concat(['misc'])));
     }
-  }, [isDecrypting, decryptedExpenses, decryptedCategories]);
+  }, [isDecrypting, decryptedExpenses, decryptedCategories, selectedTransactionIds.size, selectedAuditCategories.size]);
 
   const totals = useMemo(() => {
     const budget = decryptedBudget?.totalBudgetAmount || 0;
@@ -469,6 +475,9 @@ export default function ReportsPage() {
 
   const changeMonth = (delta: number) => {
     setSelectedDate(prev => subMonths(prev, -delta));
+    // Clear selection so it re-populates for new data
+    setSelectedAuditCategories(new Set());
+    setSelectedTransactionIds(new Set());
   };
 
   const toggleAuditCategory = (catId: string) => {
@@ -543,7 +552,7 @@ export default function ReportsPage() {
 
   return (
     <AppShell>
-      {!mounted || (isDecrypting && decryptedExpenses.length === 0) ? (
+      {!mounted ? (
         <div className="flex h-[60vh] w-full items-center justify-center flex-col gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Syncing Vault...</p>
@@ -583,8 +592,9 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 md:gap-6 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="shadow-md border-t-4 border-t-primary rounded-2xl overflow-hidden">
+          <div className={cn("grid gap-4 md:gap-6 md:grid-cols-2 lg:grid-cols-4 transition-opacity", isDecrypting && "opacity-80")}>
+            <Card className="shadow-md border-t-4 border-t-primary rounded-2xl overflow-hidden relative">
+              {isBudgetLoading && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
               <CardHeader className="pb-2 pt-4 px-4 md:px-6">
                 <CardTitle className="text-base md:text-lg flex items-center gap-2 font-black">
                   <TableProperties className="h-4 w-4 md:h-5 md:w-5 text-primary" />
@@ -648,7 +658,8 @@ export default function ReportsPage() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-md lg:col-span-1 rounded-2xl overflow-hidden">
+            <Card className="shadow-md lg:col-span-1 rounded-2xl overflow-hidden relative">
+              {(isExpensesLoading || isDecrypting) && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10"><Loader2 className="h-6 w-6 animate-spin text-orange-500" /></div>}
               <CardHeader className="pb-2 pt-4 px-4 md:px-6">
                 <CardTitle className="text-base md:text-lg flex items-center gap-2 font-black">
                   <Activity className="h-4 w-4 md:h-5 md:w-5 text-orange-500" />
@@ -696,9 +707,10 @@ export default function ReportsPage() {
             </Card>
 
             <Card 
-              className="shadow-md lg:col-span-1 rounded-2xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all group"
+              className="shadow-md lg:col-span-1 rounded-2xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all group relative"
               onClick={() => setIsAuditModalOpen(true)}
             >
+              {(isExpensesLoading || isDecrypting) && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10"><Loader2 className="h-6 w-6 animate-spin text-secondary-foreground" /></div>}
               <CardHeader className="pb-2 pt-4 px-4 md:px-6 flex flex-row items-center justify-between">
                 <CardTitle className="text-base md:text-lg flex items-center gap-2 font-black">
                   <Activity className="h-4 w-4 md:h-5 md:w-5 text-secondary-foreground" />
@@ -742,7 +754,8 @@ export default function ReportsPage() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-md lg:col-span-1 bg-muted/10 border-dashed border-2 rounded-2xl overflow-hidden">
+            <Card className="shadow-md lg:col-span-1 bg-muted/10 border-dashed border-2 rounded-2xl overflow-hidden relative">
+              {isDecrypting && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}
               <CardHeader className="pb-2 pt-4 px-4 md:px-6">
                 <CardTitle className="text-base md:text-lg flex items-center gap-2">
                   <Minus className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
@@ -780,7 +793,8 @@ export default function ReportsPage() {
               </CardContent>
             </Card>
 
-            <Card className="md:col-span-2 lg:col-span-4 shadow-xl rounded-3xl border-none ring-1 ring-border overflow-hidden">
+            <Card className="md:col-span-2 lg:col-span-4 shadow-xl rounded-3xl border-none ring-1 ring-border overflow-hidden relative">
+              {isDecrypting && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
               <CardHeader className="bg-muted/30 border-b py-4 md:py-5 px-5 md:px-8 flex flex-row items-center justify-between">
                 <div>
                   <CardTitle className="text-lg md:text-xl font-black flex items-center gap-2">
@@ -847,7 +861,8 @@ export default function ReportsPage() {
               </CardContent>
             </Card>
 
-            <Card className="md:col-span-2 lg:col-span-4 shadow-md overflow-hidden rounded-2xl">
+            <Card className="md:col-span-2 lg:col-span-4 shadow-md overflow-hidden rounded-2xl relative">
+              {isDecrypting && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
               <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-4 md:px-6 pt-4">
                 <div>
                   <CardTitle className="text-base md:text-lg font-black">Spending Tracker</CardTitle>
