@@ -32,7 +32,9 @@ import {
   Sparkles,
   Calendar,
   ShieldCheck,
-  ChevronRight
+  ChevronRight,
+  Pencil,
+  X
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -56,6 +58,7 @@ export default function FutureVisionPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -99,24 +102,47 @@ export default function FutureVisionPage() {
     if (!title.trim() || !user || !visionRef) return;
     setLoading(true);
 
-    const newItem = {
+    const payload = {
       userId: user.uid,
       title: await encryptData(title.trim(), user.uid),
       description: await encryptData(description.trim(), user.uid),
       category,
       targetYear: await encryptData(targetYear.trim(), user.uid),
-      isAchieved: false,
+      isAchieved: editingId ? (decryptedVision.find(v => v.id === editingId)?.isAchieved || false) : false,
       isEncrypted: true,
-      createdAt: new Date().toISOString()
+      updatedAt: new Date().toISOString()
     };
 
-    addDocumentNonBlocking(visionRef, newItem);
+    if (editingId) {
+      updateDocumentNonBlocking(doc(visionRef, editingId), payload);
+      toast({ title: "Vision Refined", description: "Your aspiration has been updated in the vault." });
+    } else {
+      addDocumentNonBlocking(visionRef, {
+        ...payload,
+        createdAt: new Date().toISOString()
+      });
+      toast({ title: "Vision Seeded", description: "Your aspiration is secured in the vault." });
+    }
     
+    resetForm();
+    setLoading(false);
+  };
+
+  const resetForm = () => {
     setTitle('');
     setDescription('');
+    setCategory('Personal');
     setTargetYear('');
-    setLoading(false);
-    toast({ title: "Vision Seeded", description: "Your aspiration is secured in the vault." });
+    setEditingId(null);
+  };
+
+  const handleEditClick = (item: any) => {
+    setTitle(item.title);
+    setDescription(item.description);
+    setCategory(item.category);
+    setTargetYear(item.targetYear);
+    setEditingId(item.id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const toggleAchieved = (id: string, current: boolean) => {
@@ -135,6 +161,7 @@ export default function FutureVisionPage() {
     if (!visionRef) return;
     deleteDocumentNonBlocking(doc(visionRef, id));
     toast({ title: "Vision Removed" });
+    if (editingId === id) resetForm();
   };
 
   const activeVision = decryptedVision.filter(v => !v.isAchieved);
@@ -167,12 +194,17 @@ export default function FutureVisionPage() {
 
           <div className="grid gap-8 lg:grid-cols-12">
             <div className="lg:col-span-5 space-y-6">
-              <Card className="shadow-xl rounded-3xl border-none ring-1 ring-border overflow-hidden">
-                <CardHeader className="bg-muted/30 border-b pb-4">
+              <Card className={cn("shadow-xl rounded-3xl border-none ring-1 ring-border overflow-hidden transition-all", editingId && "ring-2 ring-primary bg-primary/5")}>
+                <CardHeader className="bg-muted/30 border-b pb-4 flex flex-row items-center justify-between">
                   <CardTitle className="text-base font-black flex items-center gap-2">
-                    <Plus className="h-4 w-4 text-primary" />
-                    Seed a New Vision
+                    {editingId ? <Pencil className="h-4 w-4 text-primary" /> : <Plus className="h-4 w-4 text-primary" />}
+                    {editingId ? "Refine Your Vision" : "Seed a New Vision"}
                   </CardTitle>
+                  {editingId && (
+                    <Button variant="ghost" size="icon" onClick={resetForm} className="h-8 w-8 rounded-full">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
                 </CardHeader>
                 <CardContent className="pt-6 space-y-5 px-4 md:px-6">
                   <div className="space-y-2">
@@ -225,8 +257,8 @@ export default function FutureVisionPage() {
                     disabled={loading || !title.trim()}
                     className="w-full h-14 rounded-2xl font-black shadow-lg gap-2 text-base"
                   >
-                    {loading ? <Loader2 className="animate-spin h-5 w-5" /> : <Sparkles className="h-5 w-5" />}
-                    Lock Into Vision Board
+                    {loading ? <Loader2 className="animate-spin h-5 w-5" /> : (editingId ? <CheckCircle2 className="h-5 w-5" /> : <Sparkles className="h-5 w-5" />)}
+                    {editingId ? "Update Vision Item" : "Lock Into Vision Board"}
                   </Button>
                 </CardContent>
                 <CardFooter className="bg-primary/5 py-3 flex items-center justify-center gap-2 border-t">
@@ -269,7 +301,7 @@ export default function FutureVisionPage() {
                         </div>
                       ) : (
                         activeVision.sort((a,b) => b.createdAt.localeCompare(a.createdAt)).map(item => (
-                          <VisionCard key={item.id} item={item} onToggle={() => toggleAchieved(item.id, item.isAchieved)} onDelete={() => deleteItem(item.id)} />
+                          <VisionCard key={item.id} item={item} onToggle={() => toggleAchieved(item.id, item.isAchieved)} onDelete={() => deleteItem(item.id)} onEdit={() => handleEditClick(item)} isEditing={editingId === item.id} />
                         ))
                       )}
                     </div>
@@ -283,7 +315,7 @@ export default function FutureVisionPage() {
                       </h3>
                       <div className="grid gap-4">
                         {achievedVision.sort((a,b) => b.updatedAt?.localeCompare(a.updatedAt)).map(item => (
-                          <VisionCard key={item.id} item={item} onToggle={() => toggleAchieved(item.id, item.isAchieved)} onDelete={() => deleteItem(item.id)} />
+                          <VisionCard key={item.id} item={item} onToggle={() => toggleAchieved(item.id, item.isAchieved)} onDelete={() => deleteItem(item.id)} onEdit={() => handleEditClick(item)} isEditing={editingId === item.id} />
                         ))}
                       </div>
                     </div>
@@ -298,14 +330,14 @@ export default function FutureVisionPage() {
   );
 }
 
-function VisionCard({ item, onToggle, onDelete }: { item: any, onToggle: () => void, onDelete: () => void }) {
+function VisionCard({ item, onToggle, onDelete, onEdit, isEditing }: { item: any, onToggle: () => void, onDelete: () => void, onEdit: () => void, isEditing: boolean }) {
   const cat = CATEGORIES.find(c => c.id === item.category) || CATEGORIES[5];
   const Icon = cat.icon;
 
   return (
     <Card className={cn(
       "shadow-md rounded-3xl border-none ring-1 transition-all duration-300 relative overflow-hidden group",
-      item.isAchieved ? "ring-green-500/20 bg-green-50/20 opacity-70" : "ring-border bg-card hover:ring-primary/40 hover:shadow-lg"
+      item.isAchieved ? "ring-green-500/20 bg-green-50/20 opacity-70" : (isEditing ? "ring-primary bg-primary/5" : "ring-border bg-card hover:ring-primary/40 hover:shadow-lg")
     )}>
       <div className={cn("absolute left-0 top-0 bottom-0 w-1.5", item.isAchieved ? "bg-green-500" : cat.color.replace('text-', 'bg-'))} />
       <CardContent className="p-5 flex items-center justify-between gap-4">
@@ -341,10 +373,13 @@ function VisionCard({ item, onToggle, onDelete }: { item: any, onToggle: () => v
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <Button variant="ghost" size="icon" onClick={onEdit} className={cn("h-9 w-9 rounded-xl transition-opacity", isEditing ? "text-primary bg-primary/10" : "text-muted-foreground/40 hover:text-primary hover:bg-primary/10 opacity-0 group-hover:opacity-100")}>
+            <Pencil className="h-4 w-4" />
+          </Button>
           <Button variant="ghost" size="icon" onClick={onDelete} className="h-9 w-9 rounded-xl text-destructive/40 hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity">
             <Trash2 className="h-4 w-4" />
           </Button>
-          {!item.isAchieved && (
+          {!item.isAchieved && !isEditing && (
             <div className="h-9 w-9 rounded-xl bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all shadow-sm">
               <ChevronRight className="h-4 w-4" />
             </div>
