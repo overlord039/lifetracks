@@ -30,7 +30,8 @@ import {
   ResponsiveContainer,
   PieChart,
   Pie,
-  Cell
+  Cell,
+  ReferenceLine
 } from 'recharts';
 import { 
   TableProperties,
@@ -55,7 +56,10 @@ import {
   PiggyBank,
   HeartPulse,
   Smile,
-  Coins
+  Coins,
+  ArrowUp,
+  ArrowDown,
+  Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -102,7 +106,7 @@ export default function ReportsPage() {
   const { toast } = useToast();
   
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [viewType, setViewType] = useState<'weekly' | 'monthly' | 'annual'>('monthly');
+  const [viewType, setViewType] = useState<'weekly' | 'monthly' | 'annual' | 'category'>('monthly');
   const [mounted, setMounted] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [selectedAuditCategories, setSelectedAuditCategories] = useState<Set<string>>(new Set());
@@ -390,21 +394,23 @@ export default function ReportsPage() {
   }, [decryptedExpenses, selectedDate]);
 
   const chartsData = useMemo(() => {
-    if (!decryptedExpenses) {
-      return { spendingData: [], categoryData: [] };
+    if (!decryptedExpenses || !decryptedFixed) {
+      return { spendingData: [], categoryData: [], highest: 0, lowest: 0, average: 0 };
     }
 
+    // Comprehensive categorical data including fixed expenses
     const categoryTotals: Record<string, number> = {};
-    decryptedExpenses.forEach(exp => {
-      const catName = decryptedCategories?.find(c => c.id === exp.expenseCategoryId)?.name || 'Misc';
-      categoryTotals[catName] = (categoryTotals[catName] || 0) + exp.amount;
+    const allItems = [...decryptedExpenses, ...decryptedFixed];
+    allItems.forEach(item => {
+      const catName = decryptedCategories?.find(c => c.id === item.expenseCategoryId)?.name || 'Misc';
+      categoryTotals[catName] = (categoryTotals[catName] || 0) + item.amount;
     });
 
     const cData = Object.entries(categoryTotals).map(([name, value], idx) => ({
       name,
       value,
       color: CHART_COLORS[idx % CHART_COLORS.length]
-    }));
+    })).sort((a, b) => b.value - a.value);
 
     let sData: any[] = [];
 
@@ -453,25 +459,34 @@ export default function ReportsPage() {
           fullLabel: format(m, 'MMMM yyyy')
         };
       });
+    } else if (viewType === 'category') {
+      sData = cData.map(c => ({
+        name: c.name,
+        spent: c.value,
+        fill: c.color
+      }));
     }
 
     const activeEntries = sData.filter(d => d.spent > 0);
     const spentValues = activeEntries.map(d => d.spent);
-    const maxSpent = spentValues.length > 0 ? Math.max(...spentValues) : -1;
-    const minSpent = spentValues.length > 0 ? Math.min(...spentValues) : -1;
-    const hasVariation = activeEntries.length > 1 && maxSpent !== minSpent;
+    const highest = spentValues.length > 0 ? Math.max(...spentValues) : 0;
+    const lowest = spentValues.length > 0 ? Math.min(...spentValues) : 0;
+    const average = spentValues.length > 0 ? spentValues.reduce((a, b) => a + b, 0) / sData.length : 0;
+    const hasVariation = activeEntries.length > 1 && highest !== lowest;
 
-    sData = sData.map(d => ({
-      ...d,
-      fill: (hasVariation && d.spent === maxSpent && d.spent > 0)
-        ? "hsl(var(--destructive))"
-        : (hasVariation && d.spent === minSpent && d.spent > 0)
-          ? "hsl(var(--secondary))"
-          : "hsl(var(--primary))"
-    }));
+    if (viewType !== 'category') {
+      sData = sData.map(d => ({
+        ...d,
+        fill: (hasVariation && d.spent === highest && d.spent > 0)
+          ? "hsl(var(--destructive))"
+          : (hasVariation && d.spent === lowest && d.spent > 0)
+            ? "hsl(var(--secondary))"
+            : "hsl(var(--primary))"
+      }));
+    }
 
-    return { spendingData: sData, categoryData: cData };
-  }, [decryptedExpenses, decryptedCategories, decryptedAllBudgets, selectedDate, viewType, weeklyReport]);
+    return { spendingData: sData, categoryData: cData, highest, lowest, average };
+  }, [decryptedExpenses, decryptedFixed, decryptedCategories, decryptedAllBudgets, selectedDate, viewType, weeklyReport]);
 
   const changeMonth = (delta: number) => {
     setSelectedDate(prev => subMonths(prev, -delta));
@@ -861,47 +876,100 @@ export default function ReportsPage() {
               </CardContent>
             </Card>
 
-            <Card className="md:col-span-2 lg:col-span-4 shadow-md overflow-hidden rounded-2xl relative">
+            <Card className="md:col-span-2 lg:col-span-4 shadow-xl overflow-hidden rounded-3xl border-none ring-1 ring-border relative">
               {isDecrypting && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
-              <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-4 md:px-6 pt-4">
-                <div>
-                  <CardTitle className="text-base md:text-lg font-black">Spending Tracker</CardTitle>
-                  <CardDescription className="text-[9px] md:text-[10px] uppercase font-bold tracking-tight">Visualizing your spending trends over time.</CardDescription>
+              <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-4 md:px-6 pt-4 bg-muted/20 border-b">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-xl text-primary">
+                    <BarChartIcon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base md:text-lg font-black tracking-tight">Spending Tracker</CardTitle>
+                    <CardDescription className="text-[9px] md:text-[10px] uppercase font-bold tracking-tight">Advanced trend & label analysis</CardDescription>
+                  </div>
                 </div>
                 <Tabs value={viewType} onValueChange={(v: any) => setViewType(v)} className="w-full md:w-auto">
-                  <TabsList className="grid w-full grid-cols-3 md:w-[300px] h-8 p-1">
-                    <TabsTrigger value="weekly" className="text-[10px] font-bold">Weekly</TabsTrigger>
-                    <TabsTrigger value="monthly" className="text-[10px] font-bold">Monthly</TabsTrigger>
-                    <TabsTrigger value="annual" className="text-[10px] font-bold">Annual</TabsTrigger>
+                  <TabsList className="grid w-full grid-cols-4 md:w-[360px] h-9 p-1 bg-muted/50 rounded-xl border">
+                    <TabsTrigger value="weekly" className="text-[9px] font-black uppercase">Weekly</TabsTrigger>
+                    <TabsTrigger value="monthly" className="text-[9px] font-black uppercase">Monthly</TabsTrigger>
+                    <TabsTrigger value="annual" className="text-[9px] font-black uppercase">Annual</TabsTrigger>
+                    <TabsTrigger value="category" className="text-[9px] font-black uppercase">By Category</TabsTrigger>
                   </TabsList>
                 </Tabs>
               </CardHeader>
-              <CardContent className="h-[250px] md:h-[400px] pt-4 -ml-4 md:ml-0 p-4 md:p-6">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RechartsBarChart data={chartsData.spendingData} margin={{ left: -10, right: 10, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} stroke="hsl(var(--muted-foreground))" />
-                    <XAxis dataKey="name" fontSize={9} tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
-                    <YAxis fontSize={9} tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
-                    <Tooltip 
-                      contentStyle={chartTooltipStyle}
-                      formatter={(value: number, name: string, props: any) => [
-                        `₹${value.toLocaleString()}`, 
-                        props.payload.fullLabel || props.payload.name
-                      ]} 
-                      itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
-                      labelStyle={{ color: 'hsl(var(--popover-foreground))', fontWeight: 'bold', marginBottom: '4px' }}
-                    />
-                    <Bar dataKey="spent" radius={[4, 4, 0, 0]} name="Actual Spend" animationDuration={1000}>
-                      {chartsData.spendingData.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Bar>
-                    {viewType === 'annual' && (
-                      <Bar dataKey="budgeted" radius={[4, 4, 0, 0]} name="Target Budget" fill="hsl(var(--muted))" fillOpacity={0.3} animationDuration={1000} />
-                    )}
-                    <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', paddingTop: '10px' }} />
-                  </RechartsBarChart>
-                </ResponsiveContainer>
+              <CardContent className="p-4 md:p-6 space-y-6">
+                <div className="grid grid-cols-3 gap-3 md:gap-4">
+                  <div className="p-3 rounded-2xl bg-destructive/5 border border-destructive/10 flex flex-col items-center justify-center space-y-1">
+                    <p className="text-[8px] font-black uppercase tracking-widest text-destructive">Highest</p>
+                    <p className="text-sm md:text-base font-black tracking-tighter text-destructive">₹{Math.round(chartsData.highest).toLocaleString()}</p>
+                    <ArrowUp className="h-3 w-3 text-destructive opacity-30" />
+                  </div>
+                  <div className="p-3 rounded-2xl bg-secondary/10 border border-secondary/20 flex flex-col items-center justify-center space-y-1">
+                    <p className="text-[8px] font-black uppercase tracking-widest text-secondary-foreground">Lowest</p>
+                    <p className="text-sm md:text-base font-black tracking-tighter text-secondary-foreground">₹{Math.round(chartsData.lowest).toLocaleString()}</p>
+                    <ArrowDown className="h-3 w-3 text-secondary opacity-30" />
+                  </div>
+                  <div className="p-3 rounded-2xl bg-primary/5 border border-primary/10 flex flex-col items-center justify-center space-y-1">
+                    <p className="text-[8px] font-black uppercase tracking-widest text-primary">Average</p>
+                    <p className="text-sm md:text-base font-black tracking-tighter text-primary">₹{Math.round(chartsData.average).toLocaleString()}</p>
+                    <Zap className="h-3 w-3 text-primary opacity-30" />
+                  </div>
+                </div>
+
+                <div className="h-[250px] md:h-[400px] w-full pt-4 -ml-4 md:ml-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsBarChart 
+                      data={chartsData.spendingData} 
+                      margin={{ left: -10, right: 10, bottom: 0 }}
+                      layout={viewType === 'category' ? 'vertical' : 'horizontal'}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} stroke="hsl(var(--muted-foreground))" />
+                      {viewType === 'category' ? (
+                        <>
+                          <XAxis type="number" hide />
+                          <YAxis dataKey="name" type="category" fontSize={9} width={80} tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} axisLine={false} tickLine={false} />
+                        </>
+                      ) : (
+                        <>
+                          <XAxis dataKey="name" fontSize={9} tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
+                          <YAxis fontSize={9} tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
+                        </>
+                      )}
+                      <Tooltip 
+                        contentStyle={chartTooltipStyle}
+                        cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }}
+                        formatter={(value: number, name: string, props: any) => [
+                          `₹${value.toLocaleString()}`, 
+                          props.payload.fullLabel || props.payload.name
+                        ]} 
+                        itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                        labelStyle={{ color: 'hsl(var(--popover-foreground))', fontWeight: 'bold', marginBottom: '4px' }}
+                      />
+                      <Bar 
+                        dataKey="spent" 
+                        radius={viewType === 'category' ? [0, 4, 4, 0] : [4, 4, 0, 0]} 
+                        name="Actual Spend" 
+                        animationDuration={1000}
+                      >
+                        {chartsData.spendingData.map((entry: any, index: number) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                      {viewType === 'annual' && (
+                        <Bar dataKey="budgeted" radius={[4, 4, 0, 0]} name="Target Budget" fill="hsl(var(--muted))" fillOpacity={0.3} animationDuration={1000} />
+                      )}
+                      {viewType !== 'category' && chartsData.average > 0 && (
+                        <ReferenceLine 
+                          y={chartsData.average} 
+                          stroke="hsl(var(--primary))" 
+                          strokeDasharray="3 3" 
+                          label={{ value: 'Avg', position: 'right', fill: 'hsl(var(--primary))', fontSize: 10, fontWeight: 'bold' }} 
+                        />
+                      )}
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', paddingTop: '10px' }} />
+                    </RechartsBarChart>
+                  </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
           </div>
