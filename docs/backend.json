@@ -34,7 +34,9 @@
       "type": "object",
       "description": "User's financial strategy metrics.",
       "properties": {
+        "id": { "type": "string" },
         "userId": { "type": "string" },
+        "name": { "type": "string", "description": "Encrypted strategy name" },
         "salary": { "type": "string", "description": "Encrypted salary amount" },
         "age": { "type": "string", "description": "Encrypted age" },
         "percents": { "type": "object", "description": "Map of pillarId to percentage" },
@@ -224,7 +226,7 @@
     "structure": [
       { "path": "/users/{userId}", "definition": { "entityName": "User", "description": "User profile." } },
       { "path": "/users/{userId}/expenseCategories/{catId}", "definition": { "entityName": "ExpenseCategory", "description": "Personal labels." } },
-      { "path": "/users/{userId}/salaryProfiles/current", "definition": { "entityName": "SalaryProfile", "description": "Planner data." } },
+      { "path": "/users/{userId}/salaryProfiles/{profileId}", "definition": { "entityName": "SalaryProfile", "description": "Planner data." } },
       { "path": "/users/{userId}/monthlyBudgets/{monthId}", "definition": { "entityName": "MonthlyBudget", "description": "Monthly targets." } },
       { "path": "/users/{userId}/monthlyBudgets/{monthId}/fixedExpenses/{id}", "definition": { "entityName": "FixedExpense", "description": "Recurring month costs." } },
       { "path": "/users/{userId}/monthlyBudgets/{monthId}/expenses/{expenseId}", "definition": { "entityName": "RoomExpense", "description": "Personal expenses." } },

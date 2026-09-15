@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -8,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { doc, collection } from 'firebase/firestore';
 import { 
   Calculator, 
@@ -30,7 +31,12 @@ import {
   Plus,
   Trash2,
   BrainCircuit,
-  Check
+  Check,
+  Library,
+  Sparkles,
+  ArrowRight,
+  PlusCircle,
+  Clock
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -45,6 +51,15 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { encryptData, decryptData, decryptNumber } from '@/lib/encryption';
 import Link from 'next/link';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog";
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const CHART_COLORS = ['#64B5F6', '#81C784', '#FFB74D', '#BA68C8', '#F06292', '#4DB6AC', '#FF8A65'];
 
@@ -73,6 +88,9 @@ export default function SalaryPlannerPage() {
   const [isSynced, setIsSynced] = useState(false);
   const [lockedPillars, setLockedPillars] = useState<Set<string>>(new Set());
   const [newPillarName, setNewPillarName] = useState('');
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [strategyName, setStrategyName] = useState('');
+  const [activeStrategyId, setActiveStrategyId] = useState<string | null>(null);
   
   const [salary, setSalary] = useState<string>('');
   const [age, setAge] = useState<string>('');
@@ -86,9 +104,9 @@ export default function SalaryPlannerPage() {
 
   const monthId = mounted ? format(new Date(), 'yyyyMM') : '';
 
-  const salaryRef = useMemoFirebase(() => {
+  const salaryProfilesRef = useMemoFirebase(() => {
     if (!db || !user) return null;
-    return doc(db, 'users', user.uid, 'salaryProfiles', 'current');
+    return collection(db, 'users', user.uid, 'salaryProfiles');
   }, [db, user]);
 
   const fixedExpensesRef = useMemoFirebase(() => {
@@ -101,46 +119,30 @@ export default function SalaryPlannerPage() {
     return collection(db, 'users', user.uid, 'monthlyBudgets', monthId, 'expenses');
   }, [db, user, monthId]);
 
-  const { data: savedProfile } = useDoc(salaryRef);
+  const { data: rawProfiles } = useCollection(salaryProfilesRef);
   const { data: rawFixed } = useCollection(fixedExpensesRef);
   const { data: rawExpenses } = useCollection(monthExpensesRef);
   
+  const [decryptedProfiles, setDecryptedProfiles] = useState<any[]>([]);
   const [decryptedFixed, setDecryptedFixed] = useState<any[]>([]);
   const [decryptedExpenses, setDecryptedExpenses] = useState<any[]>([]);
 
   useEffect(() => {
-    const decryptProfile = async () => {
-      if (savedProfile && user && mounted) {
+    const decryptProfiles = async () => {
+      if (rawProfiles && user && mounted) {
         setIsDecrypting(true);
-        const s = savedProfile.isEncrypted ? await decryptData(savedProfile.salary, user.uid) : (savedProfile.salary?.toString() || '');
-        const a = savedProfile.isEncrypted ? await decryptData(savedProfile.age, user.uid) : (savedProfile.age?.toString() || '');
-        
-        setSalary(s);
-        setAge(a);
-
-        if (savedProfile.pillars && Array.isArray(savedProfile.pillars)) {
-          const restored = savedProfile.pillars.map((p: any) => ({
-            ...p,
-            icon: STANDARD_PILLARS.find(s => s.id === p.id)?.icon || Coins
-          }));
-          setPillars(restored);
-          setPercents(savedProfile.percents || DEFAULT_RATIOS);
-        } else {
-          setPercents({
-            expense: savedProfile.expensePercent || 50,
-            savings: savedProfile.savingsPercent || 20,
-            investment: savedProfile.investmentPercent || 20,
-            health: savedProfile.healthPercent || 5,
-            personal: savedProfile.personalPercent || 5
-          });
-        }
-        
-        setShowResults(true);
+        const decrypted = await Promise.all(rawProfiles.map(async p => ({
+          ...p,
+          name: p.isEncrypted ? await decryptData(p.name, user.uid) : (p.name || 'Unnamed Strategy'),
+          salary: p.isEncrypted ? await decryptData(p.salary, user.uid) : (p.salary?.toString() || '0'),
+          age: p.isEncrypted ? await decryptData(p.age, user.uid) : (p.age?.toString() || '0'),
+        })));
+        setDecryptedProfiles(decrypted);
         setIsDecrypting(false);
       }
     };
-    decryptProfile();
-  }, [savedProfile, user, mounted]);
+    decryptProfiles();
+  }, [rawProfiles, user, mounted]);
 
   useEffect(() => {
     const decryptFixedData = async () => {
@@ -286,58 +288,74 @@ export default function SalaryPlannerPage() {
 
   const totalPercent = useMemo(() => Math.round(Object.values(percents).reduce((a, b) => a + b, 0)), [percents]);
 
-  const handleSave = async () => {
-    if (!user || !salaryRef) return;
-    setDocumentNonBlocking(salaryRef, {
+  const handleSaveStrategy = async () => {
+    if (!user || !salaryProfilesRef || !strategyName.trim()) return;
+    
+    const payload = {
       userId: user.uid,
+      name: await encryptData(strategyName.trim().toUpperCase(), user.uid),
       salary: await encryptData(salary, user.uid),
       age: await encryptData(age, user.uid),
       percents: percents,
       pillars: pillars.map(p => ({ id: p.id, label: p.label, color: p.color })),
       isEncrypted: true,
-      createdAt: savedProfile?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
-    }, { merge: true });
+    };
 
-    toast({ title: 'Plan Secured', description: 'Strategy encrypted and saved to vault.' });
+    if (activeStrategyId) {
+      setDocumentNonBlocking(doc(salaryProfilesRef, activeStrategyId), payload, { merge: true });
+      toast({ title: 'Strategy Updated', description: `"${strategyName.toUpperCase()}" has been refined.` });
+    } else {
+      addDocumentNonBlocking(salaryProfilesRef, {
+        ...payload,
+        createdAt: new Date().toISOString()
+      }).then(docRef => {
+        if (docRef) setActiveStrategyId(docRef.id);
+      });
+      toast({ title: 'Strategy Vaulted', description: `"${strategyName.toUpperCase()}" secured in vault.` });
+    }
+
+    setIsSaveModalOpen(false);
   };
 
-  const handleGenerate = () => {
-    if (numSalary <= 0) {
-      toast({ variant: 'destructive', title: 'Invalid Salary', description: 'Please enter a valid monthly income.' });
-      return;
+  const loadStrategy = (strat: any) => {
+    setActiveStrategyId(strat.id);
+    setStrategyName(strat.name);
+    setSalary(strat.salary);
+    setAge(strat.age);
+    setPercents(strat.percents || DEFAULT_RATIOS);
+    
+    if (strat.pillars && Array.isArray(strat.pillars)) {
+      const restored = strat.pillars.map((p: any) => ({
+        ...p,
+        icon: STANDARD_PILLARS.find(s => s.id === p.id)?.icon || Coins
+      }));
+      setPillars(restored);
     }
+    
     setShowResults(true);
-    handleSave();
+    setIsSynced(false);
+    toast({ title: "Strategy Loaded", description: strat.name });
   };
 
-  const addPillar = () => {
-    const name = newPillarName.trim().toUpperCase();
-    if (!name) return;
-    const id = `custom_${Math.random().toString(36).substring(2, 7)}`;
-    const newPillar = { id, label: name, icon: Coins, color: CHART_COLORS[pillars.length % CHART_COLORS.length] };
-    setPillars([...pillars, newPillar]);
-    setPercents({ ...percents, [id]: 0 });
-    setNewPillarName('');
-    toast({ title: "Pillar Added", description: `"${name}" integrated into strategy.` });
+  const createNewStrategy = () => {
+    setActiveStrategyId(null);
+    setStrategyName('');
+    setSalary('');
+    setAge('');
+    setPercents(DEFAULT_RATIOS);
+    setPillars(STANDARD_PILLARS);
+    setShowResults(false);
+    setIsSynced(false);
+    setLockedPillars(new Set());
   };
 
-  const deletePillar = (id: string) => {
-    const deletedPercent = percents[id] || 0;
-    const remainingPillars = pillars.filter(p => p.id !== id);
-    const remainingPercents = { ...percents };
-    delete remainingPercents[id];
-
-    setPillars(remainingPillars);
-    
-    const unlockedKeys = remainingPillars.filter(p => !lockedPillars.has(p.id)).map(p => p.id);
-    if (unlockedKeys.length > 0) {
-      const share = deletedPercent / unlockedKeys.length;
-      unlockedKeys.forEach(k => remainingPercents[k] = (remainingPercents[k] || 0) + share);
-    }
-    
-    setPercents(remainingPercents);
-    toast({ title: "Pillar Removed", description: "Remaining funds redistributed." });
+  const deleteStrategy = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!salaryProfilesRef) return;
+    deleteDocumentNonBlocking(doc(salaryProfilesRef, id));
+    if (activeStrategyId === id) createNewStrategy();
+    toast({ title: "Strategy Erased" });
   };
 
   const syncWithBudget = async () => {
@@ -378,7 +396,7 @@ export default function SalaryPlannerPage() {
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Unlocking Planner...</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-4 md:gap-6 max-w-7xl mx-auto">
+        <div className="flex flex-col gap-4 md:gap-6 max-w-7xl mx-auto pb-12">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3 md:gap-4">
               <div className="p-2 md:p-3 bg-primary/10 rounded-2xl text-primary shadow-sm border border-primary/10">
@@ -386,28 +404,16 @@ export default function SalaryPlannerPage() {
               </div>
               <div>
                 <h2 className="text-xl md:text-3xl font-black tracking-tighter">Wealth Planner</h2>
-                <p className="text-[9px] md:text-[10px] font-black text-muted-foreground uppercase tracking-widest">Optimized Income Allocation</p>
+                <p className="text-[9px] md:text-[10px] font-black text-muted-foreground uppercase tracking-widest">{activeStrategyId ? strategyName : "New Strategic Logic"}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={createNewStrategy} className="h-10 md:h-12 px-5 md:px-6 font-black rounded-2xl border-dashed gap-2 text-[11px] md:text-sm">
+                <PlusCircle className="h-4 w-4" /> New Strategy
+              </Button>
               {showResults && (
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => {
-                    setShowResults(false);
-                    setIsSynced(false);
-                    setTimeout(() => document.getElementById('salary-input')?.focus(), 100);
-                  }} 
-                  className="h-10 w-10 md:h-12 md:w-12 rounded-2xl text-muted-foreground hover:text-primary transition-colors"
-                  title="Edit Base Metrics"
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-              )}
-              {showResults && (
-                <Button onClick={handleSave} className="shadow-lg h-10 md:h-12 px-5 md:px-6 font-black rounded-2xl bg-primary hover:bg-primary/90 text-[11px] md:text-sm">
-                  <Save className="h-4 w-4 mr-2" /> Save Strategy
+                <Button onClick={() => setIsSaveModalOpen(true)} className="shadow-lg h-10 md:h-12 px-5 md:px-6 font-black rounded-2xl bg-primary hover:bg-primary/90 text-[11px] md:text-sm">
+                  <Save className="h-4 w-4 mr-2" /> {activeStrategyId ? "Update" : "Save"} Strategy
                 </Button>
               )}
             </div>
@@ -421,18 +427,16 @@ export default function SalaryPlannerPage() {
                     <Coins className="h-4 w-4 text-primary" />
                     Base Metrics
                   </CardTitle>
-                  <CardDescription className="text-[9px] md:text-[10px] uppercase font-bold tracking-tight">Enter details to start allocation</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4 md:space-y-6 pt-4 md:pt-6 px-4 md:px-6">
                   <div className="space-y-2">
                     <Label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground">Monthly Salary (₹)</Label>
                     <Input 
-                      id="salary-input"
                       type="number" 
                       placeholder="e.g. 75000" 
                       value={salary} 
                       onChange={(e) => setSalary(e.target.value)}
-                      className="font-black text-xl md:text-2xl h-12 md:h-14 bg-muted/20 border-primary/10 focus:ring-2 focus:ring-primary/20 rounded-2xl tracking-tighter"
+                      className="font-black text-xl md:text-2xl h-12 md:h-14 bg-muted/20 border-primary/10 rounded-2xl tracking-tighter"
                     />
                   </div>
                   <div className="space-y-2">
@@ -445,9 +449,54 @@ export default function SalaryPlannerPage() {
                       className="h-10 md:h-12 font-black rounded-xl text-sm md:text-base"
                     />
                   </div>
-                  <Button onClick={handleGenerate} className="w-full h-10 md:h-12 text-[11px] md:text-sm font-black shadow-md rounded-xl gap-2">
+                  <Button onClick={() => setShowResults(true)} className="w-full h-10 md:h-12 text-[11px] md:text-sm font-black shadow-md rounded-xl gap-2">
                     Generate Strategy <ChevronRight className="h-3.5 w-3.5" />
                   </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-xl rounded-2xl border-none ring-1 ring-border overflow-hidden">
+                <CardHeader className="bg-muted/30 pb-3 md:pb-4 border-b px-4 md:px-6">
+                  <CardTitle className="text-sm md:text-base flex items-center gap-2 font-black">
+                    <Library className="h-4 w-4 text-primary" />
+                    Strategy Vault
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <ScrollArea className="h-[300px]">
+                    {decryptedProfiles.length === 0 ? (
+                      <div className="p-8 text-center opacity-30 grayscale space-y-2">
+                        <Clock className="h-8 w-8 mx-auto" />
+                        <p className="text-[10px] font-black uppercase tracking-widest">No saved strategies</p>
+                      </div>
+                    ) : (
+                      <div className="divide-y">
+                        {decryptedProfiles.map((strat) => (
+                          <div 
+                            key={strat.id} 
+                            onClick={() => loadStrategy(strat)}
+                            className={cn(
+                              "p-4 flex items-center justify-between cursor-pointer transition-all hover:bg-primary/5 group",
+                              activeStrategyId === strat.id && "bg-primary/10 border-l-4 border-l-primary"
+                            )}
+                          >
+                            <div className="min-w-0">
+                              <h4 className="font-black text-xs truncate uppercase tracking-tight">{strat.name}</h4>
+                              <p className="text-[9px] text-muted-foreground font-bold mt-0.5">₹{parseFloat(strat.salary).toLocaleString()} • Age {strat.age}</p>
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={(e) => deleteStrategy(strat.id, e)}
+                              className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
                 </CardContent>
               </Card>
 
@@ -462,24 +511,16 @@ export default function SalaryPlannerPage() {
                   <CardContent className="space-y-3 px-4 md:px-6 pb-5 md:pb-6">
                     <p className="text-[10px] md:text-[11px] leading-relaxed text-muted-foreground font-medium">
                       Your planned expenses are <span className="font-black text-foreground">₹{Math.round(amounts['expense'] || 0).toLocaleString()}</span>. 
-                      Set this as your daily budget cap?
+                      Set this as your monthly budget cap?
                     </p>
                     
                     {isSynced ? (
-                      <div className="p-3 md:p-4 bg-green-500/10 border border-green-200 dark:border-green-800/50 rounded-2xl flex flex-col items-center gap-2 animate-in zoom-in-95">
-                        <div className="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center text-white shadow-sm">
-                          <Check className="h-4 w-4" />
-                        </div>
-                        <p className="text-[9px] font-black text-green-700 dark:text-green-400 uppercase tracking-widest">Vault Synchronized</p>
-                        <Button variant="ghost" asChild className="h-7 text-[8px] font-black uppercase text-green-700 hover:bg-green-500/10">
-                          <Link href="/budget">View Budget <ChevronRight className="ml-1 h-3 w-3" /></Link>
-                        </Button>
+                      <div className="p-3 md:p-4 bg-green-500/10 border border-green-200 rounded-2xl flex flex-col items-center gap-2 animate-in zoom-in-95">
+                        <Check className="h-4 w-4 text-green-600" />
+                        <p className="text-[9px] font-black text-green-700 uppercase tracking-widest text-center leading-tight">Monthly Vault Updated</p>
                       </div>
                     ) : (
-                      <div className="p-3 md:p-4 bg-white/50 dark:bg-background/20 border border-blue-200 dark:border-blue-800/50 rounded-2xl space-y-3 shadow-sm">
-                        <p className="text-[8px] md:text-[9px] font-black text-blue-800 dark:text-blue-300 uppercase tracking-widest text-center">Auto-sync monthly target?</p>
-                        <Button size="sm" onClick={syncWithBudget} className="w-full bg-blue-600 hover:bg-blue-700 font-black rounded-xl shadow-md h-8 md:h-9 text-[10px]">Sync Now</Button>
-                      </div>
+                      <Button size="sm" onClick={syncWithBudget} className="w-full bg-blue-600 hover:bg-blue-700 font-black rounded-xl h-9 text-[10px]">Sync Monthly Budget</Button>
                     )}
                   </CardContent>
                 </Card>
@@ -507,11 +548,9 @@ export default function SalaryPlannerPage() {
                           </div>
                           <BrainCircuit className="h-6 w-6 text-primary animate-pulse" />
                         </div>
-                        <div className="flex items-center gap-4">
-                          <Badge variant={totalPercent === 100 ? "secondary" : "destructive"} className="h-7 md:h-8 px-3 md:px-4 rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest shadow-sm">
-                            Total: {totalPercent}%
-                          </Badge>
-                        </div>
+                        <Badge variant={totalPercent === 100 ? "secondary" : "destructive"} className="h-7 md:h-8 px-3 md:px-4 rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest shadow-sm">
+                          Total: {totalPercent}%
+                        </Badge>
                       </div>
                     </CardHeader>
                     <CardContent className="grid gap-6 md:gap-8 md:grid-cols-5 p-5 md:p-8">
@@ -529,142 +568,57 @@ export default function SalaryPlannerPage() {
                               <div key={item.id} className="space-y-4 group relative">
                                 <div className="flex justify-between items-start md:items-end flex-col md:flex-row gap-3">
                                   <div className="flex items-center gap-2">
-                                    <button 
-                                      onClick={() => toggleLock(item.id)}
-                                      className={cn(
-                                        "p-1.5 rounded-lg transition-all",
-                                        isLocked ? "bg-orange-100 text-orange-600 shadow-sm" : "text-muted-foreground hover:bg-muted"
-                                      )}
-                                      title={isLocked ? "Unlock Pillar" : "Lock Pillar (Exclude from AI Scaler)"}
-                                    >
+                                    <button onClick={() => toggleLock(item.id)} className={cn("p-1.5 rounded-lg transition-all", isLocked ? "bg-orange-100 text-orange-600 shadow-sm" : "text-muted-foreground hover:bg-muted")}>
                                       {isLocked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
                                     </button>
                                     <Icon className="h-4 w-4 md:h-5 md:w-5" style={{ color: item.color }} />
                                     <div className="flex flex-col">
-                                      <Label className="font-black text-[11px] md:text-[13px] uppercase tracking-tighter group-hover:text-primary transition-colors">
-                                        {item.label}
-                                      </Label>
-                                      <span className={cn(
-                                        "text-[9px] md:text-[10px] font-black tracking-tight",
-                                        isOverspent ? "text-destructive" : "text-primary"
-                                      )}>
-                                        ₹{committed.toLocaleString()} Spent
-                                      </span>
+                                      <Label className="font-black text-[11px] md:text-[13px] uppercase tracking-tighter">{item.label}</Label>
+                                      <span className={cn("text-[9px] md:text-[10px] font-black", isOverspent ? "text-destructive" : "text-primary")}>₹{committed.toLocaleString()} Spent</span>
                                     </div>
                                   </div>
                                   
                                   <div className="flex items-center gap-3 w-full md:w-auto">
-                                    <div className={cn(
-                                      "flex-1 md:flex-initial flex items-center gap-1.5 px-3 py-1.5 rounded-xl border shadow-inner transition-all",
-                                      isLocked ? "bg-orange-50/50 border-orange-200" : "bg-muted/20 border-primary/10 group-hover:border-primary/30"
-                                    )}>
+                                    <div className={cn("flex-1 md:flex-initial flex items-center gap-1.5 px-3 py-1.5 rounded-xl border shadow-inner transition-all", isLocked ? "bg-orange-50/50 border-orange-200" : "bg-muted/20 border-primary/10 group-hover:border-primary/30")}>
                                       <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Cap</span>
                                       <div className="flex items-center gap-1">
                                         <span className="text-[10px] font-bold text-muted-foreground opacity-50">₹</span>
-                                        <Input 
-                                          type="number"
-                                          value={Math.round(totalAllowed)}
-                                          onChange={(e) => updateAmount(item.id, e.target.value)}
-                                          className="w-16 h-5 border-none bg-transparent p-0 text-[10px] md:text-xs font-black focus-visible:ring-0 shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                        />
+                                        <Input type="number" value={Math.round(totalAllowed)} onChange={(e) => updateAmount(item.id, e.target.value)} className="w-16 h-5 border-none bg-transparent p-0 text-[10px] md:text-xs font-black focus-visible:ring-0 shadow-none" />
                                       </div>
                                     </div>
-
-                                    <div className={cn(
-                                      "flex-1 md:flex-initial flex items-center gap-1.5 px-3 py-1.5 rounded-xl border shadow-inner transition-all",
-                                      isLocked ? "bg-orange-100/50 border-orange-300" : "bg-primary/5 border-primary/20"
-                                    )}>
-                                      <span className={cn("text-[8px] font-black uppercase tracking-widest", isLocked ? "text-orange-600" : "text-primary")}>Scale</span>
+                                    <div className={cn("flex-1 md:flex-initial flex items-center gap-1.5 px-3 py-1.5 rounded-xl border shadow-inner transition-all", isLocked ? "bg-orange-100/50 border-orange-300" : "bg-primary/5 border-primary/20")}>
+                                      <span className="text-[8px] font-black uppercase tracking-widest">Scale</span>
                                       <div className="flex items-center gap-1">
-                                        <Input 
-                                          type="number"
-                                          value={Math.round((percents[item.id] || 0) * 10) / 10}
-                                          onChange={(e) => updatePercent(item.id, parseFloat(e.target.value) || 0)}
-                                          className={cn(
-                                            "w-8 h-5 border-none bg-transparent p-0 text-[10px] md:text-xs font-black text-right focus-visible:ring-0 shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
-                                            isLocked ? "text-orange-600" : "text-primary"
-                                          )}
-                                        />
-                                        <span className={cn("text-[10px] font-bold", isLocked ? "text-orange-600" : "text-primary")}>%</span>
+                                        <Input type="number" value={Math.round((percents[item.id] || 0) * 10) / 10} onChange={(e) => updatePercent(item.id, parseFloat(e.target.value) || 0)} className="w-8 h-5 border-none bg-transparent p-0 text-[10px] md:text-xs font-black text-right focus-visible:ring-0 shadow-none" />
+                                        <span className="text-[10px] font-bold">%</span>
                                       </div>
                                     </div>
-
-                                    <Button 
-                                      variant="ghost" 
-                                      size="icon" 
-                                      onClick={() => deletePillar(item.id)}
-                                      className="h-8 w-8 text-destructive/40 hover:text-destructive hover:bg-destructive/10 rounded-lg"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
+                                    <Button variant="ghost" size="icon" onClick={() => deletePillar(item.id)} className="h-8 w-8 text-destructive/40 hover:text-destructive hover:bg-destructive/10 rounded-lg"><Trash2 className="h-3.5 w-3.5" /></Button>
                                   </div>
                                 </div>
-                                
                                 <div className="space-y-1.5">
-                                  <div className="relative pt-1">
-                                    <Slider 
-                                      value={[percents[item.id] || 0]}
-                                      max={100}
-                                      step={0.5}
-                                      onValueChange={([val]) => updatePercent(item.id, val)}
-                                      className={cn("h-1.5 md:h-2", isLocked && "[&_.relative]:opacity-50")}
-                                    />
-                                    <div 
-                                      className={cn(
-                                        "absolute top-1 h-1.5 md:h-2 rounded-full pointer-events-none transition-all duration-700",
-                                        isOverspent ? "bg-destructive/40" : isLocked ? "bg-orange-500/30" : "bg-primary/30"
-                                      )}
-                                      style={{ width: `${Math.min(100, committedPercent)}%` }}
-                                    />
-                                  </div>
-                                  <div className="flex justify-between items-center px-1">
-                                    <span className="text-[7px] md:text-[8px] font-black uppercase text-muted-foreground tracking-widest">Strategy Utilization</span>
-                                    <span className={cn(
-                                      "text-[9px] font-black",
-                                      isOverspent ? "text-destructive" : isLocked ? "text-orange-600" : "text-primary"
-                                    )}>
-                                      {Math.round(committedPercent)}%
-                                    </span>
+                                  <Slider value={[percents[item.id] || 0]} max={100} step={0.5} onValueChange={([val]) => updatePercent(item.id, val)} className={cn("h-1.5 md:h-2", isLocked && "[&_.relative]:opacity-50")} />
+                                  <div className="h-1.5 md:h-2 w-full bg-muted rounded-full overflow-hidden">
+                                    <div className={cn("h-full transition-all duration-700", isOverspent ? "bg-destructive" : "bg-primary")} style={{ width: `${Math.min(100, committedPercent)}%` }} />
                                   </div>
                                 </div>
                               </div>
                             );
                           })}
                         </div>
-
                         <div className="p-4 rounded-2xl bg-muted/20 border border-dashed flex items-center gap-3">
-                          <Input 
-                            placeholder="New Pillar Name..." 
-                            value={newPillarName} 
-                            onChange={e => setNewPillarName(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && addPillar()}
-                            className="h-10 text-[10px] uppercase font-black tracking-tight"
-                          />
-                          <Button onClick={addPillar} size="icon" className="h-10 w-10 shrink-0 rounded-xl shadow-md">
-                            <Plus className="h-5 w-5" />
-                          </Button>
+                          <Input placeholder="New Pillar Name..." value={newPillarName} onChange={e => setNewPillarName(e.target.value)} className="h-10 text-[10px] uppercase font-black tracking-tight" />
+                          <Button onClick={addPillar} size="icon" className="h-10 w-10 shrink-0 rounded-xl shadow-md"><Plus className="h-5 w-5" /></Button>
                         </div>
                       </div>
                       <div className="md:col-span-2 flex flex-col items-center justify-center p-2 md:p-4">
                         <div className="w-full h-[200px] md:h-[250px] relative">
                           <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
-                              <Pie 
-                                data={salaryData} 
-                                innerRadius={55} 
-                                outerRadius={80} 
-                                paddingAngle={4} 
-                                dataKey="value" 
-                                stroke="none"
-                                animationDuration={500}
-                              >
+                              <Pie data={salaryData} innerRadius={55} outerRadius={80} paddingAngle={4} dataKey="value" stroke="none">
                                 {salaryData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
                               </Pie>
-                              <RechartsTooltip 
-                                contentStyle={chartTooltipStyle}
-                                itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
-                                formatter={(v: number) => `₹${Math.round(v).toLocaleString()}`} 
-                              />
+                              <RechartsTooltip contentStyle={chartTooltipStyle} itemStyle={{ color: 'hsl(var(--popover-foreground))' }} formatter={(v: number) => `₹${Math.round(v).toLocaleString()}`} />
                               <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', paddingTop: '10px' }} />
                             </PieChart>
                           </ResponsiveContainer>
@@ -680,13 +634,7 @@ export default function SalaryPlannerPage() {
                   <div className="grid gap-4 md:gap-6 md:grid-cols-2">
                     {percents['investment'] !== undefined && (
                       <Card className="shadow-xl rounded-3xl border-none ring-1 ring-orange-500/20">
-                        <CardHeader className="pb-2 border-b bg-muted/10 px-5 md:px-6">
-                          <CardTitle className="text-xs md:text-sm flex items-center gap-2 font-black">
-                            <Target className="h-4 w-4 text-orange-500" />
-                            Asset Matrix
-                          </CardTitle>
-                          <CardDescription className="text-[8px] md:text-[9px] font-black uppercase tracking-widest opacity-60">Risk Profile: Age {numAge}</CardDescription>
-                        </CardHeader>
+                        <CardHeader className="pb-2 border-b bg-muted/10 px-5 md:px-6"><CardTitle className="text-xs md:text-sm flex items-center gap-2 font-black"><Target className="h-4 w-4 text-orange-500" /> Asset Matrix</CardTitle></CardHeader>
                         <CardContent className="pt-4 md:pt-6 space-y-5 md:space-y-6 px-5 md:px-6">
                           <div className="h-[150px] md:h-[180px] w-full relative">
                             <ResponsiveContainer width="100%" height="100%">
@@ -694,24 +642,14 @@ export default function SalaryPlannerPage() {
                                 <Pie data={invData} innerRadius={40} outerRadius={60} paddingAngle={4} dataKey="value" stroke="none">
                                   {invData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
                                 </Pie>
-                                <RechartsTooltip 
-                                  contentStyle={chartTooltipStyle}
-                                  itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
-                                  formatter={(v: number) => `₹${Math.round(v).toLocaleString()}`} 
-                                />
+                                <RechartsTooltip contentStyle={chartTooltipStyle} itemStyle={{ color: 'hsl(var(--popover-foreground))' }} formatter={(v: number) => `₹${Math.round(v).toLocaleString()}`} />
                                 <Legend iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold' }} />
                               </PieChart>
                             </ResponsiveContainer>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                              <p className="text-sm md:text-lg font-black tracking-tighter">₹{Math.round(amounts['investment'] || 0).toLocaleString()}</p>
-                            </div>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"><p className="text-sm md:text-lg font-black tracking-tighter">₹{Math.round(amounts['investment'] || 0).toLocaleString()}</p></div>
                           </div>
                           <div className="grid grid-cols-3 gap-2 pb-5">
-                            {[
-                              { label: 'Equity', amt: invAllocation.equityAmt, p: invAllocation.equityP },
-                              { label: 'Debt', amt: invAllocation.debtAmt, p: invAllocation.debtP },
-                              { label: 'Gold', amt: invAllocation.goldAmt, p: invAllocation.goldP }
-                            ].map(item => (
+                            {[{ label: 'Equity', amt: invAllocation.equityAmt, p: invAllocation.equityP }, { label: 'Debt', amt: invAllocation.debtAmt, p: invAllocation.debtP }, { label: 'Gold', amt: invAllocation.goldAmt, p: invAllocation.goldP }].map(item => (
                               <div key={item.label} className="p-2 md:p-3 border rounded-2xl bg-muted/5 text-center space-y-1">
                                 <p className="text-[7px] md:text-[8px] font-black text-muted-foreground uppercase truncate">{item.label}</p>
                                 <p className="text-[10px] font-black tracking-tighter">₹{Math.round(item.amt).toLocaleString()}</p>
@@ -722,15 +660,9 @@ export default function SalaryPlannerPage() {
                         </CardContent>
                       </Card>
                     )}
-
                     <Card className="shadow-xl rounded-3xl border-none ring-1 ring-border overflow-hidden">
-                      <CardHeader className="pb-2 border-b bg-muted/10 px-5 md:px-6">
-                        <CardTitle className="text-xs md:text-sm flex items-center gap-2 font-black">
-                          <Info className="h-4 w-4 text-muted-foreground" />
-                          Strategic Logic
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="pt-4 md:pt-6 space-y-4 md:space-y-5 px-5 md:px-6 max-h-[300px] md:max-h-[350px] overflow-y-auto pb-6">
+                      <CardHeader className="pb-2 border-b bg-muted/10 px-5 md:px-6"><CardTitle className="text-xs md:text-sm flex items-center gap-2 font-black"><Info className="h-4 w-4 text-muted-foreground" /> Strategic Logic</CardTitle></CardHeader>
+                      <CardContent className="pt-4 md:pt-6 space-y-4 md:space-y-5 px-5 md:px-6 max-h-[300px] overflow-y-auto pb-6">
                         <div className="space-y-3 md:space-y-4">
                           <h4 className="text-[8px] md:text-[9px] font-black uppercase text-primary border-b pb-1">Dynamic Allocation</h4>
                           {pillars.map(p => (
@@ -746,6 +678,39 @@ export default function SalaryPlannerPage() {
           </div>
         </div>
       )}
+
+      <Dialog open={isSaveModalOpen} onOpenChange={setIsSaveModalOpen}>
+        <DialogContent className="max-w-[95vw] sm:max-w-md rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black tracking-tighter flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Vault Strategy
+            </DialogTitle>
+            <DialogDescription className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Give this strategy a unique name to secure it.</DialogDescription>
+          </DialogHeader>
+          <div className="py-6 space-y-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-primary ml-1">Strategy Alias</Label>
+              <Input 
+                placeholder="e.g. BALANCED 2026, AGGRESSIVE GROWTH..." 
+                value={strategyName} 
+                onChange={(e) => setStrategyName(e.target.value)}
+                className="h-12 rounded-xl font-black uppercase tracking-tight"
+                autoFocus
+              />
+            </div>
+            <div className="p-4 bg-muted/20 rounded-2xl border border-dashed text-[10px] font-medium leading-relaxed text-muted-foreground">
+              This strategy includes your monthly income of <span className="font-bold text-foreground">₹{numSalary.toLocaleString()}</span> and its specific pillar distribution.
+            </div>
+          </div>
+          <DialogFooter className="gap-3">
+            <Button variant="ghost" onClick={() => setIsSaveModalOpen(false)} className="rounded-xl font-black text-[10px] uppercase">Cancel</Button>
+            <Button onClick={handleSaveStrategy} disabled={!strategyName.trim()} className="rounded-xl font-black text-[10px] uppercase gap-2 px-8 shadow-lg">
+              <ShieldCheck className="h-3.5 w-3.5" /> Secure to Vault
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }
