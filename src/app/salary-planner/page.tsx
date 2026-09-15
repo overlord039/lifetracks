@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { doc, collection } from 'firebase/firestore';
 import { 
   Calculator, 
@@ -25,7 +25,6 @@ import {
   ShieldCheck,
   Target,
   Loader2,
-  Pencil,
   Lock,
   Unlock,
   Plus,
@@ -34,7 +33,6 @@ import {
   Check,
   Library,
   Sparkles,
-  ArrowRight,
   PlusCircle,
   Clock
 } from 'lucide-react';
@@ -50,7 +48,6 @@ import {
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { encryptData, decryptData, decryptNumber } from '@/lib/encryption';
-import Link from 'next/link';
 import {
   Dialog,
   DialogContent,
@@ -250,6 +247,49 @@ export default function SalaryPlannerPage() {
     const newPercent = numSalary > 0 ? (numVal / numSalary) * 100 : 0;
     updatePercent(id, newPercent);
   }, [numSalary, updatePercent]);
+
+  const addPillar = () => {
+    const name = newPillarName.trim();
+    if (!name) return;
+    
+    const id = name.toLowerCase().replace(/\s+/g, '_');
+    if (pillars.find(p => p.id === id)) {
+      toast({ variant: "destructive", title: "Pillar Exists", description: "This category name is already used." });
+      return;
+    }
+
+    const newPillar = {
+      id,
+      label: name.toUpperCase(),
+      icon: Coins,
+      color: CHART_COLORS[pillars.length % CHART_COLORS.length]
+    };
+
+    setPillars([...pillars, newPillar]);
+    setPercents(prev => ({ ...prev, [id]: 0 }));
+    setNewPillarName('');
+    toast({ title: "Pillar Added", description: `${name.toUpperCase()} included in strategy.` });
+  };
+
+  const deletePillar = (id: string) => {
+    if (pillars.length <= 2) {
+      toast({ variant: "destructive", title: "Min Pillars Reached", description: "Keep at least 2 pillars for a valid strategy." });
+      return;
+    }
+
+    setPillars(prev => prev.filter(p => p.id !== id));
+    setPercents(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setLockedPillars(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    toast({ title: "Pillar Removed" });
+  };
 
   const amounts = useMemo(() => {
     const ams: Record<string, number> = {};
