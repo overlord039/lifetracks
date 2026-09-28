@@ -716,7 +716,8 @@ export default function ReportsPage() {
                   </div>
                   {weeklyReport.lastWeekSpent > 0 && (
                     <div className="flex items-center justify-between mt-1">
-                      <span className="text-[9px] md:text-[10px] font-bold flex items-center",
+                      <span className={cn(
+                        "text-[9px] md:text-[10px] font-bold flex items-center",
                         weekDiff > 0 ? "text-destructive" : "text-green-600 dark:text-green-400"
                       )}>
                         {weekDiff > 0 ? <ArrowUpRight className="h-3 w-3 mr-0.5" /> : <ArrowDownRight className="h-3 w-3 mr-0.5" />}
