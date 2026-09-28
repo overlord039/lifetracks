@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -655,7 +654,16 @@ export default function SalaryPlannerPage() {
                         <div className="w-full h-[200px] md:h-[250px] relative">
                           <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
-                              <Pie data={salaryData} innerRadius={55} outerRadius={80} paddingAngle={4} dataKey="value" stroke="none">
+                              <Pie 
+                                data={salaryData} 
+                                innerRadius={55} 
+                                outerRadius={80} 
+                                paddingAngle={4} 
+                                dataKey="value" 
+                                stroke="none"
+                                labelLine={false}
+                                label={({ percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ''}
+                              >
                                 {salaryData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
                               </Pie>
                               <RechartsTooltip contentStyle={chartTooltipStyle} itemStyle={{ color: 'hsl(var(--popover-foreground))' }} formatter={(v: number) => `₹${Math.round(v).toLocaleString()}`} />
@@ -679,7 +687,16 @@ export default function SalaryPlannerPage() {
                           <div className="h-[150px] md:h-[180px] w-full relative">
                             <ResponsiveContainer width="100%" height="100%">
                               <PieChart>
-                                <Pie data={invData} innerRadius={40} outerRadius={60} paddingAngle={4} dataKey="value" stroke="none">
+                                <Pie 
+                                  data={invData} 
+                                  innerRadius={40} 
+                                  outerRadius={60} 
+                                  paddingAngle={4} 
+                                  dataKey="value" 
+                                  stroke="none"
+                                  labelLine={false}
+                                  label={({ percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ''}
+                                >
                                   {invData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
                                 </Pie>
                                 <RechartsTooltip contentStyle={chartTooltipStyle} itemStyle={{ color: 'hsl(var(--popover-foreground))' }} formatter={(v: number) => `₹${Math.round(v).toLocaleString()}`} />
