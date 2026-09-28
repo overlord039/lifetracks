@@ -886,24 +886,6 @@ export default function ReportsPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-4 md:p-6 space-y-6">
-                <div className="grid grid-cols-3 gap-3 md:gap-4">
-                  <div className="p-3 rounded-2xl bg-destructive/5 border border-destructive/10 flex flex-col items-center justify-center space-y-1">
-                    <p className="text-[8px] font-black uppercase tracking-widest text-destructive">Highest</p>
-                    <p className="text-sm md:text-base font-black tracking-tighter text-destructive">₹{Math.round(chartsData.highest).toLocaleString()}</p>
-                    <ArrowUp className="h-3 w-3 text-destructive opacity-30" />
-                  </div>
-                  <div className="p-3 rounded-2xl bg-secondary/10 border border-secondary/20 flex flex-col items-center justify-center space-y-1">
-                    <p className="text-[8px] font-black uppercase tracking-widest text-secondary-foreground">Lowest</p>
-                    <p className="text-sm md:text-base font-black tracking-tighter text-secondary-foreground">₹{Math.round(chartsData.lowest).toLocaleString()}</p>
-                    <ArrowDown className="h-3 w-3 text-secondary opacity-30" />
-                  </div>
-                  <div className="p-3 rounded-2xl bg-primary/5 border border-primary/10 flex flex-col items-center justify-center space-y-1">
-                    <p className="text-[8px] font-black uppercase tracking-widest text-primary">Average</p>
-                    <p className="text-sm md:text-base font-black tracking-tighter text-primary">₹{Math.round(chartsData.average).toLocaleString()}</p>
-                    <Zap className="h-3 w-3 text-primary opacity-30" />
-                  </div>
-                </div>
-
                 <div className="h-[250px] md:h-[400px] w-full pt-4 -ml-4 md:ml-0 relative">
                   {viewType !== 'annual' && (
                     <div className="absolute top-2 right-2 z-10">
@@ -1172,3 +1154,4 @@ export default function ReportsPage() {
     </AppShell>
   );
 }
+
