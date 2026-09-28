@@ -390,7 +390,8 @@ export default function ReportsPage() {
     const categoryTotals: Record<string, number> = {};
     const allItems = [...decryptedExpenses, ...decryptedFixed];
     allItems.forEach(item => {
-      const catName = decryptedCategories?.find(c => c.id === item.expenseCategoryId)?.name || 'Misc';
+      const cat = decryptedCategories?.find(c => c.id === item.expenseCategoryId);
+      const catName = cat?.name || 'Misc';
       categoryTotals[catName] = (categoryTotals[catName] || 0) + item.amount;
     });
 
@@ -421,10 +422,10 @@ export default function ReportsPage() {
 
       sData = days
         .map(d => {
-          const dStr = format(d, 'yyyy-MM-dd');
+          const dStr = format(d, 'yyyy-MM-01'); // Use 1st for display consistency
           return {
             name: format(d, 'dd MMM'),
-            spent: dailyExpensesMap[dStr] || 0,
+            spent: dailyExpensesMap[format(d, 'yyyy-MM-dd')] || 0,
           };
         });
     } else if (viewType === 'annual') {
@@ -484,32 +485,57 @@ export default function ReportsPage() {
   const auditExpenses = useMemo(() => {
     if (!activeAuditCategoryId) return [];
     
-    // Combine daily expenses and fixed expenses for a complete audit
+    const targetCat = decryptedCategories.find(c => c.id === activeAuditCategoryId);
+    const targetCatName = targetCat?.name || 'Misc';
+
     const combined = [
-      ...(decryptedExpenses || []).map(e => ({ 
-        ...e, 
-        type: 'daily', 
-        displayDesc: e.description,
-        sortDate: e.date 
-      })),
-      ...(decryptedFixed || []).map(f => ({ 
-        ...f, 
-        type: 'fixed', 
-        displayDesc: f.name, 
-        date: format(selectedDate, 'yyyy-MM-01'), // Default to month start for fixed
-        sortDate: format(selectedDate, 'yyyy-MM-01') 
-      }))
+      ...(decryptedExpenses || []).map(e => {
+        const cat = decryptedCategories.find(c => c.id === e.expenseCategoryId);
+        const catName = cat?.name || 'Misc';
+        return { 
+          ...e, 
+          type: 'daily', 
+          displayDesc: (e.description && e.description.trim()) ? e.description : catName,
+          catName,
+          sortDate: e.date || ''
+        };
+      }),
+      ...(decryptedFixed || []).map(f => {
+        const cat = decryptedCategories.find(c => c.id === f.expenseCategoryId);
+        const catName = cat?.name || 'Misc';
+        return { 
+          ...f, 
+          type: 'fixed', 
+          displayDesc: (f.name && f.name.trim()) ? f.name : catName, 
+          catName,
+          date: format(selectedDate, 'yyyy-MM-01'),
+          sortDate: format(selectedDate, 'yyyy-MM-01') 
+        };
+      })
     ];
 
     return combined
-      .filter(item => (item.expenseCategoryId || 'misc') === activeAuditCategoryId)
+      .filter(item => {
+        // Match by ID primarily, but fallback to name for orphaned/older records
+        const matchesId = (item.expenseCategoryId || 'misc') === activeAuditCategoryId;
+        const matchesName = item.catName === targetCatName;
+        return matchesId || matchesName;
+      })
       .sort((a, b) => b.sortDate.localeCompare(a.sortDate));
-  }, [decryptedExpenses, decryptedFixed, activeAuditCategoryId, selectedDate]);
+  }, [decryptedExpenses, decryptedFixed, activeAuditCategoryId, selectedDate, decryptedCategories]);
 
   const downloadAuditCsv = () => {
     const combined = [
-      ...(decryptedExpenses || []),
-      ...(decryptedFixed || []).map(f => ({ ...f, description: f.name, date: format(selectedDate, 'yyyy-MM-01') }))
+      ...(decryptedExpenses || []).map(e => {
+        const cat = decryptedCategories.find(c => c.id === e.expenseCategoryId);
+        const catName = cat?.name || 'MISC';
+        return { ...e, description: (e.description && e.description.trim()) ? e.description : catName, catName };
+      }),
+      ...(decryptedFixed || []).map(f => {
+        const cat = decryptedCategories.find(c => c.id === f.expenseCategoryId);
+        const catName = cat?.name || 'MISC';
+        return { ...f, description: (f.name && f.name.trim()) ? f.name : catName, date: format(selectedDate, 'yyyy-MM-01'), catName };
+      })
     ];
 
     if (combined.length === 0) {
@@ -519,12 +545,10 @@ export default function ReportsPage() {
 
     const headers = ['Date', 'Description', 'Category', 'Pillar', 'Amount (₹)'];
     const rows = combined.sort((a,b) => b.date.localeCompare(a.date)).map(item => {
-      const catName = decryptedCategories.find(c => c.id === item.expenseCategoryId)?.name || 'MISC';
-      const description = item.description || item.name || catName;
       return [
         item.date,
-        `"${description.replace(/"/g, '""')}"`,
-        `"${catName.replace(/"/g, '""')}"`,
+        `"${(item.description || '').replace(/"/g, '""')}"`,
+        `"${(item.catName || 'MISC').replace(/"/g, '""')}"`,
         item.allocationBucket || 'expense',
         item.amount
       ];
@@ -957,30 +981,41 @@ export default function ReportsPage() {
               <div className="flex-1 min-h-0 flex flex-col bg-background overflow-hidden relative">
                 {!activeAuditCategoryId ? (
                   <ScrollArea className="flex-1">
-                    <div className="p-4 grid grid-cols-2 gap-3">
+                    <div className="p-2 grid grid-cols-2 gap-2">
                       {chartsData.categoryData.length > 0 ? chartsData.categoryData.map((cat: any) => {
-                        const catId = decryptedCategories.find(c => c.name === cat.name)?.id || 'misc';
-                        // Count both daily and fixed expenses for this category
-                        const dailyCount = (decryptedExpenses || []).filter(e => (e.expenseCategoryId || 'misc') === catId).length;
-                        const fixedCount = (decryptedFixed || []).filter(f => (f.expenseCategoryId || 'misc') === catId).length;
+                        const catItem = decryptedCategories.find(c => c.name === cat.name);
+                        const catId = catItem?.id || 'misc';
+                        
+                        // Recalculate count to be perfectly in sync with summation logic (ID or name fallback)
+                        const targetCatName = cat.name;
+                        const dailyCount = (decryptedExpenses || []).filter(e => {
+                           const eCat = decryptedCategories.find(c => c.id === e.expenseCategoryId);
+                           const eCatName = eCat?.name || 'Misc';
+                           return e.expenseCategoryId === catId || eCatName === targetCatName;
+                        }).length;
+                        const fixedCount = (decryptedFixed || []).filter(f => {
+                           const fCat = decryptedCategories.find(c => c.id === f.expenseCategoryId);
+                           const fCatName = fCat?.name || 'Misc';
+                           return f.expenseCategoryId === catId || fCatName === targetCatName;
+                        }).length;
                         const totalCount = dailyCount + fixedCount;
                         
                         return (
                           <div 
-                            key={catId} 
-                            className="flex flex-col justify-between p-4 rounded-2xl border transition-all cursor-pointer group hover:border-primary/50 hover:shadow-md bg-card shadow-sm h-full"
+                            key={catId + cat.name} 
+                            className="flex flex-col justify-between p-3 rounded-xl border transition-all cursor-pointer group hover:border-primary/50 hover:shadow-md bg-card shadow-sm"
                             onClick={() => setActiveAuditCategoryId(catId)}
                           >
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="p-2 bg-muted rounded-xl text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-                                <ReceiptText className="h-4 w-4" />
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="p-1.5 bg-muted rounded-lg text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                                <ReceiptText className="h-3.5 w-3.5" />
                               </div>
-                              <span className="text-sm font-black tracking-tighter text-foreground">₹{cat.value.toLocaleString()}</span>
+                              <span className="text-xs font-black tracking-tighter text-foreground">₹{cat.value.toLocaleString()}</span>
                             </div>
                             <div className="flex flex-col min-w-0">
                               <div className="flex items-center justify-between">
                                 <span className="text-[10px] font-black uppercase truncate tracking-tight leading-tight">{cat.name}</span>
-                                <ChevronRightIcon className="h-3 w-3 text-muted-foreground/30 group-hover:text-primary transition-colors" />
+                                <ChevronRightIcon className="h-2.5 w-2.5 text-muted-foreground/30 group-hover:text-primary transition-colors" />
                               </div>
                               <span className="text-[8px] font-bold text-muted-foreground uppercase leading-none mt-1">{totalCount} Items in ledger</span>
                             </div>
@@ -1030,7 +1065,7 @@ export default function ReportsPage() {
                                   </div>
                                   <div className="min-w-0 flex-1">
                                     <p className="text-[12px] font-black truncate tracking-tight text-foreground">
-                                      {item.displayDesc || decryptedCategories.find(c => c.id === activeAuditCategoryId)?.name || 'SECURED ITEM'}
+                                      {item.displayDesc || item.catName || 'SECURED ITEM'}
                                     </p>
                                     <div className="flex items-center gap-2 mt-0.5">
                                       <span className="text-[8px] font-black uppercase text-muted-foreground">
