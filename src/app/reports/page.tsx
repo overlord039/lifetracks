@@ -59,7 +59,9 @@ import {
   Coins,
   ArrowUp,
   ArrowDown,
-  Zap
+  Zap,
+  ArrowLeft,
+  ChevronRight as ChevronRightIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -109,8 +111,7 @@ export default function ReportsPage() {
   const [viewType, setViewType] = useState<'weekly' | 'monthly' | 'annual' | 'category'>('monthly');
   const [mounted, setMounted] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
-  const [selectedAuditCategories, setSelectedAuditCategories] = useState<Set<string>>(new Set());
-  const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(new Set());
+  const [activeAuditCategoryId, setActiveAuditCategoryId] = useState<string | null>(null);
 
   const [decryptedBudget, setDecryptedBudget] = useState<any>(null);
   const [decryptedPrevBudget, setDecryptedPrevBudget] = useState<any>(null);
@@ -274,15 +275,6 @@ export default function ReportsPage() {
     decryptAll();
   }, [rawBudget, rawPrevBudget, rawFixed, rawExpenses, rawPrevExpenses, rawCategories, rawSalaryProfile, rawAllBudgets, user, mounted]);
 
-  useEffect(() => {
-    if (!isDecrypting && decryptedExpenses.length > 0 && selectedTransactionIds.size === 0) {
-      setSelectedTransactionIds(new Set(decryptedExpenses.map(e => e.id)));
-    }
-    if (!isDecrypting && decryptedCategories.length > 0 && selectedAuditCategories.size === 0) {
-      setSelectedAuditCategories(new Set(decryptedCategories.map(c => c.id).concat(['misc'])));
-    }
-  }, [isDecrypting, decryptedExpenses, decryptedCategories, selectedTransactionIds.size, selectedAuditCategories.size]);
-
   const totals = useMemo(() => {
     const budget = decryptedBudget?.totalBudgetAmount || 0;
     const fixed = (decryptedFixed || []).filter(f => f.includeInBudget && (f.allocationBucket || 'expense') === 'expense').reduce((s, f) => s + f.amount, 0);
@@ -337,18 +329,6 @@ export default function ReportsPage() {
       };
     });
   }, [decryptedSalaryProfile, decryptedFixed, decryptedExpenses]);
-
-  const auditTotal = useMemo(() => {
-    return (decryptedExpenses || [])
-      .filter(exp => selectedTransactionIds.has(exp.id))
-      .reduce((sum, exp) => sum + exp.amount, 0);
-  }, [decryptedExpenses, selectedTransactionIds]);
-
-  const auditExpenses = useMemo(() => {
-    return (decryptedExpenses || [])
-      .filter(exp => selectedAuditCategories.has(exp.expenseCategoryId || 'misc'))
-      .sort((a, b) => b.date.localeCompare(a.date));
-  }, [decryptedExpenses, selectedAuditCategories]);
 
   const weeklyReport = useMemo(() => {
     if (!decryptedExpenses) return { currentWeekSpent: 0, lastWeekSpent: 0, weeklyData: [] };
@@ -406,7 +386,6 @@ export default function ReportsPage() {
       return { spendingData: [], categoryData: [], highest: 0, lowest: 0, average: 0 };
     }
 
-    // Comprehensive categorical data including fixed expenses
     const categoryTotals: Record<string, number> = {};
     const allItems = [...decryptedExpenses, ...decryptedFixed];
     allItems.forEach(item => {
@@ -498,57 +477,24 @@ export default function ReportsPage() {
 
   const changeMonth = (delta: number) => {
     setSelectedDate(prev => subMonths(prev, -delta));
-    // Clear selection so it re-populates for new data
-    setSelectedAuditCategories(new Set());
-    setSelectedTransactionIds(new Set());
+    setActiveAuditCategoryId(null);
   };
 
-  const toggleAuditCategory = (catId: string) => {
-    const nextCats = new Set(selectedAuditCategories);
-    const nextTxns = new Set(selectedTransactionIds);
-    const isAdding = !nextCats.has(catId);
-    
-    if (isAdding) {
-      nextCats.add(catId);
-      decryptedExpenses.filter(e => (e.expenseCategoryId || 'misc') === catId).forEach(e => nextTxns.add(e.id));
-    } else {
-      nextCats.delete(catId);
-      decryptedExpenses.filter(e => (e.expenseCategoryId || 'misc') === catId).forEach(e => nextTxns.delete(e.id));
-    }
-    
-    setSelectedAuditCategories(nextCats);
-    setSelectedTransactionIds(nextTxns);
-  };
-
-  const toggleTransaction = (txnId: string) => {
-    const next = new Set(selectedTransactionIds);
-    if (next.has(txnId)) next.delete(txnId);
-    else next.add(txnId);
-    setSelectedTransactionIds(next);
-  };
-
-  const handleToggleAll = (checked: any) => {
-    if (checked === true) {
-      const allCatIds = new Set(decryptedCategories.map(c => c.id).concat(['misc']));
-      const allTxnIds = new Set(decryptedExpenses.map(e => e.id));
-      setSelectedAuditCategories(allCatIds);
-      setSelectedTransactionIds(allTxnIds);
-    } else {
-      setSelectedAuditCategories(new Set());
-      setSelectedTransactionIds(new Set());
-    }
-  };
+  const auditExpenses = useMemo(() => {
+    if (!activeAuditCategoryId) return [];
+    return (decryptedExpenses || [])
+      .filter(exp => (exp.expenseCategoryId || 'misc') === activeAuditCategoryId)
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [decryptedExpenses, activeAuditCategoryId]);
 
   const downloadAuditCsv = () => {
-    const verifiedExpenses = (decryptedExpenses || []).filter(exp => selectedTransactionIds.has(exp.id));
-    
-    if (verifiedExpenses.length === 0) {
-      toast({ title: "No Data", description: "Select transactions from the audit ledger to export." });
+    if (decryptedExpenses.length === 0) {
+      toast({ title: "No Data", description: "No records found to export for this month." });
       return;
     }
 
     const headers = ['Date', 'Description', 'Category', 'Pillar', 'Amount (₹)'];
-    const rows = verifiedExpenses.sort((a,b) => b.date.localeCompare(a.date)).map(exp => {
+    const rows = decryptedExpenses.sort((a,b) => b.date.localeCompare(a.date)).map(exp => {
       const catName = decryptedCategories.find(c => c.id === exp.expenseCategoryId)?.name || 'MISC';
       return [
         exp.date,
@@ -957,8 +903,8 @@ export default function ReportsPage() {
             </Card>
           </div>
 
-          <Dialog open={isAuditModalOpen} onOpenChange={setIsAuditModalOpen}>
-            <DialogContent className="max-w-[98vw] md:max-w-6xl rounded-none md:rounded-2xl p-0 overflow-hidden border shadow-2xl h-[95vh] md:h-[90vh] flex flex-col">
+          <Dialog open={isAuditModalOpen} onOpenChange={(open) => { setIsAuditModalOpen(open); if(!open) setActiveAuditCategoryId(null); }}>
+            <DialogContent className="max-w-[98vw] md:max-w-4xl rounded-none md:rounded-2xl p-0 overflow-hidden border shadow-2xl h-[95vh] md:h-[80vh] flex flex-col">
               <div className="bg-primary p-4 sm:p-5 text-primary-foreground relative shrink-0 flex items-center justify-between gap-4 border-b">
                 <div className="flex flex-col space-y-0.5">
                   <DialogHeader className="text-left">
@@ -967,7 +913,7 @@ export default function ReportsPage() {
                       Category Audit
                     </DialogTitle>
                     <DialogDescription className="text-[9px] font-black uppercase tracking-widest text-primary-foreground/70 hidden sm:block">
-                      Spend reconciliation
+                      {activeAuditCategoryId ? "Detailed Ledger View" : "Spend reconciliation"}
                     </DialogDescription>
                   </DialogHeader>
                 </div>
@@ -983,150 +929,125 @@ export default function ReportsPage() {
                 </div>
               </div>
               
-              <div className="flex-1 min-h-0 flex flex-col md:flex-row bg-background overflow-hidden">
-                {/* Compact Sidebar */}
-                <div className="w-full md:w-80 border-r flex flex-col bg-muted/[0.03] max-h-[35vh] md:max-h-none shrink-0 overflow-hidden">
-                  <div className="p-3 border-b bg-muted/[0.05] flex items-center justify-between shrink-0">
-                    <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Audit Labels</p>
-                    <div className="flex items-center gap-2">
-                      <Checkbox 
-                        id="audit-select-all" 
-                        checked={decryptedExpenses.length > 0 && selectedTransactionIds.size === decryptedExpenses.length}
-                        onCheckedChange={handleToggleAll}
-                        className="h-3.5 w-3.5 rounded-sm border-primary/30"
-                      />
-                      <label htmlFor="audit-select-all" className="text-[9px] font-black uppercase text-primary cursor-pointer">All</label>
-                    </div>
-                  </div>
+              <div className="flex-1 min-h-0 flex flex-col bg-background overflow-hidden relative">
+                {!activeAuditCategoryId ? (
                   <ScrollArea className="flex-1">
-                    <div className="p-2 grid grid-cols-2 gap-2">
+                    <div className="p-4 grid grid-cols-2 gap-3">
                       {chartsData.categoryData.length > 0 ? chartsData.categoryData.map((cat: any) => {
                         const catId = decryptedCategories.find(c => c.name === cat.name)?.id || 'misc';
-                        const isChecked = selectedAuditCategories.has(catId);
                         const txnsCount = decryptedExpenses.filter(e => (e.expenseCategoryId || 'misc') === catId).length;
                         
                         return (
                           <div 
                             key={catId} 
-                            className={cn(
-                              "flex flex-col justify-between p-2.5 rounded-xl border transition-all cursor-pointer group hover:shadow-sm h-full",
-                              isChecked 
-                                ? "bg-primary/[0.03] border-primary/30 ring-1 ring-primary/5 shadow-sm" 
-                                : "bg-card border-border opacity-70 hover:opacity-100"
-                            )}
-                            onClick={() => toggleAuditCategory(catId)}
+                            className="flex flex-col justify-between p-4 rounded-2xl border transition-all cursor-pointer group hover:border-primary/50 hover:shadow-md bg-card shadow-sm h-full"
+                            onClick={() => setActiveAuditCategoryId(catId)}
                           >
-                            <div className="flex items-center justify-between mb-2">
-                              <Checkbox 
-                                id={`audit-${catId}`}
-                                checked={isChecked} 
-                                onCheckedChange={() => toggleAuditCategory(catId)}
-                                className="rounded h-3.5 w-3.5 border-2"
-                              />
-                              <span className="text-[10px] font-black tracking-tight text-foreground/80">₹{cat.value.toLocaleString()}</span>
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="p-2 bg-muted rounded-xl text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                                <ReceiptText className="h-4 w-4" />
+                              </div>
+                              <span className="text-sm font-black tracking-tighter text-foreground">₹{cat.value.toLocaleString()}</span>
                             </div>
                             <div className="flex flex-col min-w-0">
-                              <label className="text-[9px] font-black uppercase cursor-pointer truncate tracking-tight leading-tight">{cat.name}</label>
-                              <span className="text-[7px] font-bold text-muted-foreground uppercase leading-none mt-0.5">{txnsCount} Items</span>
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-black uppercase truncate tracking-tight leading-tight">{cat.name}</span>
+                                <ChevronRightIcon className="h-3 w-3 text-muted-foreground/30 group-hover:text-primary transition-colors" />
+                              </div>
+                              <span className="text-[8px] font-bold text-muted-foreground uppercase leading-none mt-1">{txnsCount} Items in ledger</span>
                             </div>
                           </div>
                         );
                       }) : (
-                        <div className="flex flex-col items-center justify-center py-10 opacity-30 grayscale space-y-2 col-span-2">
-                          <BarChartIcon className="h-6 w-6" />
-                          <p className="text-[8px] font-black uppercase tracking-widest text-center">No labels found</p>
+                        <div className="flex flex-col items-center justify-center py-20 opacity-30 grayscale space-y-2 col-span-2">
+                          <BarChartIcon className="h-10 w-10" />
+                          <p className="text-[10px] font-black uppercase tracking-widest text-center">No audit records found for this period</p>
                         </div>
                       )}
                     </div>
                   </ScrollArea>
-                </div>
-
-                {/* Compact Ledger Area */}
-                <div className="flex-1 flex flex-col min-h-0 bg-background overflow-hidden">
-                  <div className="p-3 border-b bg-muted/[0.02] flex items-center justify-between shrink-0 px-4">
-                    <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-1.5">
-                      <ReceiptText className="h-3 w-3 text-primary" />
-                      Transaction Ledger
-                    </p>
-                    <Badge variant="outline" className="text-[8px] font-black uppercase bg-primary/5 border-primary/20 text-primary px-2 py-0.5 leading-none">{auditExpenses.length} Records</Badge>
-                  </div>
-                  
-                  <ScrollArea className="flex-1 flex flex-col bg-muted/[0.01]">
-                    <div className="p-3 sm:p-4 flex-1">
-                      {auditExpenses.length > 0 ? (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-                          {auditExpenses.map((exp) => (
-                            <div 
-                              key={exp.id} 
-                              className={cn(
-                                "flex justify-between items-center p-3 rounded-xl bg-card border shadow-sm group transition-all cursor-pointer relative overflow-hidden",
-                                selectedTransactionIds.has(exp.id) 
-                                  ? "border-primary/30 ring-1 ring-primary/5" 
-                                  : "opacity-40 grayscale border-transparent hover:opacity-60"
-                              )}
-                              onClick={() => toggleTransaction(exp.id)}
-                            >
-                              <div className="flex items-center gap-3 min-w-0 flex-1 relative z-10">
-                                <Checkbox 
-                                  checked={selectedTransactionIds.has(exp.id)} 
-                                  onCheckedChange={() => toggleTransaction(exp.id)}
-                                  className="rounded h-3.5 w-3.5 border shadow-inner"
-                                />
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-[11px] font-black truncate tracking-tight text-foreground">{exp.description || 'SECURED ITEM'}</p>
-                                  <div className="flex items-center gap-2 mt-0.5">
-                                    <span className="text-[7px] font-black uppercase text-muted-foreground bg-muted/40 px-1.5 py-0 rounded border">
-                                      {format(new Date(exp.date), 'dd MMM')}
-                                    </span>
-                                    <span className="text-[7px] px-1.5 py-0 rounded bg-primary/10 text-primary font-black uppercase border border-primary/10 truncate max-w-[80px]">
-                                      {decryptedCategories.find(c => c.id === exp.expenseCategoryId)?.name || 'Misc'}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="text-right ml-2 relative z-10">
-                                <span className={cn(
-                                  "text-sm font-black tracking-tighter", 
-                                  selectedTransactionIds.has(exp.id) ? "text-foreground" : "text-muted-foreground line-through"
-                                )}>
-                                  ₹{exp.amount.toLocaleString()}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center py-20 text-center space-y-4">
-                          <ReceiptText className="h-10 w-10 text-primary/20" />
-                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground max-w-[180px] leading-relaxed mx-auto italic">
-                            Select labels to populate audit ledger.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </ScrollArea>
-                  
-                  {/* Compact Modal Footer Bar */}
-                  <div className="p-3 sm:p-4 border-t bg-card shrink-0 flex flex-row items-center justify-between shadow-sm relative z-20 gap-4">
-                    <div className="flex flex-col space-y-0 text-left">
-                      <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Verified Workspace Sum</span>
-                      <p className="text-[11px] font-black text-foreground uppercase tracking-tight">Current Audit Workspace</p>
+                ) : (
+                  <div className="flex-1 flex flex-col min-h-0 bg-background overflow-hidden animate-in fade-in slide-in-from-right-4 duration-300">
+                    <div className="p-3 border-b bg-muted/[0.05] flex items-center justify-between shrink-0 px-4">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setActiveAuditCategoryId(null)}
+                        className="h-8 px-2 font-black uppercase text-[10px] gap-2 hover:bg-primary/5"
+                      >
+                        <ArrowLeft className="h-4 w-4" /> Back to Labels
+                      </Button>
+                      <div className="flex items-center gap-2">
+                        <p className="text-[10px] font-black uppercase text-primary tracking-widest">
+                          {decryptedCategories.find(c => c.id === activeAuditCategoryId)?.name || 'Misc'}
+                        </p>
+                        <Badge variant="outline" className="text-[9px] font-black uppercase bg-primary/5 border-primary/20 text-primary px-2 py-0.5 leading-none">
+                          {auditExpenses.length} Records
+                        </Badge>
+                      </div>
                     </div>
                     
-                    <div className="flex items-center gap-3">
-                      <div className="bg-primary/[0.04] px-4 py-2 rounded-xl border border-dashed border-primary/20 flex flex-row items-center gap-4 relative overflow-hidden group shadow-inner min-w-[150px] transition-all">
-                        <div className="relative z-10">
-                          <p className="text-xl font-black text-primary tracking-tighter leading-none">₹{auditTotal.toLocaleString()}</p>
-                        </div>
-                        <div className="text-right relative z-10 border-l border-primary/10 pl-3">
-                          <span className="text-primary font-black text-[9px] uppercase leading-none">
-                            {selectedTransactionIds.size} Line Items
-                          </span>
-                        </div>
+                    <ScrollArea className="flex-1">
+                      <div className="p-3 sm:p-4">
+                        {auditExpenses.length > 0 ? (
+                          <div className="grid grid-cols-1 gap-2">
+                            {auditExpenses.map((exp) => (
+                              <div 
+                                key={exp.id} 
+                                className="flex justify-between items-center p-3.5 rounded-xl bg-card border shadow-sm group hover:border-primary/20 transition-all relative overflow-hidden"
+                              >
+                                <div className="flex items-center gap-3 min-w-0 flex-1 relative z-10">
+                                  <div className="h-8 w-8 rounded-lg bg-muted/30 flex items-center justify-center text-muted-foreground shrink-0">
+                                    <span className="text-[10px] font-black uppercase">{format(new Date(exp.date), 'dd')}</span>
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-[12px] font-black truncate tracking-tight text-foreground">{exp.description || 'SECURED ITEM'}</p>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                      <span className="text-[8px] font-black uppercase text-muted-foreground">
+                                        {format(new Date(exp.date), 'MMM yyyy')}
+                                      </span>
+                                      <Separator orientation="vertical" className="h-2" />
+                                      <span className="text-[8px] text-primary/60 font-black uppercase truncate">
+                                        {exp.allocationBucket || 'Expense'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-right ml-4 relative z-10">
+                                  <span className="text-base font-black tracking-tighter text-foreground">
+                                    ₹{exp.amount.toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="flex-1 flex flex-col items-center justify-center py-20 text-center space-y-4">
+                            <ReceiptText className="h-10 w-10 text-primary/20" />
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground italic">
+                              No line items found for this label.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </ScrollArea>
+                    
+                    <div className="p-4 border-t bg-card shrink-0 flex flex-row items-center justify-between shadow-sm relative z-20">
+                      <div className="flex flex-col text-left">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Verified Label Sum</span>
+                        <p className="text-[12px] font-black text-foreground uppercase tracking-tight">
+                          {decryptedCategories.find(c => c.id === activeAuditCategoryId)?.name || 'Misc'} Workspace
+                        </p>
+                      </div>
+                      
+                      <div className="bg-primary/[0.04] px-5 py-2.5 rounded-2xl border border-dashed border-primary/20 flex flex-row items-center gap-4 shadow-inner">
+                        <p className="text-2xl font-black text-primary tracking-tighter leading-none">
+                          ₹{auditExpenses.reduce((s, e) => s + e.amount, 0).toLocaleString()}
+                        </p>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             </DialogContent>
           </Dialog>
