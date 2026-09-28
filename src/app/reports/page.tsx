@@ -112,6 +112,13 @@ const chartTooltipStyle = {
 
 const CHART_COLORS = ['#6366f1', '#81C784', '#FFB74D', '#BA68C8', '#F06292', '#4DB6AC', '#FF8A65'];
 
+// Semantic view-based colors
+const VIEW_COLORS: Record<string, string> = {
+  weekly: "#0ea5e9", // Sky Blue
+  monthly: "#6366f1", // Indigo
+  annual: "#8b5cf6", // Violet
+};
+
 const PILLAR_ICONS: Record<string, any> = {
   expense: { icon: Wallet, color: 'text-blue-500', bg: 'bg-blue-500' },
   savings: { icon: PiggyBank, color: 'text-green-500', bg: 'bg-green-500' },
@@ -751,7 +758,7 @@ export default function ReportsPage() {
                         axisLine={false}
                         tickLine={false}
                       />
-                      <Bar dataKey="spent" fill="#FFB74D" radius={[2, 2, 0, 0]} />
+                      <Bar dataKey="spent" fill={VIEW_COLORS.weekly} radius={[2, 2, 0, 0]} />
                       <Tooltip 
                         contentStyle={chartTooltipStyle}
                         formatter={(v: number) => `₹${v.toLocaleString()}`}
@@ -1022,7 +1029,7 @@ export default function ReportsPage() {
                       ) : (
                         <Bar 
                           dataKey="spent" 
-                          fill="#6366f1"
+                          fill={VIEW_COLORS[viewType] || "#6366f1"}
                           radius={[4, 4, 0, 0]} 
                           name="Actual Spend" 
                           animationDuration={1000}
