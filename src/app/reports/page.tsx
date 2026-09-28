@@ -956,43 +956,47 @@ export default function ReportsPage() {
 
           <Dialog open={isAuditModalOpen} onOpenChange={setIsAuditModalOpen}>
             <DialogContent className="max-w-[98vw] md:max-w-6xl rounded-none md:rounded-2xl p-0 overflow-hidden border shadow-2xl h-[95vh] md:h-[90vh] flex flex-col">
-              <div className="bg-primary p-4 sm:p-6 text-primary-foreground relative shrink-0 flex items-center justify-between gap-4">
-                <DialogHeader className="text-left space-y-1">
-                  <DialogTitle className="text-xl md:text-2xl font-black tracking-tighter flex items-center gap-2">
-                    <CheckSquare className="h-5 w-5 md:h-6 md:w-6" />
-                    Category Audit
-                  </DialogTitle>
-                  <DialogDescription className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-primary-foreground/70">
-                    Simple review
-                  </DialogDescription>
-                </DialogHeader>
-                <Button 
-                  variant="outline" 
-                  onClick={downloadAuditCsv}
-                  className="shrink-0 bg-white/10 border-white/20 hover:bg-white/20 text-white font-black uppercase text-[9px] tracking-widest h-7 px-2 rounded-xl gap-1 mr-8"
-                >
-                  <Download className="h-3 w-3" /> Download
-                </Button>
+              <div className="bg-primary p-4 sm:p-5 text-primary-foreground relative shrink-0 flex items-center justify-between gap-4 border-b">
+                <div className="flex flex-col space-y-0.5">
+                  <DialogHeader className="text-left">
+                    <DialogTitle className="text-lg md:text-xl font-black tracking-tighter flex items-center gap-2">
+                      <CheckSquare className="h-5 w-5" />
+                      Category Audit
+                    </DialogTitle>
+                    <DialogDescription className="text-[9px] font-black uppercase tracking-widest text-primary-foreground/70 hidden sm:block">
+                      Spend reconciliation
+                    </DialogDescription>
+                  </DialogHeader>
+                </div>
+                <div className="flex items-center gap-2 mr-8">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={downloadAuditCsv}
+                    className="bg-white/10 border-white/20 hover:bg-white/20 text-white font-black uppercase text-[8px] tracking-widest h-7 px-2 rounded-lg gap-1.5"
+                  >
+                    <Download className="h-3 w-3" /> Download
+                  </Button>
+                </div>
               </div>
               
-              <div className="flex-1 min-0 flex flex-col md:flex-row bg-background overflow-hidden">
-                <div className="w-full md:w-1/3 border-r flex flex-col bg-muted/5 max-h-[30vh] md:max-h-none shrink-0 md:shrink">
-                  <div className="p-4 border-b bg-muted/10 flex items-center justify-between shrink-0">
-                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Labels to Tally</p>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        <Checkbox 
-                          id="audit-select-all" 
-                          checked={decryptedExpenses.length > 0 && selectedTransactionIds.size === decryptedExpenses.length}
-                          onCheckedChange={handleToggleAll}
-                          className="h-4 w-4 rounded border-primary/30"
-                        />
-                        <label htmlFor="audit-select-all" className="text-[10px] font-black uppercase text-primary cursor-pointer hover:opacity-80">All</label>
-                      </div>
+              <div className="flex-1 min-h-0 flex flex-col md:flex-row bg-background overflow-hidden">
+                {/* Compact Sidebar */}
+                <div className="w-full md:w-80 border-r flex flex-col bg-muted/[0.03] max-h-[35vh] md:max-h-none shrink-0 overflow-hidden">
+                  <div className="p-3 border-b bg-muted/[0.05] flex items-center justify-between shrink-0">
+                    <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Audit Labels</p>
+                    <div className="flex items-center gap-2">
+                      <Checkbox 
+                        id="audit-select-all" 
+                        checked={decryptedExpenses.length > 0 && selectedTransactionIds.size === decryptedExpenses.length}
+                        onCheckedChange={handleToggleAll}
+                        className="h-3.5 w-3.5 rounded-sm border-primary/30"
+                      />
+                      <label htmlFor="audit-select-all" className="text-[9px] font-black uppercase text-primary cursor-pointer">All</label>
                     </div>
                   </div>
                   <ScrollArea className="flex-1">
-                    <div className="p-4 grid gap-3">
+                    <div className="p-2 space-y-1.5">
                       {chartsData.categoryData.length > 0 ? chartsData.categoryData.map((cat: any) => {
                         const catId = decryptedCategories.find(c => c.name === cat.name)?.id || 'misc';
                         const isChecked = selectedAuditCategories.has(catId);
@@ -1002,137 +1006,122 @@ export default function ReportsPage() {
                           <div 
                             key={catId} 
                             className={cn(
-                              "flex items-center justify-between p-4 rounded-2xl border transition-all cursor-pointer group hover:shadow-md",
+                              "flex items-center justify-between p-2 rounded-xl border transition-all cursor-pointer group hover:shadow-sm",
                               isChecked 
-                                ? "bg-primary/[0.04] border-primary/30 ring-1 ring-primary/10 shadow-sm" 
+                                ? "bg-primary/[0.03] border-primary/30 ring-1 ring-primary/5 shadow-sm" 
                                 : "bg-card border-border opacity-70 hover:opacity-100"
                             )}
                             onClick={() => toggleAuditCategory(catId)}
                           >
-                            <div className="flex items-center gap-4">
-                              <div className="relative">
-                                <Checkbox 
-                                  id={`audit-${catId}`}
-                                  checked={isChecked} 
-                                  onCheckedChange={() => toggleAuditCategory(catId)}
-                                  className="rounded-lg h-5 w-5 border-2"
-                                />
-                              </div>
+                            <div className="flex items-center gap-3">
+                              <Checkbox 
+                                id={`audit-${catId}`}
+                                checked={isChecked} 
+                                onCheckedChange={() => toggleAuditCategory(catId)}
+                                className="rounded h-4 w-4 border-2"
+                              />
                               <div className="flex flex-col min-w-0">
-                                <label htmlFor={`audit-${catId}`} className="text-[11px] font-black uppercase cursor-pointer truncate max-w-[120px] tracking-tight">{cat.name}</label>
-                                <span className="text-[8px] font-bold text-muted-foreground uppercase">{txnsCount} Line Items</span>
+                                <label className="text-[10px] font-black uppercase cursor-pointer truncate max-w-[100px] tracking-tight">{cat.name}</label>
+                                <span className="text-[7px] font-bold text-muted-foreground uppercase leading-none">{txnsCount} Line Items</span>
                               </div>
                             </div>
                             <div className="text-right">
-                              <span className="text-xs font-black tracking-tight">₹{cat.value.toLocaleString()}</span>
-                              <div className="h-1 w-full bg-muted rounded-full mt-1.5 overflow-hidden">
-                                <div className="h-full bg-primary" style={{ width: `${Math.min(100, (cat.value / (totals.daily || 1)) * 100)}%`, backgroundColor: cat.color }} />
-                              </div>
+                              <span className="text-[10px] font-black tracking-tight">₹{cat.value.toLocaleString()}</span>
                             </div>
                           </div>
                         );
                       }) : (
-                        <div className="flex flex-col items-center justify-center py-20 opacity-40 grayscale space-y-3">
-                          <BarChartIcon className="h-10 w-10" />
-                          <p className="text-[10px] font-black uppercase tracking-widest">No labels recorded</p>
+                        <div className="flex flex-col items-center justify-center py-10 opacity-30 grayscale space-y-2">
+                          <BarChartIcon className="h-6 w-6" />
+                          <p className="text-[8px] font-black uppercase tracking-widest text-center">No labels found</p>
                         </div>
                       )}
                     </div>
                   </ScrollArea>
                 </div>
 
+                {/* Compact Ledger Area */}
                 <div className="flex-1 flex flex-col min-h-0 bg-background overflow-hidden">
-                  <div className="p-4 border-b bg-muted/5 flex items-center justify-between shrink-0 px-6">
-                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
-                      <ReceiptText className="h-3.5 w-3.5 text-primary" />
-                      Line Item Ledger
+                  <div className="p-3 border-b bg-muted/[0.02] flex items-center justify-between shrink-0 px-4">
+                    <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-1.5">
+                      <ReceiptText className="h-3 w-3 text-primary" />
+                      Transaction Ledger
                     </p>
-                    <Badge variant="outline" className="text-[9px] font-black uppercase bg-primary/5 border-primary/20 text-primary px-3 py-0.5">{auditExpenses.length} Records Found</Badge>
+                    <Badge variant="outline" className="text-[8px] font-black uppercase bg-primary/5 border-primary/20 text-primary px-2 py-0.5 leading-none">{auditExpenses.length} Records</Badge>
                   </div>
                   
-                  <ScrollArea className="flex-1 flex flex-col bg-muted/[0.02]">
-                    <div className="p-4 sm:p-6 flex-1 flex flex-col">
+                  <ScrollArea className="flex-1 flex flex-col bg-muted/[0.01]">
+                    <div className="p-3 sm:p-4 flex-1">
                       {auditExpenses.length > 0 ? (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                           {auditExpenses.map((exp) => (
                             <div 
                               key={exp.id} 
                               className={cn(
-                                "flex justify-between items-center p-5 rounded-2xl bg-card border shadow-sm group transition-all cursor-pointer relative overflow-hidden",
+                                "flex justify-between items-center p-3 rounded-xl bg-card border shadow-sm group transition-all cursor-pointer relative overflow-hidden",
                                 selectedTransactionIds.has(exp.id) 
-                                  ? "border-primary/40 ring-1 ring-primary/10" 
+                                  ? "border-primary/30 ring-1 ring-primary/5" 
                                   : "opacity-40 grayscale border-transparent hover:opacity-60"
                               )}
                               onClick={() => toggleTransaction(exp.id)}
                             >
-                              <div className="flex items-center gap-5 min-w-0 flex-1 relative z-10">
+                              <div className="flex items-center gap-3 min-w-0 flex-1 relative z-10">
                                 <Checkbox 
                                   checked={selectedTransactionIds.has(exp.id)} 
                                   onCheckedChange={() => toggleTransaction(exp.id)}
-                                  className="rounded-lg h-5 w-5 border-2 shadow-inner"
+                                  className="rounded h-3.5 w-3.5 border shadow-inner"
                                 />
-                                <div className="min-w-0 flex-1 space-y-1">
-                                  <p className="text-[13px] font-black truncate tracking-tight text-foreground">{exp.description || 'SECURED ITEM'}</p>
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-[9px] font-black uppercase tracking-tighter text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-lg border">
-                                      {format(new Date(exp.date), 'dd MMM yyyy')}
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-[11px] font-black truncate tracking-tight text-foreground">{exp.description || 'SECURED ITEM'}</p>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <span className="text-[7px] font-black uppercase text-muted-foreground bg-muted/40 px-1.5 py-0 rounded border">
+                                      {format(new Date(exp.date), 'dd MMM')}
                                     </span>
-                                    <span className="text-[8px] px-2 py-0.5 rounded-lg bg-primary/10 text-primary font-black uppercase border border-primary/10 shadow-sm">
+                                    <span className="text-[7px] px-1.5 py-0 rounded bg-primary/10 text-primary font-black uppercase border border-primary/10 truncate max-w-[80px]">
                                       {decryptedCategories.find(c => c.id === exp.expenseCategoryId)?.name || 'Misc'}
                                     </span>
                                   </div>
                                 </div>
                               </div>
-                              <div className="text-right ml-4 relative z-10">
+                              <div className="text-right ml-2 relative z-10">
                                 <span className={cn(
-                                  "text-lg font-black tracking-tighter", 
+                                  "text-sm font-black tracking-tighter", 
                                   selectedTransactionIds.has(exp.id) ? "text-foreground" : "text-muted-foreground line-through"
                                 )}>
                                   ₹{exp.amount.toLocaleString()}
                                 </span>
                               </div>
-                              {selectedTransactionIds.has(exp.id) && (
-                                <div className="absolute right-0 top-0 bottom-0 w-1 bg-primary/30" />
-                              )}
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center py-20 text-center space-y-6">
-                          <div className="relative">
-                            <div className="absolute -inset-6 bg-primary/5 rounded-full blur-3xl animate-pulse" />
-                            <div className="relative p-8 bg-card rounded-3xl border-2 border-dashed shadow-2xl">
-                              <ReceiptText className="h-16 w-16 text-primary/30" />
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <h3 className="text-base font-black uppercase tracking-widest text-foreground">Ledger Selection Required</h3>
-                            <p className="text-[11px] font-medium text-muted-foreground max-w-[240px] leading-relaxed mx-auto italic">
-                              Choose labels from the tally sidebar to perform detailed transactional analysis.
-                            </p>
-                          </div>
+                        <div className="flex-1 flex flex-col items-center justify-center py-20 text-center space-y-4">
+                          <ReceiptText className="h-10 w-10 text-primary/20" />
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground max-w-[180px] leading-relaxed mx-auto italic">
+                            Select labels to populate audit ledger.
+                          </p>
                         </div>
                       )}
                     </div>
                   </ScrollArea>
                   
-                  <div className="p-4 sm:p-6 border-t bg-card shrink-0 flex flex-col sm:flex-row items-center justify-between shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.05)] relative z-20 gap-4">
-                    <div className="flex flex-col space-y-0.5 text-center sm:text-left">
-                      <span className="text-[11px] font-black uppercase tracking-[0.25em] text-muted-foreground opacity-60">Total</span>
-                      <p className="text-[10px] font-black text-foreground uppercase tracking-tight">Audit Workspace Sum</p>
+                  {/* Compact Modal Footer Bar */}
+                  <div className="p-3 sm:p-4 border-t bg-card shrink-0 flex flex-row items-center justify-between shadow-sm relative z-20 gap-4">
+                    <div className="flex flex-col space-y-0 text-left">
+                      <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Verified Workspace Sum</span>
+                      <p className="text-[11px] font-black text-foreground uppercase tracking-tight">Current Audit Workspace</p>
                     </div>
                     
-                    <div className="flex items-center gap-3 w-full sm:w-auto">
-                      <div className="flex-1 bg-primary/[0.03] px-6 py-3 rounded-2xl border border-dashed border-primary/20 flex flex-row items-center gap-6 relative overflow-hidden group shadow-inner min-w-[220px] transition-all hover:bg-primary/[0.06]">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary/[0.04] px-4 py-2 rounded-xl border border-dashed border-primary/20 flex flex-row items-center gap-4 relative overflow-hidden group shadow-inner min-w-[150px] transition-all">
                         <div className="relative z-10">
-                          <p className="text-3xl font-black text-primary tracking-tighter leading-none">₹{auditTotal.toLocaleString()}</p>
+                          <p className="text-xl font-black text-primary tracking-tighter leading-none">₹{auditTotal.toLocaleString()}</p>
                         </div>
-                        <div className="text-right relative z-10 border-l border-primary/10 pl-4">
-                          <Badge className="bg-primary text-white font-black text-[9px] uppercase px-2.5 py-1 rounded-xl border-none shadow-lg">
-                            {selectedTransactionIds.size} Verified
-                          </Badge>
+                        <div className="text-right relative z-10 border-l border-primary/10 pl-3">
+                          <span className="text-primary font-black text-[9px] uppercase leading-none">
+                            {selectedTransactionIds.size} Line Items
+                          </span>
                         </div>
-                        <TrendingDown className="absolute top-1/2 -right-4 -translate-y-1/2 h-16 w-16 text-primary/[0.04] -rotate-12 pointer-events-none transition-transform group-hover:scale-110" />
                       </div>
                     </div>
                   </div>
