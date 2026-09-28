@@ -199,7 +199,11 @@ export default function ReportsPage() {
           setDecryptedPrevBudget({
             ...rawPrevBudget,
             totalBudgetAmount: rawPrevBudget.isEncrypted ? await decryptNumber(rawPrevBudget.totalBudgetAmount, user.uid) : (rawPrevBudget.totalBudgetAmount || 0),
+            actualSpent: rawPrevBudget.isEncrypted ? await decryptNumber(rawPrevBudget.actualSpent, user.uid) : (rawPrevBudget.actualSpent || 0),
+            actualFixedSpent: rawPrevBudget.isEncrypted ? await decryptNumber(rawPrevBudget.actualFixedSpent, user.uid) : (rawPrevBudget.actualFixedSpent || 0),
           });
+        } else {
+          setDecryptedPrevBudget(null);
         }
 
         if (rawFixed) {
@@ -288,6 +292,7 @@ export default function ReportsPage() {
 
     const prevDaily = (decryptedPrevExpenses || []).filter(e => (e.allocationBucket || 'expense') === 'expense').reduce((s, e) => s + e.amount, 0);
     const prevBudget = decryptedPrevBudget?.totalBudgetAmount || 0;
+    const prevSpent = (decryptedPrevBudget?.actualSpent || 0) + (decryptedPrevBudget?.actualFixedSpent || 0);
 
     return {
       budget,
@@ -297,7 +302,9 @@ export default function ReportsPage() {
       remaining,
       prevDaily,
       prevBudget,
+      prevSpent,
       dailyDiff: daily - prevDaily,
+      spentDiff: spent - prevSpent,
       budgetDiff: budget - prevBudget
     };
   }, [decryptedBudget, decryptedFixed, decryptedExpenses, decryptedPrevExpenses, decryptedPrevBudget]);
@@ -610,6 +617,7 @@ export default function ReportsPage() {
               </CardHeader>
               <CardContent className="space-y-4 md:space-y-6 p-4 md:p-6">
                 <div className="space-y-4">
+                  {/* Monthly Pool */}
                   <div className="flex justify-between items-start text-xs md:sm">
                     <div className="flex flex-col">
                       <span className="text-foreground font-black uppercase text-[10px] tracking-tight">Monthly Pool</span>
@@ -617,33 +625,46 @@ export default function ReportsPage() {
                     </div>
                     <span className="font-black text-lg tracking-tighter">₹{totals.budget.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between items-start text-xs md:sm">
-                    <div className="flex flex-col">
-                      <span className="text-foreground font-black uppercase text-[10px] tracking-tight">Fixed Vault</span>
-                      <span className="text-muted-foreground text-[9px] font-medium leading-tight">Scheduled Expense costs only</span>
-                    </div>
-                    <span className="font-bold text-destructive">₹{totals.fixed.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-start text-xs md:sm">
-                    <div className="flex flex-col">
-                      <span className="text-foreground font-black uppercase text-[10px] tracking-tight">Daily Spends</span>
-                      <span className="text-muted-foreground text-[9px] font-medium leading-tight">Cumulative variable Expense logs</span>
-                    </div>
-                    <div className="flex flex-col items-end">
-                      <span className="font-bold">₹{totals.daily.toLocaleString()}</span>
-                      {totals.dailyDiff !== 0 && (
-                        <span className={cn(
-                          "text-[8px] md:text-[10px] font-bold flex items-center gap-0.5",
-                          totals.dailyDiff > 0 ? "text-destructive" : "text-green-600 dark:text-green-400"
-                        )}>
-                          {totals.dailyDiff > 0 ? <ArrowUpRight className="h-2.5 w-2.5" /> : <ArrowDownRight className="h-2.5 w-2.5" />}
-                          ₹{Math.abs(totals.dailyDiff).toLocaleString()} vs {format(prevDate, 'MMM')}
-                        </span>
-                      )}
+
+                  <Separator className="opacity-50" />
+
+                  {/* Total Amount Spends Group */}
+                  <div className="space-y-2">
+                    <p className="text-foreground font-black uppercase text-[10px] tracking-tight">Total Amount Spends</p>
+                    
+                    <div className="pl-2 space-y-1.5 border-l-2 border-primary/20">
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-muted-foreground font-bold uppercase tracking-tighter">Fixed Vault</span>
+                        <span className="font-black">₹{totals.fixed.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-muted-foreground font-bold uppercase tracking-tighter">Daily Spends</span>
+                        <span className="font-black">₹{totals.daily.toLocaleString()}</span>
+                      </div>
+                      
+                      <Separator className="my-1 border-dashed" />
+                      
+                      <div className="flex justify-between items-start">
+                        <span className="text-foreground font-black uppercase text-[10px]">Total</span>
+                        <div className="flex flex-col items-end">
+                          <span className="font-black text-lg tracking-tighter">₹{totals.spent.toLocaleString()}</span>
+                          {totals.spentDiff !== 0 && (
+                            <span className={cn(
+                              "text-[8px] md:text-[9px] font-bold flex items-center gap-0.5",
+                              totals.spentDiff > 0 ? "text-destructive" : "text-green-600 dark:text-green-400"
+                            )}>
+                              {totals.spentDiff > 0 ? <ArrowUpRight className="h-2.5 w-2.5" /> : <ArrowDownRight className="h-2.5 w-2.5" />}
+                              ₹{Math.abs(totals.spentDiff).toLocaleString()} {totals.spentDiff > 0 ? 'Greater' : 'Less'} than {format(prevDate, 'MMM')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
+                
                 <Separator />
+                
                 <div className="pt-1 md:pt-2 flex items-center justify-between">
                   <div className="flex flex-col">
                     <p className="text-[10px] font-black uppercase tracking-widest text-primary">Remaining Vault</p>
