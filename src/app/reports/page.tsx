@@ -911,13 +911,13 @@ export default function ReportsPage() {
                             <Filter className={cn("h-3.5 w-3.5", categoryFilter !== 'all' ? "text-primary" : "text-muted-foreground")} />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56 rounded-xl">
-                          <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Filter by Label</DropdownMenuLabel>
+                        <DropdownMenuContent align="end" className="w-44 rounded-xl">
+                          <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-muted-foreground py-1.5 px-2">Filter by Label</DropdownMenuLabel>
                           <DropdownMenuSeparator />
                           <DropdownMenuRadioGroup value={categoryFilter} onValueChange={setCategoryFilter}>
-                            <DropdownMenuRadioItem value="all" className="text-[10px] font-black uppercase">All Labels</DropdownMenuRadioItem>
+                            <DropdownMenuRadioItem value="all" className="text-[9px] font-black uppercase py-1.5">All Labels</DropdownMenuRadioItem>
                             {decryptedCategories.map(cat => (
-                              <DropdownMenuRadioItem key={cat.id} value={cat.id} className="text-[10px] font-black uppercase">
+                              <DropdownMenuRadioItem key={cat.id} value={cat.id} className="text-[9px] font-black uppercase py-1.5">
                                 {cat.name}
                               </DropdownMenuRadioItem>
                             ))}
