@@ -61,7 +61,8 @@ import {
   ArrowDown,
   Zap,
   ArrowLeft,
-  ChevronRight as ChevronRightIcon
+  ChevronRight as ChevronRightIcon,
+  Filter
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -84,6 +85,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
 import { decryptData, decryptNumber } from '@/lib/encryption';
 import { useToast } from '@/hooks/use-toast';
@@ -859,21 +870,10 @@ export default function ReportsPage() {
                   </div>
                   <div>
                     <CardTitle className="text-base md:text-lg font-black tracking-tight">Spending Tracker</CardTitle>
-                    <CardDescription className="text-[9px] md:text-[10px] uppercase font-bold tracking-tight">Advanced trend & label analysis</CardDescription>
+                    <CardDescription className="text-[9px] md:text-[10px] uppercase font-bold tracking-tight">Track how your spending changes over time.</CardDescription>
                   </div>
                 </div>
                 <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
-                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger className="h-9 w-full sm:w-[140px] text-[10px] font-black uppercase rounded-xl bg-background shadow-sm border-primary/20">
-                      <SelectValue placeholder="All Labels" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl">
-                      <SelectItem value="all" className="text-[10px] font-black uppercase">All Labels</SelectItem>
-                      {decryptedCategories.map(cat => (
-                        <SelectItem key={cat.id} value={cat.id} className="text-[10px] font-black uppercase">{cat.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                   <Tabs value={viewType} onValueChange={(v: any) => setViewType(v)} className="w-full md:w-auto">
                     <TabsList className="grid w-full grid-cols-3 md:w-[240px] h-9 p-1 bg-muted/50 rounded-xl border">
                       <TabsTrigger value="weekly" className="text-[9px] font-black uppercase">Weekly</TabsTrigger>
@@ -902,7 +902,31 @@ export default function ReportsPage() {
                   </div>
                 </div>
 
-                <div className="h-[250px] md:h-[400px] w-full pt-4 -ml-4 md:ml-0">
+                <div className="h-[250px] md:h-[400px] w-full pt-4 -ml-4 md:ml-0 relative">
+                  {viewType !== 'annual' && (
+                    <div className="absolute top-2 right-2 z-10">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="icon" className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm border-primary/20 shadow-sm">
+                            <Filter className={cn("h-3.5 w-3.5", categoryFilter !== 'all' ? "text-primary" : "text-muted-foreground")} />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56 rounded-xl">
+                          <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Filter by Label</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuRadioGroup value={categoryFilter} onValueChange={setCategoryFilter}>
+                            <DropdownMenuRadioItem value="all" className="text-[10px] font-black uppercase">All Labels</DropdownMenuRadioItem>
+                            {decryptedCategories.map(cat => (
+                              <DropdownMenuRadioItem key={cat.id} value={cat.id} className="text-[10px] font-black uppercase">
+                                {cat.name}
+                              </DropdownMenuRadioItem>
+                            ))}
+                          </DropdownMenuRadioGroup>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )}
+
                   <ResponsiveContainer width="100%" height="100%">
                     <RechartsBarChart 
                       data={chartsData.spendingData} 
