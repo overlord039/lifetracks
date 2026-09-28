@@ -969,7 +969,7 @@ export default function ReportsPage() {
                 <Button 
                   variant="outline" 
                   onClick={downloadAuditCsv}
-                  className="shrink-0 bg-white/10 border-white/20 hover:bg-white/20 text-white font-black uppercase text-[9px] tracking-widest h-7 px-2 rounded-xl gap-1"
+                  className="shrink-0 bg-white/10 border-white/20 hover:bg-white/20 text-white font-black uppercase text-[9px] tracking-widest h-7 px-2 rounded-xl gap-1 mr-8"
                 >
                   <Download className="h-3 w-3" /> Download
                 </Button>
