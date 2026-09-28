@@ -18,7 +18,7 @@ import {
   startOfYear,
   endOfYear
 } from 'date-fns';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, query, where } from 'firebase/firestore';
 import { 
   BarChart as RechartsBarChart, 
   Bar, 
@@ -665,8 +665,8 @@ export default function ReportsPage() {
                 
                 <Separator />
                 
-                <div className="pt-1 md:pt-2 flex items-center justify-between">
-                  <div className="flex flex-col">
+                <div className="pt-1 md:pt-2 flex items-center justify-end">
+                  <div className="flex flex-col items-end">
                     <p className="text-[10px] font-black uppercase tracking-widest text-primary">Remaining Vault</p>
                     <p className="text-[9px] text-muted-foreground font-medium mb-1">Funds available before exhaustion</p>
                     <p className={cn(
@@ -710,7 +710,7 @@ export default function ReportsPage() {
                 <div className="pt-1 md:pt-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[9px] md:text-[10px] font-bold uppercase text-muted-foreground">Current Week</span>
-                    <span className="text-xs md:text-sm font-black">₹{weeklyReport.currentWeekSpent.toLocaleString()}</span>
+                    <span className="text-xs md:sm font-black">₹{weeklyReport.currentWeekSpent.toLocaleString()}</span>
                   </div>
                   {weeklyReport.lastWeekSpent > 0 && (
                     <div className="flex items-center justify-between mt-1">
@@ -1021,7 +1021,7 @@ export default function ReportsPage() {
                                 />
                               </div>
                               <div className="flex flex-col min-w-0">
-                                <label htmlFor={`audit-${catId}`} className="text-11px] font-black uppercase cursor-pointer truncate max-w-[120px] tracking-tight">{cat.name}</label>
+                                <label htmlFor={`audit-${catId}`} className="text-[11px] font-black uppercase cursor-pointer truncate max-w-[120px] tracking-tight">{cat.name}</label>
                                 <span className="text-[8px] font-bold text-muted-foreground uppercase">{txnsCount} Line Items</span>
                               </div>
                             </div>
