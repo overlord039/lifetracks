@@ -498,7 +498,7 @@ export default function ReportsPage() {
       const catName = decryptedCategories.find(c => c.id === exp.expenseCategoryId)?.name || 'MISC';
       return [
         exp.date,
-        `"${(exp.description || 'SECURED ITEM').replace(/"/g, '""')}"`,
+        `"${(exp.description || catName).replace(/"/g, '""')}"`,
         `"${catName.replace(/"/g, '""')}"`,
         exp.allocationBucket || 'expense',
         exp.amount
@@ -1001,7 +1001,9 @@ export default function ReportsPage() {
                                     <span className="text-[10px] font-black uppercase">{format(new Date(exp.date), 'dd')}</span>
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className="text-[12px] font-black truncate tracking-tight text-foreground">{exp.description || 'SECURED ITEM'}</p>
+                                    <p className="text-[12px] font-black truncate tracking-tight text-foreground">
+                                      {exp.description || decryptedCategories.find(c => c.id === activeAuditCategoryId)?.name || 'SECURED ITEM'}
+                                    </p>
                                     <div className="flex items-center gap-2 mt-0.5">
                                       <span className="text-[8px] font-black uppercase text-muted-foreground">
                                         {format(new Date(exp.date), 'MMM yyyy')}
