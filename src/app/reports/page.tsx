@@ -693,7 +693,10 @@ export default function ReportsPage() {
                       <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} stroke="hsl(var(--muted-foreground))" />
                       <XAxis 
                         dataKey="name" 
-                        hide 
+                        fontSize={8}
+                        tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }}
+                        axisLine={false}
+                        tickLine={false}
                       />
                       <Bar dataKey="spent" fill="#FFB74D" radius={[2, 2, 0, 0]} />
                       <Tooltip 
@@ -996,7 +999,7 @@ export default function ReportsPage() {
                     </div>
                   </div>
                   <ScrollArea className="flex-1">
-                    <div className="p-2 space-y-1.5">
+                    <div className="p-2 grid grid-cols-2 gap-2">
                       {chartsData.categoryData.length > 0 ? chartsData.categoryData.map((cat: any) => {
                         const catId = decryptedCategories.find(c => c.name === cat.name)?.id || 'misc';
                         const isChecked = selectedAuditCategories.has(catId);
@@ -1006,32 +1009,30 @@ export default function ReportsPage() {
                           <div 
                             key={catId} 
                             className={cn(
-                              "flex items-center justify-between p-2 rounded-xl border transition-all cursor-pointer group hover:shadow-sm",
+                              "flex flex-col justify-between p-2.5 rounded-xl border transition-all cursor-pointer group hover:shadow-sm h-full",
                               isChecked 
                                 ? "bg-primary/[0.03] border-primary/30 ring-1 ring-primary/5 shadow-sm" 
                                 : "bg-card border-border opacity-70 hover:opacity-100"
                             )}
                             onClick={() => toggleAuditCategory(catId)}
                           >
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-between mb-2">
                               <Checkbox 
                                 id={`audit-${catId}`}
                                 checked={isChecked} 
                                 onCheckedChange={() => toggleAuditCategory(catId)}
-                                className="rounded h-4 w-4 border-2"
+                                className="rounded h-3.5 w-3.5 border-2"
                               />
-                              <div className="flex flex-col min-w-0">
-                                <label className="text-[10px] font-black uppercase cursor-pointer truncate max-w-[100px] tracking-tight">{cat.name}</label>
-                                <span className="text-[7px] font-bold text-muted-foreground uppercase leading-none">{txnsCount} Line Items</span>
-                              </div>
+                              <span className="text-[10px] font-black tracking-tight text-foreground/80">₹{cat.value.toLocaleString()}</span>
                             </div>
-                            <div className="text-right">
-                              <span className="text-[10px] font-black tracking-tight">₹{cat.value.toLocaleString()}</span>
+                            <div className="flex flex-col min-w-0">
+                              <label className="text-[9px] font-black uppercase cursor-pointer truncate tracking-tight leading-tight">{cat.name}</label>
+                              <span className="text-[7px] font-bold text-muted-foreground uppercase leading-none mt-0.5">{txnsCount} Items</span>
                             </div>
                           </div>
                         );
                       }) : (
-                        <div className="flex flex-col items-center justify-center py-10 opacity-30 grayscale space-y-2">
+                        <div className="flex flex-col items-center justify-center py-10 opacity-30 grayscale space-y-2 col-span-2">
                           <BarChartIcon className="h-6 w-6" />
                           <p className="text-[8px] font-black uppercase tracking-widest text-center">No labels found</p>
                         </div>
