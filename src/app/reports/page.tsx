@@ -356,57 +356,6 @@ export default function ReportsPage() {
     });
   }, [decryptedSalaryProfile, decryptedFixed, decryptedExpenses]);
 
-  const weeklyReport = useMemo(() => {
-    if (!decryptedExpenses) return { currentWeekSpent: 0, lastWeekSpent: 0, weeklyData: [] };
-
-    const monthStart = startOfMonth(selectedDate);
-    const monthEnd = endOfMonth(selectedDate);
-    const weeks = eachWeekOfInterval({ start: monthStart, end: monthEnd });
-
-    const weeklyData = weeks.map((weekStart, idx) => {
-      const weekEnd = endOfWeek(weekStart);
-      const spent = (decryptedExpenses || [])
-        .filter(exp => (exp.allocationBucket || 'expense') === 'expense')
-        .filter(exp => {
-          const d = new Date(exp.date);
-          return d >= weekStart && d <= weekEnd;
-        })
-        .reduce((sum, exp) => sum + exp.amount, 0);
-
-      const rangeStr = `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`;
-      return {
-        name: `Week ${idx + 1}`,
-        spent,
-        range: rangeStr
-      };
-    });
-
-    const today = new Date();
-    const isSelectedMonthCurrent = format(selectedDate, 'yyyyMM') === format(today, 'yyyyMM');
-    
-    let currentWeekSpent = 0;
-    let lastWeekSpent = 0;
-
-    if (isSelectedMonthCurrent) {
-       currentWeekSpent = (decryptedExpenses || [])
-        .filter(exp => (exp.allocationBucket || 'expense') === 'expense')
-        .filter(exp => isSameWeek(new Date(exp.date), today))
-        .reduce((sum, exp) => sum + exp.amount, 0);
-       
-       lastWeekSpent = (decryptedExpenses || [])
-        .filter(exp => (exp.allocationBucket || 'expense') === 'expense')
-        .filter(exp => isSameWeek(new Date(exp.date), subWeeks(today, 1)))
-        .reduce((sum, exp) => sum + exp.amount, 0);
-    } else {
-      const lastWeek = weeklyData[weeklyData.length - 1];
-      const prevWeek = weeklyData[weeklyData.length - 2];
-      currentWeekSpent = lastWeek?.spent || 0;
-      lastWeekSpent = prevWeek?.spent || 0;
-    }
-
-    return { currentWeekSpent, lastWeekSpent, weeklyData };
-  }, [decryptedExpenses, selectedDate]);
-
   const chartsData = useMemo(() => {
     if (!decryptedExpenses || !decryptedFixed || !decryptedCategories) {
       return { spendingData: [], categoryData: [], highest: 0, lowest: 0, average: 0, comparisonKeys: [] };
@@ -631,8 +580,6 @@ export default function ReportsPage() {
     toast({ title: "Audit Exported", description: "CSV has been saved to your downloads." });
   };
 
-  const weekDiff = weeklyReport.currentWeekSpent - weeklyReport.lastWeekSpent;
-
   return (
     <AppShell>
       {!mounted ? (
@@ -667,7 +614,7 @@ export default function ReportsPage() {
           </div>
 
           <div className={cn("grid gap-4 md:gap-6 md:grid-cols-2 lg:grid-cols-3 transition-opacity", isDecrypting && "opacity-80")}>
-            <Card className="shadow-md border-t-4 border-t-primary rounded-2xl overflow-hidden relative">
+            <Card className="shadow-md border-t-4 border-t-primary rounded-2xl overflow-hidden relative lg:col-span-2">
               {isBudgetLoading && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
               <CardHeader className="pb-2 pt-4 px-4 md:px-6">
                 <CardTitle className="text-base md:text-lg flex items-center gap-2 font-black">
@@ -736,61 +683,6 @@ export default function ReportsPage() {
                   </p>
                 </div>
               </CardContent>
-            </Card>
-
-            <Card className="shadow-md lg:col-span-1 rounded-2xl overflow-hidden relative">
-              {(isExpensesLoading || isDecrypting) && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10"><Loader2 className="h-6 w-6 animate-spin text-orange-500" /></div>}
-              <CardHeader className="pb-2 pt-4 px-4 md:px-6">
-                <CardTitle className="text-base md:text-lg flex items-center gap-2 font-black">
-                  <Activity className="h-4 w-4 md:h-5 md:w-5 text-orange-500" />
-                  Weekly Pulse
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 p-4 md:p-6">
-                <div className="h-[80px] md:h-[100px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsBarChart data={weeklyReport.weeklyData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} stroke="hsl(var(--muted-foreground))" />
-                      <XAxis 
-                        dataKey="name" 
-                        fontSize={8}
-                        tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <Bar dataKey="spent" fill={VIEW_COLORS.weekly} radius={[2, 2, 0, 0]} />
-                      <Tooltip 
-                        contentStyle={chartTooltipStyle}
-                        formatter={(v: number) => `₹${v.toLocaleString()}`}
-                        labelClassName="text-[10px] font-bold text-popover-foreground"
-                        itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
-                      />
-                    </RechartsBarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="pt-1 md:pt-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] md:text-[10px] font-bold uppercase text-muted-foreground">Current Week</span>
-                    <span className="text-xs md:sm font-black">₹{weeklyReport.currentWeekSpent.toLocaleString()}</span>
-                  </div>
-                  {weeklyReport.lastWeekSpent > 0 && (
-                    <div className="flex items-center justify-between mt-1">
-                      <span className={cn(
-                        "text-[9px] md:text-[10px] font-bold flex items-center",
-                        weekDiff > 0 ? "text-destructive" : "text-green-600 dark:text-green-400"
-                      )}>
-                        {weekDiff > 0 ? <ArrowUpRight className="h-3 w-3 mr-0.5" /> : <ArrowDownRight className="h-3 w-3 mr-0.5" />}
-                        ₹{Math.abs(weekDiff).toLocaleString()}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-              <CardFooter className="bg-orange-50/50 dark:bg-orange-950/20 py-2 border-t px-4">
-                <p className="text-[9px] font-bold text-orange-700 dark:text-orange-400 mx-auto uppercase tracking-tighter">
-                  {weekDiff > 0 ? "Weekly spend trending up" : weekDiff < 0 ? "Spending less this week" : "Stable weekly pace"}
-                </p>
-              </CardFooter>
             </Card>
 
             <Card 
