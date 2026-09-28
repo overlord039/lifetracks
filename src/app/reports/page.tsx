@@ -450,8 +450,9 @@ export default function ReportsPage() {
       sData = days
         .map(d => {
           return {
-            name: format(d, 'dd MMM'),
+            name: format(d, 'd'),
             spent: dailyExpensesMap[format(d, 'yyyy-MM-dd')] || 0,
+            fullLabel: format(d, 'dd MMM yyyy')
           };
         });
     } else if (viewType === 'annual') {
