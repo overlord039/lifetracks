@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -116,7 +115,7 @@ export default function ReportsPage() {
   const { toast } = useToast();
   
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [viewType, setViewType] = useState<'weekly' | 'monthly' | 'annual' | 'category'>('monthly');
+  const [viewType, setViewType] = useState<'weekly' | 'monthly' | 'annual'>('monthly');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [mounted, setMounted] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
@@ -402,9 +401,6 @@ export default function ReportsPage() {
     const targetExps = categoryFilter === 'all' 
       ? decryptedExpenses 
       : decryptedExpenses.filter(e => e.expenseCategoryId === categoryFilter);
-    const targetFixed = categoryFilter === 'all'
-      ? decryptedFixed
-      : decryptedFixed.filter(f => f.expenseCategoryId === categoryFilter);
 
     const categoryTotals: Record<string, number> = {};
     const allItems = [...decryptedExpenses, ...decryptedFixed];
@@ -467,19 +463,6 @@ export default function ReportsPage() {
           fullLabel: format(m, 'MMMM yyyy')
         };
       });
-    } else if (viewType === 'category') {
-      sData = cData.map(c => ({
-        name: c.name,
-        spent: c.value,
-        fill: c.color
-      }));
-      // Filter category bars if a filter is active
-      if (categoryFilter !== 'all') {
-        const filteredCat = decryptedCategories.find(c => c.id === categoryFilter);
-        if (filteredCat) {
-          sData = sData.filter(d => d.name === filteredCat.name);
-        }
-      }
     }
 
     const activeEntries = sData.filter(d => d.spent > 0);
@@ -489,16 +472,14 @@ export default function ReportsPage() {
     const average = spentValues.length > 0 ? spentValues.reduce((a, b) => a + b, 0) / sData.length : 0;
     const hasVariation = activeEntries.length > 1 && highest !== lowest;
 
-    if (viewType !== 'category') {
-      sData = sData.map(d => ({
-        ...d,
-        fill: (hasVariation && d.spent === highest && d.spent > 0)
-          ? "hsl(var(--destructive))"
-          : (hasVariation && d.spent === lowest && d.spent > 0)
-            ? "hsl(var(--secondary))"
-            : "hsl(var(--primary))"
-      }));
-    }
+    sData = sData.map(d => ({
+      ...d,
+      fill: (hasVariation && d.spent === highest && d.spent > 0)
+        ? "hsl(var(--destructive))"
+        : (hasVariation && d.spent === lowest && d.spent > 0)
+          ? "hsl(var(--secondary))"
+          : "hsl(var(--primary))"
+    }));
 
     return { spendingData: sData, categoryData: cData, highest, lowest, average };
   }, [decryptedExpenses, decryptedFixed, decryptedCategories, decryptedAllBudgets, selectedDate, viewType, weeklyReport, categoryFilter]);
@@ -735,9 +716,7 @@ export default function ReportsPage() {
                   </div>
                   {weeklyReport.lastWeekSpent > 0 && (
                     <div className="flex items-center justify-between mt-1">
-                      <span className="text-[9px] md:text-[10px] font-bold uppercase text-muted-foreground">Vs. Last Week</span>
-                      <span className={cn(
-                        "text-[9px] md:text-[10px] font-bold flex items-center",
+                      <span className="text-[9px] md:text-[10px] font-bold flex items-center",
                         weekDiff > 0 ? "text-destructive" : "text-green-600 dark:text-green-400"
                       )}>
                         {weekDiff > 0 ? <ArrowUpRight className="h-3 w-3 mr-0.5" /> : <ArrowDownRight className="h-3 w-3 mr-0.5" />}
@@ -895,11 +874,10 @@ export default function ReportsPage() {
                     </SelectContent>
                   </Select>
                   <Tabs value={viewType} onValueChange={(v: any) => setViewType(v)} className="w-full md:w-auto">
-                    <TabsList className="grid w-full grid-cols-4 md:w-[320px] h-9 p-1 bg-muted/50 rounded-xl border">
+                    <TabsList className="grid w-full grid-cols-3 md:w-[240px] h-9 p-1 bg-muted/50 rounded-xl border">
                       <TabsTrigger value="weekly" className="text-[9px] font-black uppercase">Weekly</TabsTrigger>
                       <TabsTrigger value="monthly" className="text-[9px] font-black uppercase">Monthly</TabsTrigger>
                       <TabsTrigger value="annual" className="text-[9px] font-black uppercase">Annual</TabsTrigger>
-                      <TabsTrigger value="category" className="text-[9px] font-black uppercase">By Label</TabsTrigger>
                     </TabsList>
                   </Tabs>
                 </div>
@@ -928,29 +906,19 @@ export default function ReportsPage() {
                     <RechartsBarChart 
                       data={chartsData.spendingData} 
                       margin={{ left: -10, right: 10, bottom: 20 }}
-                      layout={viewType === 'category' ? 'vertical' : 'horizontal'}
                     >
                       <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} stroke="hsl(var(--muted-foreground))" />
-                      {viewType === 'category' ? (
-                        <>
-                          <XAxis type="number" hide />
-                          <YAxis dataKey="name" type="category" fontSize={9} width={120} tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} axisLine={false} tickLine={false} />
-                        </>
-                      ) : (
-                        <>
-                          <XAxis 
-                            dataKey="name" 
-                            fontSize={8} 
-                            tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} 
-                            axisLine={{ stroke: 'hsl(var(--border))' }} 
-                            tickLine={false}
-                            interval={0}
-                            angle={viewType === 'weekly' ? -15 : 0}
-                            textAnchor={viewType === 'weekly' ? "end" : "middle"}
-                          />
-                          <YAxis fontSize={9} tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
-                        </>
-                      )}
+                      <XAxis 
+                        dataKey="name" 
+                        fontSize={8} 
+                        tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} 
+                        axisLine={{ stroke: 'hsl(var(--border))' }} 
+                        tickLine={false}
+                        interval={0}
+                        angle={viewType === 'weekly' ? -15 : 0}
+                        textAnchor={viewType === 'weekly' ? "end" : "middle"}
+                      />
+                      <YAxis fontSize={9} tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
                       <Tooltip 
                         contentStyle={chartTooltipStyle}
                         cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }}
@@ -963,7 +931,7 @@ export default function ReportsPage() {
                       />
                       <Bar 
                         dataKey="spent" 
-                        radius={viewType === 'category' ? [0, 4, 4, 0] : [4, 4, 0, 0]} 
+                        radius={[4, 4, 0, 0]} 
                         name="Actual Spend" 
                         animationDuration={1000}
                       >
@@ -974,7 +942,7 @@ export default function ReportsPage() {
                       {viewType === 'annual' && (
                         <Bar dataKey="budgeted" radius={[4, 4, 0, 0]} name="Target Budget" fill="hsl(var(--muted))" fillOpacity={0.3} animationDuration={1000} />
                       )}
-                      {viewType !== 'category' && chartsData.average > 0 && (
+                      {chartsData.average > 0 && (
                         <ReferenceLine 
                           y={chartsData.average} 
                           stroke="hsl(var(--primary))" 
@@ -1161,4 +1129,3 @@ export default function ReportsPage() {
     </AppShell>
   );
 }
-
