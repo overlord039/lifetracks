@@ -606,7 +606,7 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          <div className={cn("grid gap-4 md:gap-6 md:grid-cols-2 lg:grid-cols-4 transition-opacity", isDecrypting && "opacity-80")}>
+          <div className={cn("grid gap-4 md:gap-6 md:grid-cols-2 lg:grid-cols-3 transition-opacity", isDecrypting && "opacity-80")}>
             <Card className="shadow-md border-t-4 border-t-primary rounded-2xl overflow-hidden relative">
               {isBudgetLoading && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
               <CardHeader className="pb-2 pt-4 px-4 md:px-6">
@@ -783,45 +783,6 @@ export default function ReportsPage() {
                 )}
                 <div className="absolute bottom-4 left-0 right-0 text-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest bg-background/80 backdrop-blur-sm mx-auto w-fit px-2 py-0.5 rounded-full shadow-sm">Click to Audit Spends</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-md lg:col-span-1 bg-muted/10 border-dashed border-2 rounded-2xl overflow-hidden relative">
-              {isDecrypting && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}
-              <CardHeader className="pb-2 pt-4 px-4 md:px-6">
-                <CardTitle className="text-base md:text-lg flex items-center gap-2">
-                  <Minus className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
-                  Comparison
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 md:space-y-4 pt-2 md:pt-4 p-4 md:p-6">
-                <div className="p-3 bg-card rounded-xl border shadow-sm">
-                  <p className="text-[9px] md:text-[10px] font-bold text-muted-foreground uppercase mb-1">Monthly Spend</p>
-                  <div className="flex items-center gap-1">
-                    <span className="text-base md:text-lg font-black tracking-tighter">₹{totals.daily.toLocaleString()}</span>
-                    {totals.dailyDiff !== 0 && (
-                      <span className={cn(
-                        "text-[10px] font-bold",
-                        totals.dailyDiff > 0 ? "text-destructive" : "text-green-600 dark:text-green-400"
-                      )}>
-                        {totals.dailyDiff > 0 ? '↑' : '↓'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="bg-primary/5 p-3 rounded-xl border border-primary/20">
-                  <p className="text-[9px] md:text-[10px] font-black text-foreground leading-snug tracking-tight">
-                    {totals.dailyDiff > 0 
-                      ? `Increased by ₹${Math.abs(totals.dailyDiff).toLocaleString()} vs ${format(prevDate, 'MMM')}.` 
-                      : totals.dailyDiff < 0 
-                      ? `Saved ₹${Math.abs(totals.dailyDiff).toLocaleString()} vs ${format(prevDate, 'MMM')}.`
-                      : `Spending is exactly same as last month.`}
-                  </p>
-                  <div className="flex items-center gap-2 mt-2">
-                     <ShieldCheck className="h-3 w-3 text-green-600" />
-                     <span className="text-[8px] font-black uppercase text-green-600">Secure Vault Data</span>
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1066,7 +1027,7 @@ export default function ReportsPage() {
                                 />
                               </div>
                               <div className="flex flex-col min-w-0">
-                                <label htmlFor={`audit-${catId}`} className="text-[11px] font-black uppercase cursor-pointer truncate max-w-[120px] tracking-tight">{cat.name}</label>
+                                <label htmlFor={`audit-${catId}`} className="text-11px] font-black uppercase cursor-pointer truncate max-w-[120px] tracking-tight">{cat.name}</label>
                                 <span className="text-[8px] font-bold text-muted-foreground uppercase">{txnsCount} Line Items</span>
                               </div>
                             </div>
