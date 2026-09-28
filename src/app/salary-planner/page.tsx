@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -8,8 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { useUser, useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { doc, collection } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 import { 
   Calculator, 
   TrendingUp, 
@@ -427,6 +428,11 @@ export default function SalaryPlannerPage() {
     fontWeight: 'bold'
   };
 
+  const renderCustomLabel = ({ name, percent, value }: any) => {
+    if (percent < 0.05) return null;
+    return `${name} ${(percent * 100).toFixed(0)}% (₹${Math.round(value).toLocaleString()})`;
+  };
+
   return (
     <AppShell>
       {!mounted || isDecrypting ? (
@@ -651,23 +657,23 @@ export default function SalaryPlannerPage() {
                         </div>
                       </div>
                       <div className="md:col-span-2 flex flex-col items-center justify-center p-2 md:p-4">
-                        <div className="w-full h-[200px] md:h-[250px] relative">
+                        <div className="w-full h-[250px] md:h-[300px] relative">
                           <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                               <Pie 
                                 data={salaryData} 
                                 innerRadius={55} 
-                                outerRadius={80} 
+                                outerRadius={85} 
                                 paddingAngle={4} 
                                 dataKey="value" 
                                 stroke="none"
-                                labelLine={false}
-                                label={({ percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ''}
+                                labelLine={true}
+                                label={renderCustomLabel}
                               >
                                 {salaryData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
                               </Pie>
                               <RechartsTooltip contentStyle={chartTooltipStyle} itemStyle={{ color: 'hsl(var(--popover-foreground))' }} formatter={(v: number) => `₹${Math.round(v).toLocaleString()}`} />
-                              <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', paddingTop: '10px' }} />
+                              <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', paddingTop: '20px' }} />
                             </PieChart>
                           </ResponsiveContainer>
                           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
@@ -684,18 +690,18 @@ export default function SalaryPlannerPage() {
                       <Card className="shadow-xl rounded-3xl border-none ring-1 ring-orange-500/20">
                         <CardHeader className="pb-2 border-b bg-muted/10 px-5 md:px-6"><CardTitle className="text-xs md:text-sm flex items-center gap-2 font-black"><Target className="h-4 w-4 text-orange-500" /> Asset Matrix</CardTitle></CardHeader>
                         <CardContent className="pt-4 md:pt-6 space-y-5 md:space-y-6 px-5 md:px-6">
-                          <div className="h-[150px] md:h-[180px] w-full relative">
+                          <div className="h-[200px] md:h-[250px] w-full relative">
                             <ResponsiveContainer width="100%" height="100%">
                               <PieChart>
                                 <Pie 
                                   data={invData} 
-                                  innerRadius={40} 
-                                  outerRadius={60} 
+                                  innerRadius={45} 
+                                  outerRadius={75} 
                                   paddingAngle={4} 
                                   dataKey="value" 
                                   stroke="none"
-                                  labelLine={false}
-                                  label={({ percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ''}
+                                  labelLine={true}
+                                  label={renderCustomLabel}
                                 >
                                   {invData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
                                 </Pie>
