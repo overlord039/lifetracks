@@ -360,10 +360,11 @@ export default function ReportsPage() {
         })
         .reduce((sum, exp) => sum + exp.amount, 0);
 
+      const rangeStr = `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`;
       return {
-        name: `Week ${idx + 1}`,
+        name: `Week ${idx + 1} (${rangeStr})`,
         spent,
-        range: `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`
+        range: rangeStr
       };
     });
 
@@ -685,6 +686,11 @@ export default function ReportsPage() {
                 <div className="h-[80px] md:h-[100px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <RechartsBarChart data={weeklyReport.weeklyData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} />
+                      <XAxis 
+                        dataKey="name" 
+                        hide 
+                      />
                       <Bar dataKey="spent" fill="#FFB74D" radius={[2, 2, 0, 0]} />
                       <Tooltip 
                         contentStyle={chartTooltipStyle}
@@ -920,18 +926,27 @@ export default function ReportsPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <RechartsBarChart 
                       data={chartsData.spendingData} 
-                      margin={{ left: -10, right: 10, bottom: 0 }}
+                      margin={{ left: -10, right: 10, bottom: 20 }}
                       layout={viewType === 'category' ? 'vertical' : 'horizontal'}
                     >
                       <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} stroke="hsl(var(--muted-foreground))" />
                       {viewType === 'category' ? (
                         <>
                           <XAxis type="number" hide />
-                          <YAxis dataKey="name" type="category" fontSize={9} width={80} tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} axisLine={false} tickLine={false} />
+                          <YAxis dataKey="name" type="category" fontSize={9} width={120} tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} axisLine={false} tickLine={false} />
                         </>
                       ) : (
                         <>
-                          <XAxis dataKey="name" fontSize={9} tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
+                          <XAxis 
+                            dataKey="name" 
+                            fontSize={8} 
+                            tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} 
+                            axisLine={{ stroke: 'hsl(var(--border))' }} 
+                            tickLine={false}
+                            interval={0}
+                            angle={viewType === 'weekly' ? -15 : 0}
+                            textAnchor={viewType === 'weekly' ? "end" : "middle"}
+                          />
                           <YAxis fontSize={9} tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
                         </>
                       )}
@@ -966,7 +981,7 @@ export default function ReportsPage() {
                           label={{ value: 'Avg', position: 'right', fill: 'hsl(var(--primary))', fontSize: 10, fontWeight: 'bold' }} 
                         />
                       )}
-                      <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', paddingTop: '10px' }} />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', paddingTop: '20px' }} />
                     </RechartsBarChart>
                   </ResponsiveContainer>
                 </div>
