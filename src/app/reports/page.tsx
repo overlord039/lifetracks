@@ -110,7 +110,7 @@ const chartTooltipStyle = {
   fontWeight: '600'
 };
 
-const CHART_COLORS = ['#64B5F6', '#81C784', '#FFB74D', '#BA68C8', '#F06292', '#4DB6AC', '#FF8A65'];
+const CHART_COLORS = ['#6366f1', '#81C784', '#FFB74D', '#BA68C8', '#F06292', '#4DB6AC', '#FF8A65'];
 
 const PILLAR_ICONS: Record<string, any> = {
   expense: { icon: Wallet, color: 'text-blue-500', bg: 'bg-blue-500' },
@@ -1022,14 +1022,11 @@ export default function ReportsPage() {
                       ) : (
                         <Bar 
                           dataKey="spent" 
+                          fill="#6366f1"
                           radius={[4, 4, 0, 0]} 
                           name="Actual Spend" 
                           animationDuration={1000}
-                        >
-                          {chartsData.spendingData.map((entry: any, index: number) => (
-                            <Cell key={`cell-${index}`} fill={entry.fill} />
-                          ))}
-                        </Bar>
+                        />
                       )}
 
                       {viewType === 'annual' && (
@@ -1232,4 +1229,3 @@ export default function ReportsPage() {
     </AppShell>
   );
 }
-
