@@ -692,7 +692,7 @@ export default function ReportsPage() {
                 <div className="h-[80px] md:h-[100px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <RechartsBarChart data={weeklyReport.weeklyData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} stroke="hsl(var(--muted-foreground))" />
                       <XAxis 
                         dataKey="name" 
                         hide 
@@ -964,8 +964,8 @@ export default function ReportsPage() {
                     <CheckSquare className="h-6 w-6" />
                     Category Audit
                   </DialogTitle>
-                  <DialogDescription className="text-xs font-bold uppercase tracking-widest text-primary-foreground/70">
-                    Perform manual spend reconciliation and detailed transactional review
+                  <DialogDescription className="text-[9px] md:text-xs font-bold uppercase tracking-widest text-primary-foreground/70">
+                    Manual spend reconciliation and audit review
                   </DialogDescription>
                 </DialogHeader>
                 <Button 
