@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -968,12 +969,28 @@ export default function ReportsPage() {
                       {viewType === 'annual' && (
                         <Bar dataKey="budgeted" radius={[4, 4, 0, 0]} name="Target Budget" fill="hsl(var(--muted))" fillOpacity={0.3} animationDuration={1000} />
                       )}
+                      {chartsData.highest > 0 && (
+                        <ReferenceLine 
+                          y={chartsData.highest} 
+                          stroke="hsl(var(--destructive))" 
+                          strokeDasharray="4 4" 
+                          label={{ value: `High: ₹${Math.round(chartsData.highest)}`, position: 'insideTopLeft', fill: 'hsl(var(--destructive))', fontSize: 8, fontWeight: 'bold' }} 
+                        />
+                      )}
+                      {chartsData.lowest > 0 && chartsData.lowest !== chartsData.highest && (
+                        <ReferenceLine 
+                          y={chartsData.lowest} 
+                          stroke="hsl(var(--secondary))" 
+                          strokeDasharray="4 4" 
+                          label={{ value: `Low: ₹${Math.round(chartsData.lowest)}`, position: 'insideBottomLeft', fill: 'hsl(var(--secondary))', fontSize: 8, fontWeight: 'bold' }} 
+                        />
+                      )}
                       {chartsData.average > 0 && (
                         <ReferenceLine 
                           y={chartsData.average} 
                           stroke="hsl(var(--primary))" 
                           strokeDasharray="3 3" 
-                          label={{ value: 'Avg', position: 'right', fill: 'hsl(var(--primary))', fontSize: 10, fontWeight: 'bold' }} 
+                          label={{ value: `Avg: ₹${Math.round(chartsData.average)}`, position: 'right', fill: 'hsl(var(--primary))', fontSize: 8, fontWeight: 'bold' }} 
                         />
                       )}
                       <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', paddingTop: '20px' }} />
