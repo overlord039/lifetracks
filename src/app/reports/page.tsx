@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -482,26 +483,50 @@ export default function ReportsPage() {
 
   const auditExpenses = useMemo(() => {
     if (!activeAuditCategoryId) return [];
-    return (decryptedExpenses || [])
-      .filter(exp => (exp.expenseCategoryId || 'misc') === activeAuditCategoryId)
-      .sort((a, b) => b.date.localeCompare(a.date));
-  }, [decryptedExpenses, activeAuditCategoryId]);
+    
+    // Combine daily expenses and fixed expenses for a complete audit
+    const combined = [
+      ...(decryptedExpenses || []).map(e => ({ 
+        ...e, 
+        type: 'daily', 
+        displayDesc: e.description,
+        sortDate: e.date 
+      })),
+      ...(decryptedFixed || []).map(f => ({ 
+        ...f, 
+        type: 'fixed', 
+        displayDesc: f.name, 
+        date: format(selectedDate, 'yyyy-MM-01'), // Default to month start for fixed
+        sortDate: format(selectedDate, 'yyyy-MM-01') 
+      }))
+    ];
+
+    return combined
+      .filter(item => (item.expenseCategoryId || 'misc') === activeAuditCategoryId)
+      .sort((a, b) => b.sortDate.localeCompare(a.sortDate));
+  }, [decryptedExpenses, decryptedFixed, activeAuditCategoryId, selectedDate]);
 
   const downloadAuditCsv = () => {
-    if (decryptedExpenses.length === 0) {
+    const combined = [
+      ...(decryptedExpenses || []),
+      ...(decryptedFixed || []).map(f => ({ ...f, description: f.name, date: format(selectedDate, 'yyyy-MM-01') }))
+    ];
+
+    if (combined.length === 0) {
       toast({ title: "No Data", description: "No records found to export for this month." });
       return;
     }
 
     const headers = ['Date', 'Description', 'Category', 'Pillar', 'Amount (₹)'];
-    const rows = decryptedExpenses.sort((a,b) => b.date.localeCompare(a.date)).map(exp => {
-      const catName = decryptedCategories.find(c => c.id === exp.expenseCategoryId)?.name || 'MISC';
+    const rows = combined.sort((a,b) => b.date.localeCompare(a.date)).map(item => {
+      const catName = decryptedCategories.find(c => c.id === item.expenseCategoryId)?.name || 'MISC';
+      const description = item.description || item.name || catName;
       return [
-        exp.date,
-        `"${(exp.description || catName).replace(/"/g, '""')}"`,
+        item.date,
+        `"${description.replace(/"/g, '""')}"`,
         `"${catName.replace(/"/g, '""')}"`,
-        exp.allocationBucket || 'expense',
-        exp.amount
+        item.allocationBucket || 'expense',
+        item.amount
       ];
     });
 
@@ -935,7 +960,10 @@ export default function ReportsPage() {
                     <div className="p-4 grid grid-cols-2 gap-3">
                       {chartsData.categoryData.length > 0 ? chartsData.categoryData.map((cat: any) => {
                         const catId = decryptedCategories.find(c => c.name === cat.name)?.id || 'misc';
-                        const txnsCount = decryptedExpenses.filter(e => (e.expenseCategoryId || 'misc') === catId).length;
+                        // Count both daily and fixed expenses for this category
+                        const dailyCount = (decryptedExpenses || []).filter(e => (e.expenseCategoryId || 'misc') === catId).length;
+                        const fixedCount = (decryptedFixed || []).filter(f => (f.expenseCategoryId || 'misc') === catId).length;
+                        const totalCount = dailyCount + fixedCount;
                         
                         return (
                           <div 
@@ -954,7 +982,7 @@ export default function ReportsPage() {
                                 <span className="text-[10px] font-black uppercase truncate tracking-tight leading-tight">{cat.name}</span>
                                 <ChevronRightIcon className="h-3 w-3 text-muted-foreground/30 group-hover:text-primary transition-colors" />
                               </div>
-                              <span className="text-[8px] font-bold text-muted-foreground uppercase leading-none mt-1">{txnsCount} Items in ledger</span>
+                              <span className="text-[8px] font-bold text-muted-foreground uppercase leading-none mt-1">{totalCount} Items in ledger</span>
                             </div>
                           </div>
                         );
@@ -991,33 +1019,36 @@ export default function ReportsPage() {
                       <div className="p-3 sm:p-4">
                         {auditExpenses.length > 0 ? (
                           <div className="grid grid-cols-1 gap-2">
-                            {auditExpenses.map((exp) => (
+                            {auditExpenses.map((item) => (
                               <div 
-                                key={exp.id} 
+                                key={item.id} 
                                 className="flex justify-between items-center p-3.5 rounded-xl bg-card border shadow-sm group hover:border-primary/20 transition-all relative overflow-hidden"
                               >
                                 <div className="flex items-center gap-3 min-w-0 flex-1 relative z-10">
                                   <div className="h-8 w-8 rounded-lg bg-muted/30 flex items-center justify-center text-muted-foreground shrink-0">
-                                    <span className="text-[10px] font-black uppercase">{format(new Date(exp.date), 'dd')}</span>
+                                    <span className="text-[10px] font-black uppercase">{format(new Date(item.date), 'dd')}</span>
                                   </div>
                                   <div className="min-w-0 flex-1">
                                     <p className="text-[12px] font-black truncate tracking-tight text-foreground">
-                                      {exp.description || decryptedCategories.find(c => c.id === activeAuditCategoryId)?.name || 'SECURED ITEM'}
+                                      {item.displayDesc || decryptedCategories.find(c => c.id === activeAuditCategoryId)?.name || 'SECURED ITEM'}
                                     </p>
                                     <div className="flex items-center gap-2 mt-0.5">
                                       <span className="text-[8px] font-black uppercase text-muted-foreground">
-                                        {format(new Date(exp.date), 'MMM yyyy')}
+                                        {format(new Date(item.date), 'MMM yyyy')}
                                       </span>
                                       <Separator orientation="vertical" className="h-2" />
                                       <span className="text-[8px] text-primary/60 font-black uppercase truncate">
-                                        {exp.allocationBucket || 'Expense'}
+                                        {item.allocationBucket || 'Expense'}
                                       </span>
+                                      {item.type === 'fixed' && (
+                                        <Badge className="h-3 px-1 text-[6px] uppercase font-black bg-orange-100 text-orange-700 border-none">Recurring</Badge>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
                                 <div className="text-right ml-4 relative z-10">
                                   <span className="text-base font-black tracking-tighter text-foreground">
-                                    ₹{exp.amount.toLocaleString()}
+                                    ₹{item.amount.toLocaleString()}
                                   </span>
                                 </div>
                               </div>
