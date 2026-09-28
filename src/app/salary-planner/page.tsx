@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -429,7 +428,6 @@ export default function SalaryPlannerPage() {
   };
 
   const renderCustomLabel = ({ name, percent, value }: any) => {
-    if (percent < 0.05) return null;
     return `${name} ${(percent * 100).toFixed(0)}% (₹${Math.round(value).toLocaleString()})`;
   };
 
