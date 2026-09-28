@@ -596,15 +596,6 @@ export default function ReportsPage() {
               <Button variant="secondary" size="sm" disabled className="h-8 md:h-9 font-bold px-3 md:px-6 flex-1 md:flex-initial whitespace-nowrap text-[10px] md:text-xs">
                 Current
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => changeMonth(1)} 
-                disabled={format(selectedDate, 'yyyyMM') === format(new Date(), 'yyyyMM')}
-                className="h-8 md:h-9 px-2 md:px-3 flex-1 md:flex-initial text-[10px] md:text-xs"
-              >
-                {format(subMonths(selectedDate, -1), 'MMM')} <ChevronRight className="h-3.5 w-3.5 ml-0.5 md:ml-1" />
-              </Button>
             </div>
           </div>
 
