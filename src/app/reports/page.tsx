@@ -1138,10 +1138,6 @@ export default function ReportsPage() {
                   </div>
                 </div>
               </div>
-              
-              <div className="p-4 sm:p-6 bg-muted/10 border-t flex justify-end shrink-0 gap-3">
-                <Button onClick={() => setIsAuditModalOpen(false)} variant="outline" className="w-full sm:w-auto font-black rounded-2xl text-[11px] uppercase h-12 px-10 bg-background shadow-md border-primary/10 hover:bg-muted/5 transition-all">Close Audit Workspace</Button>
-              </div>
             </DialogContent>
           </Dialog>
         </div>
