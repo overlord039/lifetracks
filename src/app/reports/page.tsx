@@ -664,12 +664,12 @@ export default function ReportsPage() {
                 <Separator />
                 
                 <div className="pt-1 md:pt-2 flex items-center justify-between">
-                  <div className="flex flex-col">
+                  <div className="flex flex-col text-left">
                     <p className="text-[10px] font-black uppercase tracking-widest text-primary">Remaining Vault</p>
                     <p className="text-[9px] text-muted-foreground font-medium mb-1">Funds available before exhaustion</p>
                   </div>
                   <p className={cn(
-                    "text-3xl md:text-4xl font-black tracking-tighter leading-none",
+                    "text-3xl md:text-4xl font-black tracking-tighter leading-none text-right",
                     totals.remaining >= 0 ? 'text-primary' : 'text-destructive'
                   )}>
                     ₹{totals.remaining.toLocaleString()}
@@ -962,16 +962,16 @@ export default function ReportsPage() {
                     <CheckSquare className="h-5 w-5 md:h-6 md:w-6" />
                     Category Audit
                   </DialogTitle>
-                  <DialogDescription className="text-[9px] md:text-xs font-bold uppercase tracking-widest text-primary-foreground/70">
-                    Manual spend reconciliation and audit review
+                  <DialogDescription className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-primary-foreground/70">
+                    Simple review
                   </DialogDescription>
                 </DialogHeader>
                 <Button 
                   variant="outline" 
                   onClick={downloadAuditCsv}
-                  className="shrink-0 bg-white/10 border-white/20 hover:bg-white/20 text-white font-black uppercase text-[10px] tracking-widest h-9 px-3 rounded-xl gap-2"
+                  className="shrink-0 bg-white/10 border-white/20 hover:bg-white/20 text-white font-black uppercase text-[9px] tracking-widest h-7 px-2 rounded-xl gap-1"
                 >
-                  <Download className="h-4 w-4" /> Download
+                  <Download className="h-3 w-3" /> Download
                 </Button>
               </div>
               
