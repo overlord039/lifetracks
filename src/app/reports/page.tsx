@@ -665,17 +665,17 @@ export default function ReportsPage() {
                 
                 <Separator />
                 
-                <div className="pt-1 md:pt-2 flex items-center justify-end">
-                  <div className="flex flex-col items-end">
+                <div className="pt-1 md:pt-2 flex items-center justify-between">
+                  <div className="flex flex-col">
                     <p className="text-[10px] font-black uppercase tracking-widest text-primary">Remaining Vault</p>
                     <p className="text-[9px] text-muted-foreground font-medium mb-1">Funds available before exhaustion</p>
-                    <p className={cn(
-                      "text-3xl md:text-4xl font-black tracking-tighter leading-none",
-                      totals.remaining >= 0 ? 'text-primary' : 'text-destructive'
-                    )}>
-                      ₹{totals.remaining.toLocaleString()}
-                    </p>
                   </div>
+                  <p className={cn(
+                    "text-3xl md:text-4xl font-black tracking-tighter leading-none",
+                    totals.remaining >= 0 ? 'text-primary' : 'text-destructive'
+                  )}>
+                    ₹{totals.remaining.toLocaleString()}
+                  </p>
                 </div>
               </CardContent>
             </Card>
