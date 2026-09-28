@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -372,7 +373,7 @@ export default function ReportsPage() {
 
       const rangeStr = `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`;
       return {
-        name: `Week ${idx + 1} (${rangeStr})`,
+        name: `Week ${idx + 1}`,
         spent,
         range: rangeStr
       };
@@ -432,8 +433,9 @@ export default function ReportsPage() {
     if (viewType === 'weekly') {
       sData = weeklyReport.weeklyData.map(w => ({
         name: w.name,
+        range: w.range,
         spent: w.spent,
-        fullLabel: w.range
+        fullLabel: `${w.name} (${w.range})`
       }));
     } else if (viewType === 'monthly') {
       const monthStart = startOfMonth(selectedDate);
@@ -887,10 +889,10 @@ export default function ReportsPage() {
               <CardContent className="p-4 md:p-6 space-y-6">
                 <div className="h-[250px] md:h-[400px] w-full pt-4 -ml-4 md:ml-0 relative">
                   {viewType !== 'annual' && (
-                    <div className="absolute top-0 right-0 z-10">
+                    <div className="absolute -top-2 -right-2 z-10">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="icon" className="h-7 w-7 rounded-full bg-background/80 backdrop-blur-sm border-primary/20 shadow-sm">
+                          <Button variant="outline" size="icon" className="h-6 w-6 rounded-full bg-background/80 backdrop-blur-sm border-primary/20 shadow-sm">
                             <Filter className={cn("h-3 w-3", categoryFilter !== 'all' ? "text-primary" : "text-muted-foreground")} />
                           </Button>
                         </DropdownMenuTrigger>
@@ -913,18 +915,36 @@ export default function ReportsPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <RechartsBarChart 
                       data={chartsData.spendingData} 
-                      margin={{ left: -10, right: 10, bottom: 20 }}
+                      margin={{ left: -10, right: 10, bottom: 30 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} stroke="hsl(var(--muted-foreground))" />
                       <XAxis 
                         dataKey="name" 
                         fontSize={8} 
-                        tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} 
+                        tick={(props: any) => {
+                          const { x, y, payload, index } = props;
+                          const data = chartsData.spendingData[index];
+                          if (viewType === 'weekly') {
+                            return (
+                              <g transform={`translate(${x},${y})`}>
+                                <text x={0} y={0} dy={10} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={8} fontWeight={700}>
+                                  {payload.value}
+                                </text>
+                                <text x={0} y={0} dy={20} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={7} fontWeight={500} opacity={0.7}>
+                                  {data?.range}
+                                </text>
+                              </g>
+                            );
+                          }
+                          return (
+                            <text x={x} y={y} dy={10} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={8} fontWeight={600}>
+                              {payload.value}
+                            </text>
+                          );
+                        }}
                         axisLine={{ stroke: 'hsl(var(--border))' }} 
                         tickLine={false}
                         interval={0}
-                        angle={viewType === 'weekly' ? -15 : 0}
-                        textAnchor={viewType === 'weekly' ? "end" : "middle"}
                       />
                       <YAxis fontSize={9} tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
                       <Tooltip 
