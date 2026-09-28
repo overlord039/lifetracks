@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -888,11 +887,11 @@ export default function ReportsPage() {
               <CardContent className="p-4 md:p-6 space-y-6">
                 <div className="h-[250px] md:h-[400px] w-full pt-4 -ml-4 md:ml-0 relative">
                   {viewType !== 'annual' && (
-                    <div className="absolute top-2 right-2 z-10">
+                    <div className="absolute top-0 right-0 z-10">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="icon" className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm border-primary/20 shadow-sm">
-                            <Filter className={cn("h-3.5 w-3.5", categoryFilter !== 'all' ? "text-primary" : "text-muted-foreground")} />
+                          <Button variant="outline" size="icon" className="h-7 w-7 rounded-full bg-background/80 backdrop-blur-sm border-primary/20 shadow-sm">
+                            <Filter className={cn("h-3 w-3", categoryFilter !== 'all' ? "text-primary" : "text-muted-foreground")} />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-44 rounded-xl">
@@ -993,7 +992,7 @@ export default function ReportsPage() {
                       Category Audit
                     </DialogTitle>
                     <DialogDescription className="text-[9px] font-black uppercase tracking-widest text-primary-foreground/70 hidden sm:block">
-                      {activeAuditCategoryId ? "Detailed Ledger View" : "Spend reconciliation"}
+                      Spend reconciliation
                     </DialogDescription>
                   </DialogHeader>
                 </div>
@@ -1154,4 +1153,3 @@ export default function ReportsPage() {
     </AppShell>
   );
 }
-
