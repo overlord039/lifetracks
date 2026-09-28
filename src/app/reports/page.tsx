@@ -93,8 +93,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
   DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
+  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
 import { decryptData, decryptNumber } from '@/lib/encryption';
@@ -128,7 +127,7 @@ export default function ReportsPage() {
   
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewType, setViewType] = useState<'weekly' | 'monthly' | 'annual'>('monthly');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string[]>(['all']);
   const [mounted, setMounted] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [activeAuditCategoryId, setActiveAuditCategoryId] = useState<string | null>(null);
@@ -351,10 +350,6 @@ export default function ReportsPage() {
   }, [decryptedSalaryProfile, decryptedFixed, decryptedExpenses]);
 
   const weeklyReport = useMemo(() => {
-    const targetExps = categoryFilter === 'all' 
-      ? (decryptedExpenses || [])
-      : (decryptedExpenses || []).filter(e => e.expenseCategoryId === categoryFilter);
-
     if (!decryptedExpenses) return { currentWeekSpent: 0, lastWeekSpent: 0, weeklyData: [] };
 
     const monthStart = startOfMonth(selectedDate);
@@ -363,7 +358,7 @@ export default function ReportsPage() {
 
     const weeklyData = weeks.map((weekStart, idx) => {
       const weekEnd = endOfWeek(weekStart);
-      const spent = targetExps
+      const spent = (decryptedExpenses || [])
         .filter(exp => (exp.allocationBucket || 'expense') === 'expense')
         .filter(exp => {
           const d = new Date(exp.date);
@@ -386,12 +381,12 @@ export default function ReportsPage() {
     let lastWeekSpent = 0;
 
     if (isSelectedMonthCurrent) {
-       currentWeekSpent = targetExps
+       currentWeekSpent = (decryptedExpenses || [])
         .filter(exp => (exp.allocationBucket || 'expense') === 'expense')
         .filter(exp => isSameWeek(new Date(exp.date), today))
         .reduce((sum, exp) => sum + exp.amount, 0);
        
-       lastWeekSpent = targetExps
+       lastWeekSpent = (decryptedExpenses || [])
         .filter(exp => (exp.allocationBucket || 'expense') === 'expense')
         .filter(exp => isSameWeek(new Date(exp.date), subWeeks(today, 1)))
         .reduce((sum, exp) => sum + exp.amount, 0);
@@ -403,21 +398,25 @@ export default function ReportsPage() {
     }
 
     return { currentWeekSpent, lastWeekSpent, weeklyData };
-  }, [decryptedExpenses, selectedDate, categoryFilter]);
+  }, [decryptedExpenses, selectedDate]);
 
   const chartsData = useMemo(() => {
-    if (!decryptedExpenses || !decryptedFixed) {
-      return { spendingData: [], categoryData: [], highest: 0, lowest: 0, average: 0 };
+    if (!decryptedExpenses || !decryptedFixed || !decryptedCategories) {
+      return { spendingData: [], categoryData: [], highest: 0, lowest: 0, average: 0, comparisonKeys: [] };
     }
 
-    const targetExps = categoryFilter === 'all' 
-      ? decryptedExpenses 
-      : decryptedExpenses.filter(e => e.expenseCategoryId === categoryFilter);
+    const isFiltered = !categoryFilter.includes('all');
+    const selectedIds = isFiltered ? categoryFilter : [];
+    
+    // Mapping for comparison keys (Label Name instead of ID for Legend)
+    const idToName: Record<string, string> = {};
+    decryptedCategories.forEach(c => idToName[c.id] = c.name);
+    const comparisonKeys = selectedIds.map(id => idToName[id] || 'Misc');
 
     const categoryTotals: Record<string, number> = {};
     const allItems = [...decryptedExpenses, ...decryptedFixed];
     allItems.forEach(item => {
-      const cat = decryptedCategories?.find(c => c.id === item.expenseCategoryId);
+      const cat = decryptedCategories.find(c => c.id === item.expenseCategoryId);
       const catName = cat?.name || 'Misc';
       categoryTotals[catName] = (categoryTotals[catName] || 0) + item.amount;
     });
@@ -431,41 +430,79 @@ export default function ReportsPage() {
     let sData: any[] = [];
 
     if (viewType === 'weekly') {
-      sData = weeklyReport.weeklyData.map(w => ({
-        name: w.name,
-        range: w.range,
-        spent: w.spent,
-        fullLabel: `${w.name} (${w.range})`
-      }));
+      const monthStart = startOfMonth(selectedDate);
+      const monthEnd = endOfMonth(selectedDate);
+      const weeks = eachWeekOfInterval({ start: monthStart, end: monthEnd });
+
+      sData = weeks.map((weekStart, idx) => {
+        const weekEnd = endOfWeek(weekStart);
+        const dataPoint: any = {
+          name: `Week ${idx + 1}`,
+          range: `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`,
+          spent: 0,
+          fullLabel: `Week ${idx + 1} (${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')})`
+        };
+
+        if (isFiltered) {
+          selectedIds.forEach(catId => {
+            const catName = idToName[catId] || 'Misc';
+            const val = decryptedExpenses
+              .filter(e => e.expenseCategoryId === catId)
+              .filter(e => {
+                const d = new Date(e.date);
+                return d >= weekStart && d <= weekEnd;
+              })
+              .reduce((sum, e) => sum + e.amount, 0);
+            dataPoint[catName] = val;
+            dataPoint.spent += val;
+          });
+        } else {
+          dataPoint.spent = decryptedExpenses
+            .filter(e => (e.allocationBucket || 'expense') === 'expense')
+            .filter(e => {
+              const d = new Date(e.date);
+              return d >= weekStart && d <= weekEnd;
+            })
+            .reduce((sum, e) => sum + e.amount, 0);
+        }
+        return dataPoint;
+      });
     } else if (viewType === 'monthly') {
       const monthStart = startOfMonth(selectedDate);
       const monthEnd = endOfMonth(selectedDate);
       const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
-      const dailyExpensesMap: Record<string, number> = {};
-      
-      targetExps
-        .filter(e => (e.allocationBucket || 'expense') === 'expense')
-        .forEach(exp => {
-          dailyExpensesMap[exp.date] = (dailyExpensesMap[exp.date] || 0) + exp.amount;
-        });
 
-      sData = days
-        .map(d => {
-          return {
-            name: format(d, 'd'),
-            spent: dailyExpensesMap[format(d, 'yyyy-MM-dd')] || 0,
-            fullLabel: format(d, 'dd MMM yyyy')
-          };
-        });
+      sData = days.map(d => {
+        const dStr = format(d, 'yyyy-MM-dd');
+        const dataPoint: any = {
+          name: format(d, 'd'),
+          spent: 0,
+          fullLabel: format(d, 'dd MMM yyyy')
+        };
+
+        if (isFiltered) {
+          selectedIds.forEach(catId => {
+            const catName = idToName[catId] || 'Misc';
+            const val = decryptedExpenses
+              .filter(e => e.expenseCategoryId === catId && e.date === dStr)
+              .reduce((sum, e) => sum + e.amount, 0);
+            dataPoint[catName] = val;
+            dataPoint.spent += val;
+          });
+        } else {
+          dataPoint.spent = decryptedExpenses
+            .filter(e => (e.allocationBucket || 'expense') === 'expense' && e.date === dStr)
+            .reduce((sum, e) => sum + e.amount, 0);
+        }
+        return dataPoint;
+      });
     } else if (viewType === 'annual') {
       const yearStart = startOfYear(selectedDate);
       const yearEnd = endOfYear(selectedDate);
       const months = eachMonthOfInterval({ start: yearStart, end: yearEnd });
 
       const budgetMap: Record<string, any> = {};
-      (decryptedAllBudgets || []).forEach(b => {
-        budgetMap[b.id] = b;
-      });
+      (decryptedAllBudgets || []).forEach(b => budgetMap[b.id] = b);
 
       sData = months.map(m => {
         const mKey = format(m, 'yyyyMM');
@@ -479,24 +516,25 @@ export default function ReportsPage() {
       });
     }
 
-    const activeEntries = sData.filter(d => d.spent > 0);
-    const spentValues = activeEntries.map(d => d.spent);
+    const spentValues = sData.filter(d => d.spent > 0).map(d => d.spent);
     const highest = spentValues.length > 0 ? Math.max(...spentValues) : 0;
     const lowest = spentValues.length > 0 ? Math.min(...spentValues) : 0;
     const average = spentValues.length > 0 ? spentValues.reduce((a, b) => a + b, 0) / sData.length : 0;
-    const hasVariation = activeEntries.length > 1 && highest !== lowest;
 
-    sData = sData.map(d => ({
-      ...d,
-      fill: (hasVariation && d.spent === highest && d.spent > 0)
-        ? "hsl(var(--destructive))"
-        : (hasVariation && d.spent === lowest && d.spent > 0)
-          ? "hsl(var(--secondary))"
-          : "hsl(var(--primary))"
-    }));
+    return { spendingData: sData, categoryData: cData, highest, lowest, average, comparisonKeys };
+  }, [decryptedExpenses, decryptedFixed, decryptedCategories, decryptedAllBudgets, selectedDate, viewType, categoryFilter]);
 
-    return { spendingData: sData, categoryData: cData, highest, lowest, average };
-  }, [decryptedExpenses, decryptedFixed, decryptedCategories, decryptedAllBudgets, selectedDate, viewType, weeklyReport, categoryFilter]);
+  const toggleCategory = (id: string) => {
+    setCategoryFilter(prev => {
+      if (id === 'all') return ['all'];
+      const next = prev.filter(p => p !== 'all');
+      if (next.includes(id)) {
+        const filtered = next.filter(p => p !== id);
+        return filtered.length === 0 ? ['all'] : filtered;
+      }
+      return [...next, id];
+    });
+  };
 
   const changeMonth = (delta: number) => {
     setSelectedDate(prev => subMonths(prev, -delta));
@@ -893,20 +931,32 @@ export default function ReportsPage() {
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" size="icon" className="h-6 w-6 rounded-full bg-background/80 backdrop-blur-sm border-primary/20 shadow-sm">
-                            <Filter className={cn("h-3 w-3", categoryFilter !== 'all' ? "text-primary" : "text-muted-foreground")} />
+                            <Filter className={cn("h-3 w-3", !categoryFilter.includes('all') ? "text-primary" : "text-muted-foreground")} />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-44 rounded-xl">
-                          <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-muted-foreground py-1.5 px-2">Filter by Label</DropdownMenuLabel>
+                          <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-muted-foreground py-1.5 px-2">Filter Labels</DropdownMenuLabel>
                           <DropdownMenuSeparator />
-                          <DropdownMenuRadioGroup value={categoryFilter} onValueChange={setCategoryFilter}>
-                            <DropdownMenuRadioItem value="all" className="text-[9px] font-black uppercase py-1.5">All Labels</DropdownMenuRadioItem>
+                          <DropdownMenuCheckboxItem 
+                            checked={categoryFilter.includes('all')} 
+                            onCheckedChange={() => setCategoryFilter(['all'])}
+                            className="text-[9px] font-black uppercase py-1.5"
+                          >
+                            All Labels
+                          </DropdownMenuCheckboxItem>
+                          <DropdownMenuSeparator />
+                          <ScrollArea className="h-48">
                             {decryptedCategories.map(cat => (
-                              <DropdownMenuRadioItem key={cat.id} value={cat.id} className="text-[9px] font-black uppercase py-1.5">
+                              <DropdownMenuCheckboxItem 
+                                key={cat.id} 
+                                checked={categoryFilter.includes(cat.id)}
+                                onCheckedChange={() => toggleCategory(cat.id)}
+                                className="text-[9px] font-black uppercase py-1.5"
+                              >
                                 {cat.name}
-                              </DropdownMenuRadioItem>
+                              </DropdownMenuCheckboxItem>
                             ))}
-                          </DropdownMenuRadioGroup>
+                          </ScrollArea>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -952,25 +1002,41 @@ export default function ReportsPage() {
                         cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }}
                         formatter={(value: number, name: string, props: any) => [
                           `₹${value.toLocaleString()}`, 
-                          props.payload.fullLabel || props.payload.name
+                          name === 'spent' ? (props.payload.fullLabel || props.payload.name) : name
                         ]} 
                         itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
                         labelStyle={{ color: 'hsl(var(--popover-foreground))', fontWeight: 'bold', marginBottom: '4px' }}
                       />
-                      <Bar 
-                        dataKey="spent" 
-                        radius={[4, 4, 0, 0]} 
-                        name="Actual Spend" 
-                        animationDuration={1000}
-                      >
-                        {chartsData.spendingData.map((entry: any, index: number) => (
-                          <Cell key={`cell-${index}`} fill={entry.fill} />
-                        ))}
-                      </Bar>
+                      
+                      {!categoryFilter.includes('all') && chartsData.comparisonKeys.length > 0 ? (
+                        chartsData.comparisonKeys.map((key, idx) => (
+                          <Bar 
+                            key={key}
+                            dataKey={key}
+                            stackId="a"
+                            fill={CHART_COLORS[idx % CHART_COLORS.length]}
+                            radius={idx === chartsData.comparisonKeys.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                            animationDuration={1000}
+                          />
+                        ))
+                      ) : (
+                        <Bar 
+                          dataKey="spent" 
+                          radius={[4, 4, 0, 0]} 
+                          name="Actual Spend" 
+                          animationDuration={1000}
+                        >
+                          {chartsData.spendingData.map((entry: any, index: number) => (
+                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                          ))}
+                        </Bar>
+                      )}
+
                       {viewType === 'annual' && (
                         <Bar dataKey="budgeted" radius={[4, 4, 0, 0]} name="Target Budget" fill="hsl(var(--muted))" fillOpacity={0.3} animationDuration={1000} />
                       )}
-                      {chartsData.highest > 0 && (
+                      
+                      {chartsData.highest > 0 && categoryFilter.includes('all') && (
                         <ReferenceLine 
                           y={chartsData.highest} 
                           stroke="hsl(var(--destructive))" 
@@ -978,15 +1044,8 @@ export default function ReportsPage() {
                           label={{ value: `High: ₹${Math.round(chartsData.highest)}`, position: 'insideTopLeft', fill: 'hsl(var(--destructive))', fontSize: 8, fontWeight: 'bold' }} 
                         />
                       )}
-                      {chartsData.lowest > 0 && chartsData.lowest !== chartsData.highest && (
-                        <ReferenceLine 
-                          y={chartsData.lowest} 
-                          stroke="hsl(var(--secondary))" 
-                          strokeDasharray="4 4" 
-                          label={{ value: `Low: ₹${Math.round(chartsData.lowest)}`, position: 'insideBottomLeft', fill: 'hsl(var(--secondary))', fontSize: 8, fontWeight: 'bold' }} 
-                        />
-                      )}
-                      {chartsData.average > 0 && (
+                      
+                      {chartsData.average > 0 && categoryFilter.includes('all') && (
                         <ReferenceLine 
                           y={chartsData.average} 
                           stroke="hsl(var(--primary))" 
@@ -1173,3 +1232,4 @@ export default function ReportsPage() {
     </AppShell>
   );
 }
+
