@@ -617,7 +617,6 @@ export default function ReportsPage() {
               </CardHeader>
               <CardContent className="space-y-4 md:space-y-6 p-4 md:p-6">
                 <div className="space-y-4">
-                  {/* Monthly Pool */}
                   <div className="flex justify-between items-start text-xs md:sm">
                     <div className="flex flex-col">
                       <span className="text-foreground font-black uppercase text-[10px] tracking-tight">Monthly Pool</span>
@@ -628,7 +627,6 @@ export default function ReportsPage() {
 
                   <Separator className="opacity-50" />
 
-                  {/* Total Amount Spends Group */}
                   <div className="space-y-2">
                     <p className="text-foreground font-black uppercase text-[10px] tracking-tight">Total Amount Spends</p>
                     
@@ -958,10 +956,10 @@ export default function ReportsPage() {
 
           <Dialog open={isAuditModalOpen} onOpenChange={setIsAuditModalOpen}>
             <DialogContent className="max-w-[98vw] md:max-w-6xl rounded-none md:rounded-2xl p-0 overflow-hidden border shadow-2xl h-[95vh] md:h-[90vh] flex flex-col">
-              <div className="bg-primary p-4 sm:p-6 text-primary-foreground relative shrink-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="bg-primary p-4 sm:p-6 text-primary-foreground relative shrink-0 flex items-center justify-between gap-4">
                 <DialogHeader className="text-left space-y-1">
-                  <DialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-2">
-                    <CheckSquare className="h-6 w-6" />
+                  <DialogTitle className="text-xl md:text-2xl font-black tracking-tighter flex items-center gap-2">
+                    <CheckSquare className="h-5 w-5 md:h-6 md:w-6" />
                     Category Audit
                   </DialogTitle>
                   <DialogDescription className="text-[9px] md:text-xs font-bold uppercase tracking-widest text-primary-foreground/70">
@@ -971,9 +969,9 @@ export default function ReportsPage() {
                 <Button 
                   variant="outline" 
                   onClick={downloadAuditCsv}
-                  className="w-full sm:w-auto bg-white/10 border-white/20 hover:bg-white/20 text-white font-black uppercase text-[10px] tracking-widest h-10 px-4 rounded-xl gap-2"
+                  className="shrink-0 bg-white/10 border-white/20 hover:bg-white/20 text-white font-black uppercase text-[10px] tracking-widest h-9 px-3 rounded-xl gap-2"
                 >
-                  <Download className="h-4 w-4" /> Download Audit
+                  <Download className="h-4 w-4" /> Download
                 </Button>
               </div>
               
