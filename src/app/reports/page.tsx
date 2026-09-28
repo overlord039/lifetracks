@@ -81,16 +81,6 @@ import { cn } from '@/lib/utils';
 import { decryptData, decryptNumber } from '@/lib/encryption';
 import { useToast } from '@/hooks/use-toast';
 
-const CHART_COLORS = ['#64B5F6', '#81C784', '#FFB74D', '#BA68C8', '#F06292', '#4DB6AC', '#FF8A65'];
-
-const PILLAR_ICONS: Record<string, any> = {
-  expense: { icon: Wallet, color: 'text-blue-500', bg: 'bg-blue-500' },
-  savings: { icon: PiggyBank, color: 'text-green-500', bg: 'bg-green-500' },
-  investment: { icon: TrendingUp, color: 'text-orange-500', bg: 'bg-orange-500' },
-  health: { icon: HeartPulse, color: 'text-purple-500', bg: 'bg-purple-500' },
-  personal: { icon: Smile, color: 'text-pink-500', bg: 'bg-pink-500' }
-};
-
 const chartTooltipStyle = {
   borderRadius: '12px',
   border: '1px solid hsl(var(--border))',
@@ -100,6 +90,16 @@ const chartTooltipStyle = {
   padding: '8px 12px',
   fontSize: '11px',
   fontWeight: '600'
+};
+
+const CHART_COLORS = ['#64B5F6', '#81C784', '#FFB74D', '#BA68C8', '#F06292', '#4DB6AC', '#FF8A65'];
+
+const PILLAR_ICONS: Record<string, any> = {
+  expense: { icon: Wallet, color: 'text-blue-500', bg: 'bg-blue-500' },
+  savings: { icon: PiggyBank, color: 'text-green-500', bg: 'bg-green-500' },
+  investment: { icon: TrendingUp, color: 'text-orange-500', bg: 'bg-orange-500' },
+  health: { icon: HeartPulse, color: 'text-purple-500', bg: 'bg-purple-500' },
+  personal: { icon: Smile, color: 'text-pink-500', bg: 'bg-pink-500' }
 };
 
 export default function ReportsPage() {
@@ -1025,7 +1025,7 @@ export default function ReportsPage() {
                           <div className="flex-1 flex flex-col items-center justify-center py-20 text-center space-y-4">
                             <ReceiptText className="h-10 w-10 text-primary/20" />
                             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground italic">
-                              No line items found for this label.
+                              where are the transactions
                             </p>
                           </div>
                         )}
