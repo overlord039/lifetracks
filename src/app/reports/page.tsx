@@ -66,7 +66,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -78,6 +78,13 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from '@/lib/utils';
 import { decryptData, decryptNumber } from '@/lib/encryption';
 import { useToast } from '@/hooks/use-toast';
@@ -110,6 +117,7 @@ export default function ReportsPage() {
   
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewType, setViewType] = useState<'weekly' | 'monthly' | 'annual' | 'category'>('monthly');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [mounted, setMounted] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [activeAuditCategoryId, setActiveAuditCategoryId] = useState<string | null>(null);
@@ -332,6 +340,10 @@ export default function ReportsPage() {
   }, [decryptedSalaryProfile, decryptedFixed, decryptedExpenses]);
 
   const weeklyReport = useMemo(() => {
+    const targetExps = categoryFilter === 'all' 
+      ? (decryptedExpenses || [])
+      : (decryptedExpenses || []).filter(e => e.expenseCategoryId === categoryFilter);
+
     if (!decryptedExpenses) return { currentWeekSpent: 0, lastWeekSpent: 0, weeklyData: [] };
 
     const monthStart = startOfMonth(selectedDate);
@@ -340,7 +352,7 @@ export default function ReportsPage() {
 
     const weeklyData = weeks.map((weekStart, idx) => {
       const weekEnd = endOfWeek(weekStart);
-      const spent = decryptedExpenses
+      const spent = targetExps
         .filter(exp => (exp.allocationBucket || 'expense') === 'expense')
         .filter(exp => {
           const d = new Date(exp.date);
@@ -363,12 +375,12 @@ export default function ReportsPage() {
     let lastWeekSpent = 0;
 
     if (isSelectedMonthCurrent) {
-       currentWeekSpent = decryptedExpenses
+       currentWeekSpent = targetExps
         .filter(exp => (exp.allocationBucket || 'expense') === 'expense')
         .filter(exp => isSameWeek(new Date(exp.date), today))
         .reduce((sum, exp) => sum + exp.amount, 0);
        
-       lastWeekSpent = decryptedExpenses
+       lastWeekSpent = targetExps
         .filter(exp => (exp.allocationBucket || 'expense') === 'expense')
         .filter(exp => isSameWeek(new Date(exp.date), subWeeks(today, 1)))
         .reduce((sum, exp) => sum + exp.amount, 0);
@@ -380,12 +392,19 @@ export default function ReportsPage() {
     }
 
     return { currentWeekSpent, lastWeekSpent, weeklyData };
-  }, [decryptedExpenses, selectedDate]);
+  }, [decryptedExpenses, selectedDate, categoryFilter]);
 
   const chartsData = useMemo(() => {
     if (!decryptedExpenses || !decryptedFixed) {
       return { spendingData: [], categoryData: [], highest: 0, lowest: 0, average: 0 };
     }
+
+    const targetExps = categoryFilter === 'all' 
+      ? decryptedExpenses 
+      : decryptedExpenses.filter(e => e.expenseCategoryId === categoryFilter);
+    const targetFixed = categoryFilter === 'all'
+      ? decryptedFixed
+      : decryptedFixed.filter(f => f.expenseCategoryId === categoryFilter);
 
     const categoryTotals: Record<string, number> = {};
     const allItems = [...decryptedExpenses, ...decryptedFixed];
@@ -414,7 +433,8 @@ export default function ReportsPage() {
       const monthEnd = endOfMonth(selectedDate);
       const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
       const dailyExpensesMap: Record<string, number> = {};
-      decryptedExpenses
+      
+      targetExps
         .filter(e => (e.allocationBucket || 'expense') === 'expense')
         .forEach(exp => {
           dailyExpensesMap[exp.date] = (dailyExpensesMap[exp.date] || 0) + exp.amount;
@@ -422,7 +442,6 @@ export default function ReportsPage() {
 
       sData = days
         .map(d => {
-          const dStr = format(d, 'yyyy-MM-01'); // Use 1st for display consistency
           return {
             name: format(d, 'dd MMM'),
             spent: dailyExpensesMap[format(d, 'yyyy-MM-dd')] || 0,
@@ -454,6 +473,13 @@ export default function ReportsPage() {
         spent: c.value,
         fill: c.color
       }));
+      // Filter category bars if a filter is active
+      if (categoryFilter !== 'all') {
+        const filteredCat = decryptedCategories.find(c => c.id === categoryFilter);
+        if (filteredCat) {
+          sData = sData.filter(d => d.name === filteredCat.name);
+        }
+      }
     }
 
     const activeEntries = sData.filter(d => d.spent > 0);
@@ -475,7 +501,7 @@ export default function ReportsPage() {
     }
 
     return { spendingData: sData, categoryData: cData, highest, lowest, average };
-  }, [decryptedExpenses, decryptedFixed, decryptedCategories, decryptedAllBudgets, selectedDate, viewType, weeklyReport]);
+  }, [decryptedExpenses, decryptedFixed, decryptedCategories, decryptedAllBudgets, selectedDate, viewType, weeklyReport, categoryFilter]);
 
   const changeMonth = (delta: number) => {
     setSelectedDate(prev => subMonths(prev, -delta));
@@ -516,7 +542,6 @@ export default function ReportsPage() {
 
     return combined
       .filter(item => {
-        // Match by ID primarily, but fallback to name for orphaned/older records
         const matchesId = (item.expenseCategoryId || 'misc') === activeAuditCategoryId;
         const matchesName = item.catName === targetCatName;
         return matchesId || matchesName;
@@ -857,14 +882,27 @@ export default function ReportsPage() {
                     <CardDescription className="text-[9px] md:text-[10px] uppercase font-bold tracking-tight">Advanced trend & label analysis</CardDescription>
                   </div>
                 </div>
-                <Tabs value={viewType} onValueChange={(v: any) => setViewType(v)} className="w-full md:w-auto">
-                  <TabsList className="grid w-full grid-cols-4 md:w-[360px] h-9 p-1 bg-muted/50 rounded-xl border">
-                    <TabsTrigger value="weekly" className="text-[9px] font-black uppercase">Weekly</TabsTrigger>
-                    <TabsTrigger value="monthly" className="text-[9px] font-black uppercase">Monthly</TabsTrigger>
-                    <TabsTrigger value="annual" className="text-[9px] font-black uppercase">Annual</TabsTrigger>
-                    <TabsTrigger value="category" className="text-[9px] font-black uppercase">By Category</TabsTrigger>
-                  </TabsList>
-                </Tabs>
+                <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="h-9 w-full sm:w-[140px] text-[10px] font-black uppercase rounded-xl bg-background shadow-sm border-primary/20">
+                      <SelectValue placeholder="All Labels" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      <SelectItem value="all" className="text-[10px] font-black uppercase">All Labels</SelectItem>
+                      {decryptedCategories.map(cat => (
+                        <SelectItem key={cat.id} value={cat.id} className="text-[10px] font-black uppercase">{cat.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Tabs value={viewType} onValueChange={(v: any) => setViewType(v)} className="w-full md:w-auto">
+                    <TabsList className="grid w-full grid-cols-4 md:w-[320px] h-9 p-1 bg-muted/50 rounded-xl border">
+                      <TabsTrigger value="weekly" className="text-[9px] font-black uppercase">Weekly</TabsTrigger>
+                      <TabsTrigger value="monthly" className="text-[9px] font-black uppercase">Monthly</TabsTrigger>
+                      <TabsTrigger value="annual" className="text-[9px] font-black uppercase">Annual</TabsTrigger>
+                      <TabsTrigger value="category" className="text-[9px] font-black uppercase">By Label</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
               </CardHeader>
               <CardContent className="p-4 md:p-6 space-y-6">
                 <div className="grid grid-cols-3 gap-3 md:gap-4">
@@ -986,7 +1024,6 @@ export default function ReportsPage() {
                         const catItem = decryptedCategories.find(c => c.name === cat.name);
                         const catId = catItem?.id || 'misc';
                         
-                        // Recalculate count to be perfectly in sync with summation logic (ID or name fallback)
                         const targetCatName = cat.name;
                         const dailyCount = (decryptedExpenses || []).filter(e => {
                            const eCat = decryptedCategories.find(c => c.id === e.expenseCategoryId);
@@ -1124,3 +1161,4 @@ export default function ReportsPage() {
     </AppShell>
   );
 }
+
