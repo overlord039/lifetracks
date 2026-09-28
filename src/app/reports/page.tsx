@@ -676,12 +676,6 @@ export default function ReportsPage() {
                       ₹{totals.remaining.toLocaleString()}
                     </p>
                   </div>
-                  <div className={cn(
-                    "p-3 md:p-4 rounded-2xl shadow-inner",
-                    totals.remaining >= 0 ? "bg-primary/10 text-primary border border-primary/20" : "bg-destructive/10 text-destructive border border-destructive/20"
-                  )}>
-                    {totals.remaining >= 0 ? <TrendingUp className="h-6 w-6 md:h-8 md:w-8" /> : <TrendingDown className="h-6 w-6 md:h-8 md:w-8" />}
-                  </div>
                 </div>
               </CardContent>
             </Card>
