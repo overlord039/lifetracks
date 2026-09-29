@@ -47,15 +47,15 @@ import {
 } from "@/components/ui/popover";
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 const navItems = [
   { id: 'dashboard', title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
-  { id: 'salary-planner', title: 'Salary Planner', url: '/salary-planner', icon: Calculator },
+  { id: 'salary-planner', title: 'Planner', url: '/salary-planner', icon: Calculator },
   { id: 'budget', title: 'Budget', url: '/budget', icon: Wallet },
-  { id: 'split-pay', title: 'Split & Debt', url: '/split-pay', icon: Users },
-  { id: 'craving-meter', title: 'Craving Meter', url: '/craving-meter', icon: Flame },
-  { id: 'future-vision', title: 'Future Vision', url: '/future-vision', icon: Mountain },
+  { id: 'split-pay', title: 'Split', url: '/split-pay', icon: Users },
+  { id: 'craving-meter', title: 'Willpower', url: '/craving-meter', icon: Flame },
+  { id: 'future-vision', title: 'Vision', url: '/future-vision', icon: Mountain },
   { id: 'learning', title: 'Learning', url: '/learning', icon: GraduationCap },
   { id: 'diary', title: 'Diary', url: '/diary', icon: BookText },
   { id: 'reports', title: 'Reports', url: '/reports', icon: BarChart3 },
@@ -97,7 +97,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background overflow-x-hidden">
-        <Sidebar className="border-r">
+        {/* Desktop Sidebar */}
+        <Sidebar className="border-r hidden md:flex">
           <SidebarHeader className="p-4 flex flex-row items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-lg">
@@ -188,9 +189,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Button>
           </SidebarFooter>
         </Sidebar>
+
         <SidebarInset className="flex flex-col w-full min-w-0">
           <header className="sticky top-0 z-30 flex h-14 md:h-16 items-center gap-3 border-b bg-background/80 backdrop-blur-md px-3 md:px-6">
-            <SidebarTrigger className="flex h-9 w-9 items-center justify-center rounded-xl border bg-card shadow-sm md:hidden" />
             <div className="flex-1 flex items-center gap-2 overflow-hidden">
               <h1 className="text-sm md:text-lg font-black truncate tracking-tighter">
                 {navItems.find(item => item.url === pathname)?.title || 'Dashboard'}
@@ -201,7 +202,45 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
             <ThemeToggle />
           </header>
-          <main className="flex-1 overflow-x-hidden overflow-y-auto p-3 md:p-6 lg:p-8 w-full">{children}</main>
+
+          <main className={cn(
+            "flex-1 overflow-x-hidden overflow-y-auto p-3 md:p-6 lg:p-8 w-full",
+            "pb-20 md:pb-6" // Extra padding bottom for mobile bottom nav
+          )}>
+            {children}
+          </main>
+
+          {/* Mobile Bottom Navigation */}
+          <div className="fixed bottom-0 left-0 right-0 z-50 h-16 bg-background/95 backdrop-blur-lg border-t md:hidden flex items-center">
+            <ScrollArea className="w-full">
+              <div className="flex items-center justify-start h-full px-4 gap-4 min-w-max pb-2">
+                {filteredNavItems.map((item) => {
+                  const isActive = pathname === item.url;
+                  return (
+                    <Link 
+                      key={item.id} 
+                      href={item.url} 
+                      className={cn(
+                        "flex flex-col items-center justify-center gap-1 min-w-[56px] transition-all duration-300",
+                        isActive ? "text-primary scale-110" : "text-muted-foreground opacity-60"
+                      )}
+                    >
+                      <div className={cn(
+                        "p-1.5 rounded-xl transition-all",
+                        isActive ? "bg-primary/10 shadow-sm" : "bg-transparent"
+                      )}>
+                        <item.icon className="h-5 w-5" />
+                      </div>
+                      <span className="text-[9px] font-black uppercase tracking-tighter truncate max-w-[64px]">
+                        {item.title}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+              <ScrollBar orientation="horizontal" className="hidden" />
+            </ScrollArea>
+          </div>
         </SidebarInset>
       </div>
     </SidebarProvider>
