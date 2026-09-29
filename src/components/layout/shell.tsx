@@ -17,7 +17,13 @@ import {
   Check,
   X,
   Flame,
-  Mountain
+  Mountain,
+  Sun,
+  Moon,
+  Droplets,
+  TreePine,
+  Sunrise,
+  Palette
 } from 'lucide-react';
 import { 
   Sidebar, 
@@ -37,7 +43,6 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ThemeToggle } from '@/components/theme-toggle';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import {
@@ -48,6 +53,9 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { useTheme } from "next-themes";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 
 const navItems = [
   { id: 'dashboard', title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
@@ -59,7 +67,6 @@ const navItems = [
   { id: 'learning', title: 'Learning', url: '/learning', icon: GraduationCap },
   { id: 'diary', title: 'Diary', url: '/diary', icon: BookText },
   { id: 'reports', title: 'Reports', url: '/reports', icon: BarChart3 },
-  { id: 'about', title: 'About', url: '/about', icon: Info },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -67,6 +74,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const { theme, setTheme } = useTheme();
   const [visibleSections, setVisibleSections] = useState<Record<string, boolean>>({});
   const [mounted, setMounted] = useState(false);
 
@@ -94,6 +102,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const filteredNavItems = navItems.filter(item => !mounted || visibleSections[item.id] !== false);
 
+  const themes = [
+    { id: 'light', label: 'Light', icon: Sun, color: 'text-orange-500' },
+    { id: 'dark', label: 'Dark', icon: Moon, color: 'text-blue-400' },
+    { id: 'midnight', label: 'Midnight', icon: Droplets, color: 'text-blue-600' },
+    { id: 'forest', label: 'Forest', icon: TreePine, color: 'text-green-600' },
+    { id: 'sunset', label: 'Sunset', icon: Sunrise, color: 'text-orange-600' },
+    { id: 'system', label: 'System', icon: Palette, color: 'text-slate-500' },
+  ];
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background overflow-x-hidden">
@@ -106,57 +123,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
               <span className="font-headline font-black text-xl tracking-tighter">LifeTrack</span>
             </div>
-            
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors">
-                  <Settings2 className="h-4 w-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent side="right" align="start" className="w-[340px] p-0 rounded-3xl shadow-2xl border-none ring-1 ring-border overflow-hidden">
-                <div className="p-4 bg-muted/30 border-b">
-                  <h3 className="text-sm font-black uppercase tracking-tight">Workspace Layout</h3>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase mt-0.5">Customize Sidebar Sections</p>
-                </div>
-                <ScrollArea className="max-h-[400px]">
-                  <div className="p-3 grid grid-cols-3 gap-2">
-                    {navItems.map((item) => (
-                      <div 
-                        key={item.id} 
-                        className={cn(
-                          "flex flex-col items-center justify-between p-3 rounded-2xl border transition-all duration-300 hover:bg-muted/50 group",
-                          visibleSections[item.id] === false ? "bg-muted/10 opacity-60" : "bg-card shadow-sm"
-                        )}
-                      >
-                        <div className="flex flex-col items-center gap-2 mb-3">
-                          <div className={cn(
-                            "p-2 bg-background rounded-xl border shadow-inner transition-colors",
-                            visibleSections[item.id] !== false ? "group-hover:border-primary/30 text-primary" : "text-muted-foreground"
-                          )}>
-                            <item.icon className="h-4 w-4" />
-                          </div>
-                          <Label 
-                            htmlFor={`nav-${item.id}`} 
-                            className="font-black text-[8px] uppercase tracking-widest text-center leading-tight cursor-pointer line-clamp-2 h-6 flex items-center"
-                          >
-                            {item.title}
-                          </Label>
-                        </div>
-                        <Switch 
-                          id={`nav-${item.id}`} 
-                          className="scale-[0.65] origin-center" 
-                          checked={visibleSections[item.id] !== false} 
-                          onCheckedChange={() => toggleSection(item.id)} 
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-                <div className="p-3 bg-primary/5 border-t">
-                   <p className="text-[9px] font-black text-primary uppercase text-center tracking-[0.2em]">Local Persistence Enabled</p>
-                </div>
-              </PopoverContent>
-            </Popover>
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu className="px-2 pt-2">
@@ -194,18 +160,98 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <header className="sticky top-0 z-30 flex h-14 md:h-16 items-center gap-3 border-b bg-background/80 backdrop-blur-md px-3 md:px-6">
             <div className="flex-1 flex items-center gap-2 overflow-hidden">
               <h1 className="text-sm md:text-lg font-black truncate tracking-tighter">
-                {navItems.find(item => item.url === pathname)?.title || 'Dashboard'}
+                {navItems.find(item => item.url === pathname)?.title || (pathname === '/about' ? 'About' : 'Dashboard')}
               </h1>
               <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800 text-[8px] md:text-[9px] uppercase font-black tracking-tighter px-1.5 py-0">
                 <ShieldCheck className="h-2.5 w-2.5 mr-1" /> Automated E2EE
               </Badge>
             </div>
-            <ThemeToggle />
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-primary/5 text-muted-foreground hover:text-primary transition-colors">
+                  <Settings2 className="h-5 w-5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-[340px] p-0 rounded-3xl shadow-2xl border-none ring-1 ring-border overflow-hidden">
+                <Tabs defaultValue="appearance">
+                  <TabsList className="grid w-full grid-cols-2 h-11 p-1 bg-muted/30 rounded-none border-b">
+                    <TabsTrigger value="appearance" className="rounded-none font-black text-[10px] uppercase">Appearance</TabsTrigger>
+                    <TabsTrigger value="layout" className="rounded-none font-black text-[10px] uppercase">Navigation</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="appearance" className="p-4 space-y-5 animate-in fade-in slide-in-from-left-2 duration-300">
+                    <div className="space-y-3">
+                      <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Interface Themes</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {themes.map((t) => (
+                          <button
+                            key={t.id}
+                            onClick={() => setTheme(t.id)}
+                            className={cn(
+                              "flex flex-col items-center justify-center p-3 rounded-2xl border transition-all duration-300 hover:bg-muted/50 group",
+                              theme === t.id ? "bg-primary/10 border-primary/40 ring-1 ring-primary/20" : "bg-card shadow-sm"
+                            )}
+                          >
+                            <t.icon className={cn("h-4 w-4 mb-2 transition-transform group-hover:scale-110", t.color)} />
+                            <span className="text-[8px] font-black uppercase tracking-tighter">{t.label}</span>
+                            {theme === t.id && <Check className="h-2 w-2 text-primary mt-1" />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <Separator className="border-dashed" />
+                    
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Application Info</p>
+                      <Button variant="outline" asChild className="w-full h-11 rounded-2xl font-black text-[10px] uppercase gap-2 border-dashed hover:bg-primary/5 hover:text-primary hover:border-primary/20">
+                        <Link href="/about">
+                          <Info className="h-3.5 w-3.5" />
+                          Learn About LifeTrack
+                        </Link>
+                      </Button>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="layout" className="p-4 space-y-4 animate-in fade-in slide-in-from-right-2 duration-300">
+                    <div className="p-1 space-y-1">
+                      <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-3 px-1">Customize Workspace Visibility</h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        {navItems.map((item) => (
+                          <div 
+                            key={item.id} 
+                            className={cn(
+                              "flex items-center justify-between p-2.5 rounded-xl border transition-all duration-300 hover:bg-muted/30 group",
+                              visibleSections[item.id] === false ? "bg-muted/10 opacity-60" : "bg-card shadow-sm"
+                            )}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <item.icon className={cn("h-3.5 w-3.5 shrink-0", visibleSections[item.id] !== false ? "text-primary" : "text-muted-foreground")} />
+                              <span className="font-black text-[8px] uppercase tracking-tighter truncate">{item.title}</span>
+                            </div>
+                            <Switch 
+                              id={`nav-${item.id}`} 
+                              className="scale-[0.6] origin-right" 
+                              checked={visibleSections[item.id] !== false} 
+                              onCheckedChange={() => toggleSection(item.id)} 
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-primary/5 rounded-2xl border border-dashed border-primary/10">
+                       <p className="text-[8px] font-black text-primary uppercase text-center tracking-[0.2em]">Preferences Persisted Locally</p>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </PopoverContent>
+            </Popover>
           </header>
 
           <main className={cn(
             "flex-1 overflow-x-hidden overflow-y-auto p-3 md:p-6 lg:p-8 w-full",
-            "pb-20 md:pb-6" // Extra padding bottom for mobile bottom nav
+            "pb-20 md:pb-6"
           )}>
             {children}
           </main>
