@@ -160,17 +160,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <header className="sticky top-0 z-30 flex h-14 md:h-16 items-center gap-3 border-b bg-background/80 backdrop-blur-md px-3 md:px-6">
             <div className="flex-1 flex items-center gap-3 overflow-hidden">
               <Link href="/profile" className="flex items-center gap-2 group/header-user shrink-0 md:hidden">
-                <Avatar className="h-8 w-8 border-2 border-primary/10 group-hover/header-user:border-primary/30 transition-all">
+                <Avatar className="h-8 w-8 border-2 border-primary/10 group-hover:header-user:border-primary/30 transition-all">
                   <AvatarFallback className="bg-primary text-primary-foreground text-[10px] font-black">
                     {user?.email?.charAt(0).toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
-                <div className="hidden sm:flex flex-col min-w-0">
-                  <span className="text-[10px] font-black truncate tracking-tighter uppercase leading-none">
-                    {user?.displayName || user?.email?.split('@')[0] || 'User'}
-                  </span>
-                  <span className="text-[8px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">Vault</span>
-                </div>
               </Link>
               
               <Separator orientation="vertical" className="h-6 opacity-30 md:hidden" />

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -412,15 +413,32 @@ export default function BudgetPage() {
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Opening Privacy Vault...</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-12">
+        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div className="lg:col-span-8 flex flex-col gap-4">
             <Card className={cn("shadow-lg border-t-4 border-t-primary rounded-2xl overflow-hidden transition-opacity", isDecrypting && "opacity-60")}>
-              <CardHeader className="bg-muted/30 pb-3 md:pb-4 px-4 md:px-6 flex flex-row items-center justify-between space-y-0">
-                <div className="space-y-0.5">
-                  <CardTitle className="flex items-center gap-2 text-base md:text-lg font-black tracking-tight"><Wallet className="h-5 w-5 text-primary" /> Monthly Vault</CardTitle>
-                  <CardDescription className="text-[10px] uppercase font-bold tracking-tight">Protected targets for {monthName}.</CardDescription>
+              <CardHeader className="bg-muted/30 pb-3 md:pb-4 px-4 md:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center justify-between w-full sm:w-auto gap-4">
+                  <div className="space-y-0.5">
+                    <CardTitle className="flex items-center gap-2 text-base md:text-lg font-black tracking-tight"><Wallet className="h-5 w-5 text-primary" /> Monthly Vault</CardTitle>
+                    <CardDescription className="text-[10px] uppercase font-bold tracking-tight">Protected targets for {monthName}.</CardDescription>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => setIsActivityModalOpen(true)}
+                    className="h-8 w-8 relative hover:bg-primary/10 transition-all sm:hidden"
+                    title="View Activity History"
+                  >
+                    <History className="h-4 w-4 text-primary" />
+                    {decryptedExpenses?.length > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[7px] font-black text-white ring-2 ring-background">
+                        {decryptedExpenses.length}
+                      </span>
+                    )}
+                  </Button>
                 </div>
-                <div className="flex items-center gap-3">
+                
+                <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-3 sm:pt-0">
                   <div className="flex items-center gap-2 border-r pr-3 sm:pr-4 border-dashed h-8">
                      <div className="flex flex-col items-end">
                         <Label className="text-[8px] font-black uppercase tracking-wider text-muted-foreground leading-none">Weekend</Label>
@@ -439,7 +457,7 @@ export default function BudgetPage() {
                     variant="ghost" 
                     size="icon" 
                     onClick={() => setIsActivityModalOpen(true)}
-                    className="h-8 w-8 relative hover:bg-primary/10 transition-all ml-1 group"
+                    className="h-8 w-8 relative hover:bg-primary/10 transition-all hidden sm:flex group"
                     title="View Activity History"
                   >
                     <History className="h-4 w-4 text-primary group-hover:rotate-[-15deg] transition-transform" />
@@ -480,7 +498,7 @@ export default function BudgetPage() {
                           <div className="p-3 md:p-4 border rounded-2xl bg-primary/5 animate-in slide-in-from-top-2">
                             <Label className="text-[9px] md:text-[10px] font-black uppercase mb-2 md:mb-3 block text-primary">Add Private Extra</Label>
                             <div className="flex gap-2">
-                              <Input type="number" placeholder="₹ Amount" value={extraAmount} onChange={(e) => setExtraAmount(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddExtra()} autoFocus className="h-10 text-sm" />
+                              <input type="number" placeholder="₹ Amount" value={extraAmount} onChange={(e) => setExtraAmount(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddExtra()} autoFocus className="h-10 text-sm w-full bg-background border rounded-lg px-3 focus:outline-none focus:ring-2 focus:ring-primary/20" />
                               <Button onClick={handleAddExtra} className="h-10 font-bold px-4 text-xs">Add</Button>
                             </div>
                           </div>

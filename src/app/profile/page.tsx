@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -103,7 +104,7 @@ export default function ProfilePage() {
     <AppShell>
       <div className="max-w-4xl mx-auto space-y-3 md:space-y-4 pb-8">
         {/* Profile Hero - Compact with Background Patterns */}
-        <div className="relative">
+        <div className="relative animate-in fade-in slide-in-from-top-4 duration-700">
           <div className="h-20 md:h-32 bg-gradient-to-br from-primary via-primary/80 to-primary/60 rounded-[1rem] md:rounded-[1.5rem] shadow-lg overflow-hidden relative group">
             <div className="absolute inset-0 bg-white/5 backdrop-blur-[1px] group-hover:backdrop-blur-none transition-all duration-700" />
             <div className="absolute -bottom-10 -right-10 h-32 w-32 bg-white/10 rounded-full blur-xl" />
@@ -180,8 +181,8 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="grid gap-2 md:gap-4 md:grid-cols-12 px-1">
-          {/* Identity Summary - Redesigned to look better */}
+        <div className="grid gap-2 md:gap-4 md:grid-cols-12 px-1 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
+          {/* Identity Summary */}
           <div className="md:col-span-4 space-y-2 md:space-y-4">
             <Card className="rounded-[0.75rem] md:rounded-[1rem] border-none ring-1 ring-border shadow-sm overflow-hidden h-full bg-gradient-to-b from-card to-muted/10">
               <CardHeader className="bg-primary/[0.03] border-b py-2 md:py-3 px-3 md:px-4">
@@ -221,7 +222,7 @@ export default function ProfilePage() {
             </Card>
           </div>
 
-          {/* Account Configuration - Refined */}
+          {/* Account Configuration */}
           <div className="md:col-span-8 space-y-2 md:space-y-4">
             <Card className="rounded-[0.75rem] md:rounded-[1rem] border-none ring-1 ring-border shadow-sm overflow-hidden">
               <CardHeader className="bg-muted/30 border-b py-2 md:py-3 px-3 md:px-5">
@@ -251,34 +252,10 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 md:gap-3">
-                    <ProfileDetailCard 
-                      icon={Lock} 
-                      label="Engine" 
-                      value="AES-GCM 256" 
-                      sub="Standard"
-                      color="text-blue-500"
-                    />
-                    <ProfileDetailCard 
-                      icon={Zap} 
-                      label="Session" 
-                      value="Active" 
-                      sub="Persistent"
-                      color="text-green-500"
-                    />
-                    <ProfileDetailCard 
-                      icon={Smartphone} 
-                      label="Channel" 
-                      value="Cloud" 
-                      sub="Verified"
-                      color="text-purple-500"
-                    />
-                    <ProfileDetailCard 
-                      icon={Shield} 
-                      label="Protocol" 
-                      value="Zero-K" 
-                      sub="Encrypted"
-                      color="text-orange-500"
-                    />
+                    <ProfileDetailCard icon={Lock} label="Engine" value="AES-GCM 256" sub="Standard" color="text-blue-500" />
+                    <ProfileDetailCard icon={Zap} label="Session" value="Active" sub="Persistent" color="text-green-500" />
+                    <ProfileDetailCard icon={Smartphone} label="Channel" value="Cloud" sub="Verified" color="text-purple-500" />
+                    <ProfileDetailCard icon={Shield} label="Protocol" value="Zero-K" sub="Encrypted" color="text-orange-500" />
                   </div>
                 </div>
               </CardContent>

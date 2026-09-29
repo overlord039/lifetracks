@@ -225,7 +225,7 @@ export default function Dashboard() {
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Unlocking Vault...</p>
         </div>
       ) : (
-        <>
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div className="grid gap-4 md:gap-6 lg:grid-cols-12 mb-4 md:mb-6">
             <div className={cn("space-y-4 md:space-y-6", hasActiveGoals ? "lg:col-span-7" : "lg:col-span-12")}>
               <Link href="/reports" className="block group">
@@ -305,7 +305,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-5">
             <DashboardCard 
               href="/craving-meter" 
-              title="Craving Meter" 
+              title="Willpower" 
               value={`${cravingToday.cals} kcal`} 
               subtext={`₹${cravingToday.money} Saved | ${cravingStats?.currentStreak || 0}d Streak`} 
               icon={<Flame className="w-4 h-4" />} 
@@ -324,7 +324,7 @@ export default function Dashboard() {
             <DashboardCard href="/learning" title="Skill Mastery" value={`${goalsProgress}%`} subtext="Completion rate" icon={<BookOpen className="w-4 h-4" />} progress={goalsProgress} />
             <DashboardCard href="/diary" title="Daily Reflection" value={todayDiary ? "Logged" : "Pending"} subtext={todayDiary ? "Well done!" : "Record thoughts"} icon={todayDiary ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />} variant={todayDiary ? "secondary" : "default"} />
           </div>
-        </>
+        </div>
       )}
     </AppShell>
   );
