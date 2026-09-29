@@ -115,19 +115,19 @@ export default function ProfilePage() {
             </div>
           </div>
           
-          <div className="px-4 md:px-10 -mt-10 md:-mt-14 flex flex-col md:flex-row md:items-end justify-between gap-4 relative z-10">
-            <div className="flex flex-col md:flex-row items-center md:items-end gap-3 md:gap-6">
+          <div className="px-4 md:px-10 -mt-10 md:-mt-14 flex flex-col items-center justify-center gap-4 relative z-10">
+            <div className="flex flex-col items-center justify-center gap-3 md:gap-4">
               <div className="p-1 bg-background rounded-full shadow-md border-[3px] border-background relative">
                 <Avatar className="h-16 w-16 md:h-24 md:w-24 border border-primary/10">
-                  <AvatarFallback className="bg-primary/5 text-primary text-xl md:text-3xl font-black">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xl md:text-3xl font-black">
                     {user?.email?.charAt(0).toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
                 <div className="absolute bottom-1 right-1 h-4 w-4 md:h-5 md:w-5 bg-green-500 border-2 border-background rounded-full shadow-sm" title="Secured Session" />
               </div>
               
-              <div className="text-center md:text-left space-y-0.5 mb-1">
-                <div className="flex items-center justify-center md:justify-start gap-2 group">
+              <div className="text-center space-y-0.5 mb-1">
+                <div className="flex items-center justify-center gap-2 group">
                   {isEditing ? (
                     <div className="flex items-center gap-1.5 animate-in slide-in-from-left-2">
                       <Input 
@@ -154,7 +154,7 @@ export default function ProfilePage() {
                     </>
                   )}
                 </div>
-                <div className="flex flex-col md:flex-row items-center justify-center md:justify-start gap-1 md:gap-3">
+                <div className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-3">
                   <button 
                     onClick={copyUid}
                     className="text-muted-foreground font-bold text-[8px] md:text-[10px] uppercase tracking-wider flex items-center gap-1.5 hover:text-primary transition-all group/uid"
@@ -172,7 +172,7 @@ export default function ProfilePage() {
               </div>
             </div>
             
-            <div className="flex justify-center md:justify-end pb-1">
+            <div className="flex justify-center pb-1">
               <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-black text-[8px] md:text-[10px] uppercase px-2 md:px-3 py-0.5 rounded-xl gap-1.5 shadow-sm">
                 <ShieldCheck className="h-3 w-3" /> Identity Verified
               </Badge>
