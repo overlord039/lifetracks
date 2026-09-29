@@ -762,14 +762,14 @@ export default function ReportsPage() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="grid gap-3 grid-cols-3">
+                  <div className="flex gap-4 overflow-x-auto pb-4 snap-x [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {allocationReport.map(pillar => {
                       const Config = PILLAR_ICONS[pillar.id] || { icon: Coins, color: 'text-primary', bg: 'bg-primary' };
                       const Icon = Config.icon;
                       const isOverspent = pillar.utilization > 100;
                       
                       return (
-                        <div key={pillar.id} className="space-y-3 p-3 md:p-4 rounded-2xl border bg-muted/5 transition-all hover:bg-muted/10 group">
+                        <div key={pillar.id} className="min-w-[160px] md:min-w-[200px] flex-shrink-0 snap-center space-y-3 p-3 md:p-4 rounded-2xl border bg-muted/5 transition-all hover:bg-muted/10 group">
                           <div className="flex items-center justify-between">
                             <Badge variant={isOverspent ? "destructive" : "secondary"} className="text-[7px] md:text-[9px] font-black uppercase px-1 md:px-2">
                               {Math.round(pillar.utilization)}%
@@ -1134,4 +1134,3 @@ export default function ReportsPage() {
     </AppShell>
   );
 }
-
