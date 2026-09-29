@@ -20,7 +20,8 @@ import {
   Zap,
   ShieldCheck,
   UserCheck,
-  Smartphone
+  Smartphone,
+  Copy
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
@@ -74,6 +75,13 @@ export default function ProfilePage() {
       toast({ variant: "destructive", title: "Update failed", description: error.message });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const copyUid = () => {
+    if (user?.uid) {
+      navigator.clipboard.writeText(user.uid);
+      toast({ title: "Anchor Copied", description: "Your unique account ID is now on your clipboard." });
     }
   };
 
@@ -140,9 +148,15 @@ export default function ProfilePage() {
                   )}
                 </div>
                 <div className="flex flex-col md:flex-row items-center justify-center md:justify-start gap-0.5 md:gap-2">
-                  <p className="text-muted-foreground font-bold text-[7px] md:text-[9px] uppercase tracking-wider flex items-center gap-1">
-                    <Mail className="h-2 w-2" /> {user?.email}
-                  </p>
+                  <button 
+                    onClick={copyUid}
+                    className="text-muted-foreground font-bold text-[7px] md:text-[9px] uppercase tracking-wider flex items-center gap-1 hover:text-primary transition-all group/uid"
+                    title="Click to copy UID"
+                  >
+                    <Fingerprint className="h-2 w-2" /> 
+                    <span className="truncate max-w-[100px]">{user?.uid}</span>
+                    <Copy className="h-2 w-2 opacity-0 group-hover/uid:opacity-100 transition-opacity" />
+                  </button>
                   <Separator orientation="vertical" className="h-2 hidden md:block" />
                   <p className="text-muted-foreground font-bold text-[7px] md:text-[9px] uppercase tracking-wider flex items-center gap-1">
                     <Calendar className="h-2 w-2" /> {creationDate}
@@ -160,7 +174,7 @@ export default function ProfilePage() {
         </div>
 
         <div className="grid gap-2 md:gap-4 md:grid-cols-12 px-1">
-          {/* Sidebar Info - Compact (Moved Up) */}
+          {/* Sidebar Info - Compact */}
           <div className="md:col-span-4 space-y-2 md:space-y-4">
             <Card className="rounded-[0.75rem] md:rounded-[1rem] border-none ring-1 ring-border shadow-sm overflow-hidden h-full">
               <CardHeader className="bg-muted/30 border-b py-2 md:py-3 px-3 md:px-4">
@@ -186,7 +200,7 @@ export default function ProfilePage() {
             </Card>
           </div>
 
-          {/* Main Content - Tightened (Moved Down) */}
+          {/* Main Content - Tightened */}
           <div className="md:col-span-8 space-y-2 md:space-y-4">
             <Card className="rounded-[0.75rem] md:rounded-[1rem] border-none ring-1 ring-border shadow-sm overflow-hidden">
               <CardHeader className="bg-muted/30 border-b py-2 md:py-3 px-3 md:px-5">
@@ -199,7 +213,7 @@ export default function ProfilePage() {
                 <div className="grid gap-3 md:gap-4">
                   <div className="space-y-1.5 md:space-y-2">
                     <Label className="text-[7px] md:text-[8px] font-black uppercase tracking-widest text-primary ml-1">Cryptographic Anchor (UID)</Label>
-                    <div className="p-2 md:p-3 rounded-lg md:rounded-xl bg-muted/20 border border-dashed flex items-center justify-between gap-2 group hover:bg-muted/30 transition-colors">
+                    <div className="p-2 md:p-3 rounded-lg md:rounded-xl bg-muted/20 border border-dashed flex items-center justify-between gap-2 group hover:bg-muted/30 transition-colors cursor-pointer" onClick={copyUid}>
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="h-7 w-7 md:h-8 md:w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
                           <Fingerprint className="h-3 w-3 md:h-3.5 md:w-3.5" />
@@ -208,7 +222,10 @@ export default function ProfilePage() {
                           {user?.uid}
                         </code>
                       </div>
-                      <Badge variant="secondary" className="font-black uppercase text-[5px] md:text-[6px] tracking-wider h-4 md:h-5 px-1 rounded-md">Primary Key</Badge>
+                      <div className="flex items-center gap-2">
+                        <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <Badge variant="secondary" className="font-black uppercase text-[5px] md:text-[6px] tracking-wider h-4 md:h-5 px-1 rounded-md">Primary Key</Badge>
+                      </div>
                     </div>
                   </div>
 
