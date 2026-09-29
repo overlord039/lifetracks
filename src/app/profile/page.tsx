@@ -35,6 +35,7 @@ import { updateProfile } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import Link from 'next/link';
 
 export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
@@ -103,7 +104,26 @@ export default function ProfilePage() {
   return (
     <AppShell>
       <div className="max-w-3xl mx-auto space-y-4 md:space-y-6 pb-8">
-        {/* Profile Hero - Compact with Background Patterns */}
+        
+        {/* Header with Close Icon */}
+        <div className="flex justify-between items-center px-1 md:px-2 animate-in fade-in slide-in-from-top-4 duration-700">
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="p-1.5 md:p-2 bg-primary/10 rounded-xl text-primary shadow-sm">
+              <UserCheck className="h-5 w-5 md:h-6 md:w-6" />
+            </div>
+            <div>
+              <h2 className="text-lg md:text-2xl font-black tracking-tighter text-primary leading-tight uppercase">Profile Vault</h2>
+              <p className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground">Identity & Security Node</p>
+            </div>
+          </div>
+          <Button variant="ghost" size="icon" asChild className="h-8 w-8 md:h-10 md:w-10 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors">
+            <Link href="/dashboard">
+              <X className="h-4 w-4 md:h-5 md:w-5" />
+            </Link>
+          </Button>
+        </div>
+
+        {/* Profile Hero */}
         <div className="relative animate-in fade-in slide-in-from-top-4 duration-700">
           <div className="h-24 md:h-36 bg-gradient-to-br from-primary via-primary/80 to-primary/60 rounded-[1.5rem] md:rounded-[2rem] shadow-lg overflow-hidden relative group">
             <div className="absolute inset-0 bg-white/5 backdrop-blur-[1px] group-hover:backdrop-blur-none transition-all duration-700" />
@@ -135,6 +155,7 @@ export default function ProfilePage() {
                         onChange={(e) => setNewName(e.target.value)}
                         className="h-8 md:h-10 w-32 md:w-56 font-black text-base md:text-xl bg-muted/40 border-primary/20 focus:ring-primary/20 uppercase"
                         autoFocus
+                        onKeyDown={(e) => e.key === 'Enter' && handleSave()}
                       />
                       <Button size="icon" variant="ghost" onClick={handleSave} disabled={isSaving} className="h-7 w-7 md:h-8 md:w-8 text-green-600 hover:bg-green-50">
                         {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
@@ -154,7 +175,7 @@ export default function ProfilePage() {
                     </>
                   )}
                 </div>
-                <div className="flex items-center justify-center gap-3">
+                <div className="flex items-center justify-center gap-1 md:gap-3">
                   <button 
                     onClick={copyUid}
                     className="text-muted-foreground font-bold text-[8px] md:text-[10px] uppercase tracking-wider flex items-center gap-1.5 hover:text-primary transition-all group/uid"
