@@ -160,7 +160,33 @@ export default function ProfilePage() {
         </div>
 
         <div className="grid gap-2 md:gap-4 md:grid-cols-12 px-1">
-          {/* Main Content - Tightened */}
+          {/* Sidebar Info - Compact (Moved Up) */}
+          <div className="md:col-span-4 space-y-2 md:space-y-4">
+            <Card className="rounded-[0.75rem] md:rounded-[1rem] border-none ring-1 ring-border shadow-sm overflow-hidden h-full">
+              <CardHeader className="bg-muted/30 border-b py-2 md:py-3 px-3 md:px-4">
+                <CardTitle className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground">Identity Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 md:p-4 space-y-3 md:space-y-4">
+                <div className="space-y-2">
+                  <SummaryItem label="Global Alias" value={user?.displayName || 'N/A'} />
+                  <SummaryItem label="Verified Login" value={user?.email || 'N/A'} />
+                  <SummaryItem label="Node" value="Cloud Admin" />
+                </div>
+                
+                <Separator className="border-dashed" />
+                
+                <div className="p-2 bg-muted/20 rounded-lg border text-center space-y-1">
+                  <ShieldCheck className="h-4 w-4 md:h-5 md:w-5 text-primary/40 mx-auto" />
+                  <p className="text-[7px] md:text-[8px] font-black uppercase tracking-widest text-muted-foreground">Privacy Engine v1.0</p>
+                  <p className="text-[5px] md:text-[6px] font-bold text-muted-foreground/60 leading-tight">
+                    Data scrambled via<br/>AES-GCM-256 standard
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Main Content - Tightened (Moved Down) */}
           <div className="md:col-span-8 space-y-2 md:space-y-4">
             <Card className="rounded-[0.75rem] md:rounded-[1rem] border-none ring-1 ring-border shadow-sm overflow-hidden">
               <CardHeader className="bg-muted/30 border-b py-2 md:py-3 px-3 md:px-5">
@@ -242,32 +268,6 @@ export default function ProfilePage() {
                       {tag}
                     </Badge>
                   ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Sidebar Info - Compact */}
-          <div className="md:col-span-4 space-y-2 md:space-y-4">
-            <Card className="rounded-[0.75rem] md:rounded-[1rem] border-none ring-1 ring-border shadow-sm overflow-hidden h-full">
-              <CardHeader className="bg-muted/30 border-b py-2 md:py-3 px-3 md:px-4">
-                <CardTitle className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground">Identity Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="p-3 md:p-4 space-y-3 md:space-y-4">
-                <div className="space-y-2">
-                  <SummaryItem label="Global Alias" value={user?.displayName || 'N/A'} />
-                  <SummaryItem label="Verified Login" value={user?.email || 'N/A'} />
-                  <SummaryItem label="Node" value="Cloud Admin" />
-                </div>
-                
-                <Separator className="border-dashed" />
-                
-                <div className="p-2 bg-muted/20 rounded-lg border text-center space-y-1">
-                  <ShieldCheck className="h-4 w-4 md:h-5 md:w-5 text-primary/40 mx-auto" />
-                  <p className="text-[7px] md:text-[8px] font-black uppercase tracking-widest text-muted-foreground">Privacy Engine v1.0</p>
-                  <p className="text-[5px] md:text-[6px] font-bold text-muted-foreground/60 leading-tight">
-                    Data scrambled via<br/>AES-GCM-256 standard
-                  </p>
                 </div>
               </CardContent>
             </Card>
