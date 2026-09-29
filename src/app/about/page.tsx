@@ -46,7 +46,7 @@ export default function AboutPage() {
               <Info className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="text-xl md:text-3xl font-black tracking-tighter">About LifeTrack</h2>
+              <h2 className="text-xl md:text-3xl font-black tracking-tighter text-primary">About LifeTrack</h2>
               <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-muted-foreground">The Secure Operating System for your Life</p>
             </div>
           </div>
@@ -58,7 +58,7 @@ export default function AboutPage() {
         </div>
 
         <div className="text-center space-y-2 py-4">
-          <h1 className="text-3xl md:text-5xl font-black tracking-tighter bg-gradient-to-br from-foreground to-muted-foreground bg-clip-text text-transparent">Holistic Life Tracking</h1>
+          <h1 className="text-3xl md:text-5xl font-black tracking-tighter bg-gradient-to-br from-primary to-primary/60 bg-clip-text text-transparent">Holistic Life Tracking</h1>
           <p className="text-muted-foreground text-sm md:text-lg font-medium">A unified, private system for your finances, learning, and self-reflection.</p>
         </div>
 
@@ -66,10 +66,10 @@ export default function AboutPage() {
         <div className="space-y-6">
           <div className="flex items-center justify-between px-2">
             <h3 className="text-xl font-black flex items-center gap-2">
-              <Zap className="h-5 w-5 text-yellow-500" />
+              <Zap className="h-5 w-5 text-primary" />
               The Workspace Ecosystem
             </h3>
-            <Badge variant="outline" className="font-black text-[9px] uppercase tracking-widest bg-primary/5">8 Strategic Modules</Badge>
+            <Badge variant="outline" className="font-black text-[9px] uppercase tracking-widest bg-primary/5 border-primary/20 text-primary">8 Strategic Modules</Badge>
           </div>
           
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -78,82 +78,82 @@ export default function AboutPage() {
               title="Salary Planner" 
               desc="Intelligent income splits and age-based investment matrix."
               color="text-blue-500"
-              bg="bg-blue-50/50"
+              bg="bg-blue-50/80 dark:bg-blue-900/10"
             />
             <FeatureCard 
               icon={Target} 
               title="Strategic Allocation" 
               desc="Real-time tracking of your income pillars against actual spend."
               color="text-orange-500"
-              bg="bg-orange-50/50"
+              bg="bg-orange-50/80 dark:bg-orange-900/10"
             />
             <FeatureCard 
               icon={Wallet} 
               title="Budget Vault" 
               desc="Smart rolling allowances that adapt to your daily behavior."
               color="text-green-500"
-              bg="bg-green-50/50"
+              bg="bg-green-50/80 dark:bg-green-900/10"
             />
             <FeatureCard 
               icon={Users} 
               title="Split Ledger" 
               desc="Collaborative shared rooms with automated budget syncing."
               color="text-purple-500"
-              bg="bg-purple-50/50"
+              bg="bg-purple-50/80 dark:bg-purple-900/10"
             />
             <FeatureCard 
               icon={Flame} 
               title="Willpower Meter" 
               desc="Track impact from resisted cravings: calories and money saved."
               color="text-red-500"
-              bg="bg-red-50/50"
+              bg="bg-red-50/80 dark:bg-red-900/10"
             />
             <FeatureCard 
               icon={Mountain} 
               title="Future Vision" 
               desc="End-to-end encrypted bucket list and long-term aspirations."
               color="text-indigo-500"
-              bg="bg-indigo-50/50"
+              bg="bg-indigo-50/80 dark:bg-indigo-900/10"
             />
             <FeatureCard 
               icon={GraduationCap} 
               title="Skill Mastery" 
               desc="Daily progress, difficulty levels, and habit-forming streaks."
               color="text-emerald-500"
-              bg="bg-emerald-50/50"
+              bg="bg-emerald-50/80 dark:bg-emerald-900/10"
             />
             <FeatureCard 
               icon={BookText} 
               title="Private Memoirs" 
               desc="AES-GCM 256 secured daily reflections and mood tracking."
               color="text-pink-500"
-              bg="bg-pink-50/50"
+              bg="bg-pink-50/80 dark:bg-pink-900/10"
             />
           </div>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <Card className="shadow-lg border-t-4 border-t-primary rounded-3xl overflow-hidden">
-            <CardHeader className="bg-muted/10">
-              <CardTitle className="flex items-center gap-2">
-                <Coins className="h-5 w-5 text-primary" />
+          <Card className="shadow-lg border-t-4 border-t-primary rounded-3xl overflow-hidden bg-primary/[0.02]">
+            <CardHeader className="bg-primary/5 border-b border-primary/10">
+              <CardTitle className="flex items-center gap-2 text-primary">
+                <Coins className="h-5 w-5" />
                 The Mission
               </CardTitle>
             </CardHeader>
-            <CardContent className="text-sm leading-relaxed text-muted-foreground pt-4">
+            <CardContent className="text-sm leading-relaxed text-muted-foreground pt-6">
               LifeTrack was built with one goal: to provide a singular, private dashboard that helps you manage the most important aspects of your daily life. 
               By combining financial planning with habit tracking and journaling, we enable you to see the "big picture" of your personal growth without sacrificing privacy.
             </CardContent>
           </Card>
 
-          <Card className="shadow-lg border-t-4 border-t-secondary rounded-3xl overflow-hidden">
-            <CardHeader className="bg-muted/10">
-              <CardTitle className="flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-secondary-foreground" />
+          <Card className="shadow-lg border-t-4 border-t-secondary rounded-3xl overflow-hidden bg-secondary/[0.02]">
+            <CardHeader className="bg-secondary/10 border-b border-secondary/10">
+              <CardTitle className="flex items-center gap-2 text-secondary-foreground">
+                <ShieldCheck className="h-5 w-5" />
                 Privacy First
               </CardTitle>
             </CardHeader>
-            <CardContent className="text-sm leading-relaxed text-muted-foreground pt-4">
+            <CardContent className="text-sm leading-relaxed text-muted-foreground pt-6">
               We believe your data belongs to you. Unlike traditional apps, LifeTrack uses end-to-end encryption. 
               This means your sensitive information is scrambled on your device before it ever touches our servers. 
               Even as developers, we cannot read your entries or see your budget data.
@@ -166,15 +166,15 @@ export default function AboutPage() {
             <div className="mx-auto bg-primary text-white p-4 rounded-[2rem] w-fit shadow-xl mb-4 transform hover:scale-110 transition-transform">
               <Smartphone className="h-10 w-10" />
             </div>
-            <CardTitle className="text-3xl font-black tracking-tight">Install LifeTrack</CardTitle>
-            <CardDescription className="text-xs uppercase font-black tracking-widest text-primary">Transform this site into a high-performance native app</CardDescription>
+            <CardTitle className="text-3xl font-black tracking-tight text-primary">Install LifeTrack</CardTitle>
+            <CardDescription className="text-xs uppercase font-black tracking-widest text-primary/70">Transform this site into a high-performance native app</CardDescription>
           </CardHeader>
           <CardContent className="p-8 md:p-12">
             <div className="grid gap-12 md:grid-cols-2">
               <div className="space-y-6">
                 <div className="flex items-center gap-3">
                   <Badge className="bg-blue-500 h-8 w-8 rounded-2xl flex items-center justify-center p-0 text-sm font-black shadow-lg">1</Badge>
-                  <h4 className="font-black text-sm uppercase tracking-wider">iOS / Apple Safari</h4>
+                  <h4 className="font-black text-sm uppercase tracking-wider text-primary">iOS / Apple Safari</h4>
                 </div>
                 <ul className="space-y-4 pl-11">
                   <InstallStep icon={Share} text="Open Safari and tap the Share button at the bottom." />
@@ -185,7 +185,7 @@ export default function AboutPage() {
               <div className="space-y-6">
                 <div className="flex items-center gap-3">
                   <Badge className="bg-green-500 h-8 w-8 rounded-2xl flex items-center justify-center p-0 text-sm font-black shadow-lg">2</Badge>
-                  <h4 className="font-black text-sm uppercase tracking-wider">Android / Google Chrome</h4>
+                  <h4 className="font-black text-sm uppercase tracking-wider text-primary">Android / Google Chrome</h4>
                 </div>
                 <ul className="space-y-4 pl-11">
                   <InstallStep icon={MoreVertical} text="Open Chrome and tap the three dots in the top right." />
@@ -197,7 +197,7 @@ export default function AboutPage() {
           </CardContent>
         </Card>
 
-        <Separator />
+        <Separator className="opacity-50" />
 
         <div className="space-y-6">
           <div className="flex items-center gap-3 px-2">
@@ -205,13 +205,13 @@ export default function AboutPage() {
               <Lock className="h-6 w-6" />
             </div>
             <div>
-              <h3 className="text-xl font-black">Data Protection Architecture</h3>
+              <h3 className="text-xl font-black text-primary">Data Protection Architecture</h3>
               <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Technical Zero-Knowledge Stack</p>
             </div>
           </div>
 
           <div className="grid gap-6">
-            <Card className="bg-muted/20 border-dashed border-2 rounded-3xl overflow-hidden">
+            <Card className="bg-primary/[0.03] border-dashed border-2 border-primary/20 rounded-3xl overflow-hidden">
               <CardContent className="p-6 md:p-10 space-y-10">
                 <div className="grid gap-10 md:grid-cols-3">
                   <TechSection 
@@ -231,12 +231,12 @@ export default function AboutPage() {
                   />
                 </div>
                 
-                <div className="p-6 bg-primary/5 rounded-[2rem] border border-primary/20 shadow-inner">
+                <div className="p-6 bg-primary/10 rounded-[2rem] border border-primary/20 shadow-inner">
                   <div className="flex items-center gap-2 mb-2">
-                     <AlertTriangle className="h-4 w-4 text-orange-600" />
-                     <p className="text-[10px] font-black uppercase text-orange-600 tracking-widest">Critical Security Note</p>
+                     <AlertTriangle className="h-4 w-4 text-primary" />
+                     <p className="text-[10px] font-black uppercase text-primary tracking-widest">Critical Security Note</p>
                   </div>
-                  <p className="text-xs md:text-sm text-muted-foreground leading-relaxed font-medium">
+                  <p className="text-xs md:text-sm text-primary/80 leading-relaxed font-medium">
                     Because your data is encrypted with your local Master Key, <strong>it is technically impossible for us to recover your data if you lose access to your account credentials.</strong> 
                     We recommend using a memorable passphrase or storing it in a trusted password manager.
                   </p>
@@ -261,7 +261,7 @@ function FeatureCard({ icon: Icon, title, desc, color, bg }: any) {
         <div className={cn("p-2 rounded-xl w-fit transition-transform group-hover:scale-110 group-hover:rotate-6 shadow-sm bg-white dark:bg-black/20", color)}>
           <Icon className="h-6 w-6" />
         </div>
-        <h4 className="font-black text-sm tracking-tight uppercase">{title}</h4>
+        <h4 className="font-black text-sm tracking-tight uppercase text-foreground">{title}</h4>
         <p className="text-[11px] text-muted-foreground leading-relaxed font-medium opacity-80">{desc}</p>
       </CardContent>
     </Card>
