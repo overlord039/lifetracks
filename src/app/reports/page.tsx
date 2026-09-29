@@ -704,7 +704,7 @@ export default function ReportsPage() {
                       <Pie
                         data={chartsData.categoryData}
                         cx="50%"
-                        cy="50%"
+                        cy="45%"
                         innerRadius={35}
                         outerRadius={60}
                         paddingAngle={5}
@@ -719,6 +719,11 @@ export default function ReportsPage() {
                         contentStyle={chartTooltipStyle}
                         formatter={(value: number) => `₹${value.toLocaleString()}`}
                         itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                      />
+                      <Legend 
+                        iconType="circle" 
+                        wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', paddingTop: '10px' }} 
+                        verticalAlign="bottom"
                       />
                     </PieChart>
                   </ResponsiveContainer>
@@ -1129,3 +1134,4 @@ export default function ReportsPage() {
     </AppShell>
   );
 }
+
