@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -119,14 +118,6 @@ const VIEW_COLORS: Record<string, string> = {
   annual: "#8b5cf6", // Violet
 };
 
-const PILLAR_ICONS: Record<string, any> = {
-  expense: { icon: Wallet, color: 'text-blue-500', bg: 'bg-blue-500' },
-  savings: { icon: PiggyBank, color: 'text-green-500', bg: 'bg-green-500' },
-  investment: { icon: TrendingUp, color: 'text-orange-500', bg: 'bg-orange-500' },
-  health: { icon: HeartPulse, color: 'text-purple-500', bg: 'bg-purple-500' },
-  personal: { icon: Smile, color: 'text-pink-500', bg: 'bg-pink-500' }
-};
-
 export default function ReportsPage() {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -145,7 +136,6 @@ export default function ReportsPage() {
   const [decryptedExpenses, setDecryptedExpenses] = useState<any[]>([]);
   const [decryptedPrevExpenses, setDecryptedPrevExpenses] = useState<any[]>([]);
   const [decryptedCategories, setDecryptedCategories] = useState<any[]>([]);
-  const [decryptedSalaryProfile, setDecryptedSalaryProfile] = useState<any>(null);
   const [decryptedAllBudgets, setDecryptedAllBudgets] = useState<any[]>([]);
   const [isDecrypting, setIsDecrypting] = useState(false);
 
@@ -192,12 +182,6 @@ export default function ReportsPage() {
     return collection(firestore, 'users', user.uid, 'expenseCategories');
   }, [firestore, user]);
   const { data: rawCategories } = useCollection(categoriesRef);
-
-  const salaryProfileRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return doc(firestore, 'users', user.uid, 'salaryProfiles', 'current');
-  }, [firestore, user]);
-  const { data: rawSalaryProfile } = useDoc(salaryProfileRef);
 
   const allBudgetsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -274,15 +258,6 @@ export default function ReportsPage() {
           setDecryptedCategories(cats);
         }
 
-        if (rawSalaryProfile) {
-          setDecryptedSalaryProfile({
-            ...rawSalaryProfile,
-            salary: rawSalaryProfile.isEncrypted ? await decryptNumber(rawSalaryProfile.salary, user.uid) : (rawSalaryProfile.salary || 0),
-            pillars: rawSalaryProfile.pillars || [],
-            percents: rawSalaryProfile.percents || {},
-          });
-        }
-
         if (rawAllBudgets) {
           const budgets = await Promise.all(rawAllBudgets.map(async b => ({
             ...b,
@@ -299,7 +274,7 @@ export default function ReportsPage() {
       }
     };
     decryptAll();
-  }, [rawBudget, rawPrevBudget, rawFixed, rawExpenses, rawPrevExpenses, rawCategories, rawSalaryProfile, rawAllBudgets, user, mounted]);
+  }, [rawBudget, rawPrevBudget, rawFixed, rawExpenses, rawPrevExpenses, rawCategories, rawAllBudgets, user, mounted]);
 
   const totals = useMemo(() => {
     const budget = decryptedBudget?.totalBudgetAmount || 0;
@@ -326,35 +301,6 @@ export default function ReportsPage() {
       budgetDiff: budget - prevBudget
     };
   }, [decryptedBudget, decryptedFixed, decryptedExpenses, decryptedPrevExpenses, decryptedPrevBudget]);
-
-  const allocationReport = useMemo(() => {
-    if (!decryptedSalaryProfile || !decryptedFixed || !decryptedExpenses) return null;
-
-    const salary = decryptedSalaryProfile.salary || 0;
-    const profilePillars = decryptedSalaryProfile.pillars || [];
-    const profilePercents = decryptedSalaryProfile.percents || {};
-
-    if (profilePillars.length === 0) return null;
-
-    return profilePillars.map((p: any) => {
-      const percent = profilePercents[p.id] || 0;
-      const target = (salary * (percent / 100));
-      const fixedSpent = decryptedFixed.filter(f => f.allocationBucket === p.id).reduce((s, f) => s + f.amount, 0);
-      const dailySpent = decryptedExpenses.filter(e => (e.allocationBucket || 'expense') === p.id).reduce((s, e) => s + e.amount, 0);
-      const totalSpent = fixedSpent + dailySpent;
-      const utilization = target > 0 ? (totalSpent / target) * 100 : 0;
-
-      return {
-        id: p.id,
-        label: p.label,
-        percent,
-        target,
-        spent: totalSpent,
-        utilization,
-        remaining: target - totalSpent
-      };
-    });
-  }, [decryptedSalaryProfile, decryptedFixed, decryptedExpenses]);
 
   const chartsData = useMemo(() => {
     if (!decryptedExpenses || !decryptedFixed || !decryptedCategories) {
@@ -738,75 +684,7 @@ export default function ReportsPage() {
               </CardContent>
             </Card>
 
-            <Card className="md:col-span-2 lg:col-span-4 shadow-xl rounded-3xl border-none ring-1 ring-border overflow-hidden relative">
-              {isDecrypting && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
-              <CardHeader className="bg-muted/30 border-b py-4 md:py-5 px-5 md:px-8 flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg md:text-xl font-black flex items-center gap-2">
-                    <Target className="h-5 w-5 text-primary" />
-                    Strategic Income Allocation
-                  </CardTitle>
-                  <CardDescription className="text-[10px] font-black uppercase tracking-tight opacity-70">Wealth strategy utilization for {format(selectedDate, 'MMMM')}</CardDescription>
-                </div>
-                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-black text-[9px] uppercase px-3 py-1">
-                  Strategic Health
-                </Badge>
-              </CardHeader>
-              <CardContent className="p-4 md:p-6">
-                {!allocationReport ? (
-                  <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 opacity-50 grayscale">
-                    <Target className="h-12 w-12 text-muted-foreground" />
-                    <p className="text-xs font-black uppercase tracking-widest">No strategic profile linked</p>
-                    <Button variant="outline" asChild className="rounded-xl h-9 text-[10px] font-black uppercase">
-                      <a href="/salary-planner">Configure Strategy</a>
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex gap-4 overflow-x-auto pb-4 snap-x [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {allocationReport.map(pillar => {
-                      const Config = PILLAR_ICONS[pillar.id] || { icon: Coins, color: 'text-primary', bg: 'bg-primary' };
-                      const Icon = Config.icon;
-                      const isOverspent = pillar.utilization > 100;
-                      
-                      return (
-                        <div key={pillar.id} className="min-w-[160px] md:min-w-[200px] flex-shrink-0 snap-center space-y-3 p-3 md:p-4 rounded-2xl border bg-muted/5 transition-all hover:bg-muted/10 group">
-                          <div className="flex items-center justify-between">
-                            <Badge variant={isOverspent ? "destructive" : "secondary"} className="text-[7px] md:text-[9px] font-black uppercase px-1 md:px-2">
-                              {Math.round(pillar.utilization)}%
-                            </Badge>
-                            <div className={cn("p-1.5 rounded-lg text-white shadow-md transition-transform group-hover:scale-110", Config.bg)}>
-                              <Icon className="h-3 w-3" />
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-0.5">
-                            <p className="text-[7px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground truncate">{pillar.label}</p>
-                            <div className="flex flex-col md:flex-row md:items-baseline gap-0 md:gap-1">
-                              <span className="text-[10px] md:text-lg font-black tracking-tighter">₹{Math.round(pillar.spent).toLocaleString()}</span>
-                              <span className="text-[6px] md:text-[8px] font-bold text-muted-foreground opacity-60">/ ₹{Math.round(pillar.target).toLocaleString()}</span>
-                            </div>
-                          </div>
-
-                          <div className="space-y-1">
-                            <Progress value={Math.min(100, pillar.utilization)} className={cn("h-1", isOverspent ? "bg-destructive/20" : "bg-muted")} />
-                            <div className="flex justify-between items-center text-[6px] md:text-[8px] font-black uppercase tracking-tighter">
-                              <span className={cn(isOverspent ? "text-destructive" : "text-muted-foreground")}>
-                                {isOverspent ? "Over" : "Free"}
-                              </span>
-                              <span className={cn(pillar.remaining >= 0 ? "text-primary" : "text-destructive")}>
-                                ₹{Math.abs(Math.round(pillar.remaining)).toLocaleString()}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="md:col-span-2 lg:col-span-4 shadow-xl overflow-hidden rounded-3xl border-none ring-1 ring-border relative">
+            <Card className="md:col-span-2 lg:col-span-3 shadow-xl overflow-hidden rounded-3xl border-none ring-1 ring-border relative">
               {isDecrypting && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
               <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-4 md:px-6 pt-4 bg-muted/20 border-b">
                 <div className="flex items-center gap-3">
