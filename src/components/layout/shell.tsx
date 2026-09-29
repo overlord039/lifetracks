@@ -23,7 +23,8 @@ import {
   Droplets,
   TreePine,
   Sunrise,
-  Palette
+  Palette,
+  ShieldAlert
 } from 'lucide-react';
 import { 
   Sidebar, 
@@ -187,9 +188,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </PopoverTrigger>
               <PopoverContent align="end" className="w-[340px] p-0 rounded-3xl shadow-2xl border-none ring-1 ring-border overflow-hidden">
                 <Tabs defaultValue="appearance">
-                  <TabsList className="grid w-full grid-cols-2 h-11 p-1 bg-muted/30 rounded-none border-b">
+                  <TabsList className="grid w-full grid-cols-3 h-11 p-1 bg-muted/30 rounded-none border-b">
                     <TabsTrigger value="appearance" className="rounded-none font-black text-[10px] uppercase">Appearance</TabsTrigger>
                     <TabsTrigger value="layout" className="rounded-none font-black text-[10px] uppercase">Navigation</TabsTrigger>
+                    <TabsTrigger value="session" className="rounded-none font-black text-[10px] uppercase text-destructive">Session</TabsTrigger>
                   </TabsList>
                   
                   <TabsContent value="appearance" className="p-4 space-y-5 animate-in fade-in slide-in-from-left-2 duration-300">
@@ -252,8 +254,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         ))}
                       </div>
                     </div>
-                    <div className="p-3 bg-primary/5 rounded-2xl border border-dashed border-primary/10">
-                       <p className="text-[8px] font-black text-primary uppercase text-center tracking-[0.2em]">Preferences Persisted Locally</p>
+                  </TabsContent>
+
+                  <TabsContent value="session" className="p-6 space-y-6 animate-in zoom-in-95 duration-300">
+                    <div className="flex flex-col items-center text-center space-y-4">
+                      <div className="p-4 bg-destructive/10 rounded-full text-destructive">
+                        <ShieldAlert className="h-8 w-8" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs font-black uppercase tracking-widest">End Session</p>
+                        <p className="text-[10px] text-muted-foreground font-medium px-4 leading-relaxed">
+                          This will clear your local cryptographic keys and terminate your active session.
+                        </p>
+                      </div>
+                      <Button 
+                        variant="destructive" 
+                        onClick={handleLogout}
+                        className="w-full h-11 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-destructive/20 active:scale-95 transition-transform"
+                      >
+                        Terminate Session
+                      </Button>
                     </div>
                   </TabsContent>
                 </Tabs>

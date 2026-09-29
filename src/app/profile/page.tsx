@@ -24,24 +24,28 @@ import {
   Smartphone,
   Copy,
   Server,
-  Globe
+  Globe,
+  LogOut,
+  ShieldAlert
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { doc } from 'firebase/firestore';
-import { updateProfile } from 'firebase/auth';
+import { updateProfile, signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const db = useFirestore();
   const { toast } = useToast();
+  const router = useRouter();
   
   const [isEditing, setIsEditing] = useState(false);
   const [newName, setNewName] = useState('');
@@ -82,6 +86,16 @@ export default function ProfilePage() {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push('/login');
+      toast({ title: "Session Terminated", description: "You have been securely logged out." });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Logout failed", description: error.message });
+    }
+  };
+
   const copyUid = () => {
     if (user?.uid) {
       navigator.clipboard.writeText(user.uid);
@@ -103,7 +117,7 @@ export default function ProfilePage() {
 
   return (
     <AppShell>
-      <div className="max-w-3xl mx-auto space-y-4 md:space-y-6 pb-8">
+      <div className="max-w-3xl mx-auto space-y-4 md:space-y-6 pb-12">
         
         {/* Header with Close Icon */}
         <div className="flex justify-between items-center px-1 md:px-2 animate-in fade-in slide-in-from-top-4 duration-700">
@@ -170,12 +184,12 @@ export default function ProfilePage() {
                         {user?.displayName || user?.email?.split('@')[0] || 'User'}
                       </h2>
                       <Button variant="ghost" size="icon" onClick={() => setIsEditing(true)} className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-all text-muted-foreground hover:text-primary rounded-md">
-                        <Pencil className="h-3 w-3" />
+                        <Pencil className="h-3.5 w-3.5" />
                       </Button>
                     </>
                   )}
                 </div>
-                <div className="flex items-center justify-center gap-1 md:gap-3">
+                <div className="flex items-center justify-center gap-3">
                   <button 
                     onClick={copyUid}
                     className="text-muted-foreground font-bold text-[8px] md:text-[10px] uppercase tracking-wider flex items-center gap-1.5 hover:text-primary transition-all group/uid"
@@ -232,14 +246,29 @@ export default function ProfilePage() {
                 <p className="text-[10px] md:text-xs font-medium text-muted-foreground leading-relaxed relative z-10">
                   Your data is scrambled using industry-standard <strong>AES-GCM 256-bit</strong> encryption before synchronization. This ensures your private records remain invisible to everyone but you.
                 </p>
-                <div className="flex gap-2 pt-2">
-                  <div className="h-1.5 flex-1 bg-primary/20 rounded-full overflow-hidden">
-                    <div className="h-full w-full bg-primary animate-pulse" />
-                  </div>
-                  <div className="h-1.5 flex-1 bg-primary/10 rounded-full" />
-                  <div className="h-1.5 flex-1 bg-primary/10 rounded-full" />
-                </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Session Control */}
+          <Card className="rounded-[1rem] md:rounded-[1.5rem] border-none ring-1 ring-destructive/20 shadow-sm overflow-hidden bg-destructive/[0.02]">
+            <CardHeader className="bg-destructive/[0.03] border-b py-3 md:py-4 px-4 md:px-6">
+              <CardTitle className="text-[10px] md:text-xs font-black uppercase tracking-widest text-destructive flex items-center gap-2">
+                <ShieldAlert className="h-3 w-3" /> Session Control
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 md:p-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="space-y-1 text-center sm:text-left">
+                <p className="text-[11px] md:text-sm font-black uppercase text-foreground">Terminate Active Session</p>
+                <p className="text-[9px] md:text-xs text-muted-foreground font-medium">Clear local access keys and lock your vault.</p>
+              </div>
+              <Button 
+                variant="destructive" 
+                onClick={handleLogout}
+                className="w-full sm:w-auto h-11 px-8 rounded-xl font-black text-xs uppercase tracking-widest gap-2 shadow-lg shadow-destructive/20 active:scale-95 transition-transform"
+              >
+                <LogOut className="h-4 w-4" /> Terminate Session
+              </Button>
             </CardContent>
           </Card>
         </div>
