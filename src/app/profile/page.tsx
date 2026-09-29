@@ -154,17 +154,17 @@ export default function ProfilePage() {
                     </>
                   )}
                 </div>
-                <div className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-3">
+                <div className="flex items-center justify-center gap-3">
                   <button 
                     onClick={copyUid}
                     className="text-muted-foreground font-bold text-[8px] md:text-[10px] uppercase tracking-wider flex items-center gap-1.5 hover:text-primary transition-all group/uid"
                     title="Click to copy UID"
                   >
                     <Fingerprint className="h-3 w-3" /> 
-                    <span className="truncate max-w-[120px]">{user?.uid}</span>
+                    <span className="truncate max-w-[100px] sm:max-w-[120px]">{user?.uid}</span>
                     <Copy className="h-3 w-3 opacity-0 group-hover/uid:opacity-100 transition-opacity" />
                   </button>
-                  <Separator orientation="vertical" className="h-3 hidden md:block" />
+                  <Separator orientation="vertical" className="h-3" />
                   <p className="text-muted-foreground font-bold text-[8px] md:text-[10px] uppercase tracking-wider flex items-center gap-1.5">
                     <Calendar className="h-3 w-3" /> Joined {creationDate}
                   </p>
