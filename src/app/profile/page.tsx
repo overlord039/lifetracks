@@ -25,6 +25,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { doc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
