@@ -25,7 +25,8 @@ import {
   PiggyBank,
   HeartPulse,
   Smile,
-  Coins
+  Coins,
+  Wallet
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
