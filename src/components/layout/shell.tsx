@@ -158,13 +158,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <SidebarInset className="flex flex-col w-full min-w-0">
           <header className="sticky top-0 z-30 flex h-14 md:h-16 items-center gap-3 border-b bg-background/80 backdrop-blur-md px-3 md:px-6">
-            <div className="flex-1 flex items-center gap-2 overflow-hidden">
-              <h1 className="text-sm md:text-lg font-black truncate tracking-tighter">
-                {navItems.find(item => item.url === pathname)?.title || (pathname === '/about' ? 'About' : 'Dashboard')}
-              </h1>
-              <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800 text-[8px] md:text-[9px] uppercase font-black tracking-tighter px-1.5 py-0">
-                <ShieldCheck className="h-2.5 w-2.5 mr-1" /> Automated E2EE
-              </Badge>
+            <div className="flex-1 flex items-center gap-3 overflow-hidden">
+              <Link href="/profile" className="flex items-center gap-2 group/header-user shrink-0">
+                <Avatar className="h-8 w-8 border-2 border-primary/10 group-hover/header-user:border-primary/30 transition-all">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-[10px] font-black">
+                    {user?.email?.charAt(0).toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="hidden sm:flex flex-col min-w-0">
+                  <span className="text-[10px] font-black truncate tracking-tighter uppercase leading-none">
+                    {user?.displayName || user?.email?.split('@')[0] || 'User'}
+                  </span>
+                  <span className="text-[8px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">Vault</span>
+                </div>
+              </Link>
+              
+              <Separator orientation="vertical" className="h-6 opacity-30" />
+
+              <div className="flex items-center gap-2 overflow-hidden">
+                <h1 className="text-sm md:text-lg font-black truncate tracking-tighter">
+                  {navItems.find(item => item.url === pathname)?.title || (pathname === '/about' ? 'About' : 'Dashboard')}
+                </h1>
+                <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800 text-[8px] md:text-[9px] uppercase font-black tracking-tighter px-1.5 py-0">
+                  <ShieldCheck className="h-2.5 w-2.5 mr-1" /> Automated E2EE
+                </Badge>
+              </div>
             </div>
             
             <Popover>
