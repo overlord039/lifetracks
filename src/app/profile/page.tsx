@@ -21,7 +21,9 @@ import {
   ShieldCheck,
   UserCheck,
   Smartphone,
-  Copy
+  Copy,
+  Server,
+  Globe
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
@@ -100,12 +102,17 @@ export default function ProfilePage() {
   return (
     <AppShell>
       <div className="max-w-4xl mx-auto space-y-3 md:space-y-4 pb-8">
-        {/* Profile Hero - Compact */}
+        {/* Profile Hero - Compact with Background Patterns */}
         <div className="relative">
           <div className="h-20 md:h-32 bg-gradient-to-br from-primary via-primary/80 to-primary/60 rounded-[1rem] md:rounded-[1.5rem] shadow-lg overflow-hidden relative group">
             <div className="absolute inset-0 bg-white/5 backdrop-blur-[1px] group-hover:backdrop-blur-none transition-all duration-700" />
             <div className="absolute -bottom-10 -right-10 h-32 w-32 bg-white/10 rounded-full blur-xl" />
             <div className="absolute -top-10 -left-10 h-32 w-32 bg-primary-foreground/10 rounded-full blur-xl" />
+            
+            {/* Added subtle design lines */}
+            <div className="absolute inset-0 opacity-10 pointer-events-none">
+              <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-from)_0%,_transparent_1px)] bg-[length:20px_20px]" />
+            </div>
           </div>
           
           <div className="px-3 md:px-8 -mt-8 md:-mt-10 flex flex-col md:flex-row md:items-end justify-between gap-2 md:gap-4 relative z-10">
@@ -174,33 +181,47 @@ export default function ProfilePage() {
         </div>
 
         <div className="grid gap-2 md:gap-4 md:grid-cols-12 px-1">
-          {/* Sidebar Info - Compact */}
+          {/* Identity Summary - Redesigned to look better */}
           <div className="md:col-span-4 space-y-2 md:space-y-4">
-            <Card className="rounded-[0.75rem] md:rounded-[1rem] border-none ring-1 ring-border shadow-sm overflow-hidden h-full">
-              <CardHeader className="bg-muted/30 border-b py-2 md:py-3 px-3 md:px-4">
-                <CardTitle className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground">Identity Summary</CardTitle>
+            <Card className="rounded-[0.75rem] md:rounded-[1rem] border-none ring-1 ring-border shadow-sm overflow-hidden h-full bg-gradient-to-b from-card to-muted/10">
+              <CardHeader className="bg-primary/[0.03] border-b py-2 md:py-3 px-3 md:px-4">
+                <CardTitle className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-primary">Identity Summary</CardTitle>
               </CardHeader>
-              <CardContent className="p-3 md:p-4 space-y-3 md:space-y-4">
-                <div className="space-y-2">
-                  <SummaryItem label="Global Alias" value={user?.displayName || 'N/A'} />
-                  <SummaryItem label="Verified Login" value={user?.email || 'N/A'} />
-                  <SummaryItem label="Node" value="Cloud Admin" />
+              <CardContent className="p-3 md:p-4 space-y-4">
+                <div className="space-y-3">
+                  <SummaryItem icon={<User className="h-3 w-3" />} label="Global Alias" value={user?.displayName || 'N/A'} color="text-blue-500" />
+                  <SummaryItem icon={<Mail className="h-3 w-3" />} label="Verified Login" value={user?.email || 'N/A'} color="text-purple-500" />
+                  <SummaryItem icon={<Server className="h-3 w-3" />} label="Node" value="Cloud Admin" color="text-orange-500" />
                 </div>
                 
                 <Separator className="border-dashed" />
                 
-                <div className="p-2 bg-muted/20 rounded-lg border text-center space-y-1">
-                  <ShieldCheck className="h-4 w-4 md:h-5 md:w-5 text-primary/40 mx-auto" />
-                  <p className="text-[7px] md:text-[8px] font-black uppercase tracking-widest text-muted-foreground">Privacy Engine v1.0</p>
-                  <p className="text-[5px] md:text-[6px] font-bold text-muted-foreground/60 leading-tight">
-                    Data scrambled via<br/>AES-GCM-256 standard
+                <div className="relative group/privacy p-3 bg-background rounded-xl border border-dashed hover:border-primary/40 transition-colors space-y-2 overflow-hidden shadow-inner">
+                  <div className="absolute -right-4 -bottom-4 opacity-5 group-hover/privacy:opacity-10 transition-opacity">
+                    <ShieldCheck className="h-16 w-16 text-primary" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="p-1 bg-primary/10 rounded-md">
+                      <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                    </div>
+                    <p className="text-[7px] md:text-[8px] font-black uppercase tracking-widest text-foreground">Privacy Engine v1.0</p>
+                  </div>
+                  <p className="text-[5px] md:text-[7px] font-bold text-muted-foreground leading-tight relative z-10">
+                    Data scrambled via industry-standard<br/>AES-GCM-256 bits before syncing.
                   </p>
+                  <div className="flex gap-1 pt-1">
+                    <div className="h-1 flex-1 bg-primary/20 rounded-full overflow-hidden">
+                      <div className="h-full w-full bg-primary animate-pulse" />
+                    </div>
+                    <div className="h-1 flex-1 bg-primary/10 rounded-full" />
+                    <div className="h-1 flex-1 bg-primary/10 rounded-full" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Main Content - Tightened */}
+          {/* Account Configuration - Refined */}
           <div className="md:col-span-8 space-y-2 md:space-y-4">
             <Card className="rounded-[0.75rem] md:rounded-[1rem] border-none ring-1 ring-border shadow-sm overflow-hidden">
               <CardHeader className="bg-muted/30 border-b py-2 md:py-3 px-3 md:px-5">
@@ -215,7 +236,7 @@ export default function ProfilePage() {
                     <Label className="text-[7px] md:text-[8px] font-black uppercase tracking-widest text-primary ml-1">Cryptographic Anchor (UID)</Label>
                     <div className="p-2 md:p-3 rounded-lg md:rounded-xl bg-muted/20 border border-dashed flex items-center justify-between gap-2 group hover:bg-muted/30 transition-colors cursor-pointer" onClick={copyUid}>
                       <div className="flex items-center gap-2 min-w-0">
-                        <div className="h-7 w-7 md:h-8 md:w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                        <div className="h-7 w-7 md:h-8 md:w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0 group-hover:bg-primary group-hover:text-white transition-all">
                           <Fingerprint className="h-3 w-3 md:h-3.5 md:w-3.5" />
                         </div>
                         <code className="text-[8px] md:text-[10px] font-bold tracking-tight text-muted-foreground truncate font-mono">
@@ -224,7 +245,7 @@ export default function ProfilePage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <Badge variant="secondary" className="font-black uppercase text-[5px] md:text-[6px] tracking-wider h-4 md:h-5 px-1 rounded-md">Primary Key</Badge>
+                        <Badge variant="secondary" className="font-black uppercase text-[5px] md:text-[6px] tracking-wider h-4 md:h-5 px-1 rounded-md bg-primary/10 text-primary border-none">Primary Key</Badge>
                       </div>
                     </div>
                   </div>
@@ -263,25 +284,29 @@ export default function ProfilePage() {
               </CardContent>
             </Card>
 
-            <Card className="rounded-[0.75rem] md:rounded-[1rem] border-dashed border-2 bg-primary/5 overflow-hidden">
-              <CardContent className="p-3 md:p-5 space-y-2 md:space-y-3">
+            <Card className="rounded-[0.75rem] md:rounded-[1rem] border-dashed border-2 bg-primary/[0.02] overflow-hidden relative">
+              <div className="absolute top-0 right-0 p-2 opacity-10">
+                <Globe className="h-12 w-12 text-primary rotate-12" />
+              </div>
+              <CardContent className="p-3 md:p-5 space-y-2 md:space-y-3 relative z-10">
                 <div className="flex items-center gap-2">
-                  <div className="p-1 bg-primary text-primary-foreground rounded-lg shadow-sm">
+                  <div className="p-1.5 bg-primary text-primary-foreground rounded-lg shadow-md">
                     <KeyRound className="h-3.5 w-3.5" />
                   </div>
                   <div>
-                    <h3 className="text-xs md:text-sm font-black tracking-tight leading-none">Security Architecture</h3>
+                    <h3 className="text-xs md:text-sm font-black tracking-tight leading-none uppercase">Security Architecture</h3>
                   </div>
                 </div>
                 
                 <p className="text-[9px] md:text-[11px] text-muted-foreground leading-relaxed font-medium">
                   Your identity is protected by a unique cryptographic anchor. 
-                  Every byte of data is encrypted <strong>before</strong> it leaves this browser using <strong>AES-GCM 256-bit</strong>.
+                  Every byte of data is encrypted <strong>before</strong> it leaves this browser using <strong>AES-GCM 256-bit</strong>. 
+                  This ensures that even database administrators cannot access your private records.
                 </p>
 
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1.5">
                   {['Private Keys', 'Zero Visibility', 'Immutable'].map(tag => (
-                    <Badge key={tag} variant="outline" className="bg-background font-black text-[5px] md:text-[7px] uppercase tracking-tighter px-1.5 py-0 rounded-md border-primary/20 text-primary/70">
+                    <Badge key={tag} variant="outline" className="bg-background font-black text-[5px] md:text-[7px] uppercase tracking-tighter px-2 py-0.5 rounded-md border-primary/20 text-primary/70 shadow-sm">
                       {tag}
                     </Badge>
                   ))}
@@ -297,7 +322,10 @@ export default function ProfilePage() {
 
 function ProfileDetailCard({ icon: Icon, label, value, sub, color }: any) {
   return (
-    <div className="p-2 md:p-3 rounded-lg md:rounded-xl border bg-card shadow-sm space-y-0.5 group hover:border-primary/40 transition-all duration-300">
+    <div className="p-2 md:p-3 rounded-lg md:rounded-xl border bg-card shadow-sm space-y-0.5 group hover:border-primary/40 hover:shadow-md transition-all duration-300 relative overflow-hidden">
+      <div className="absolute -right-2 -top-2 opacity-[0.03] group-hover:scale-125 transition-transform duration-500">
+        <Icon className="h-8 w-8" />
+      </div>
       <div className="flex items-center gap-1 mb-0.5">
         <div className={cn("p-1 rounded-md bg-muted/50 transition-colors group-hover:bg-primary/10", color)}>
           <Icon className="h-2.5 w-2.5 md:h-3 md:w-3" />
@@ -310,11 +338,16 @@ function ProfileDetailCard({ icon: Icon, label, value, sub, color }: any) {
   );
 }
 
-function SummaryItem({ label, value }: { label: string, value: string }) {
+function SummaryItem({ icon, label, value, color }: { icon: React.ReactNode, label: string, value: string, color?: string }) {
   return (
-    <div className="space-y-0">
-      <p className="text-[5px] md:text-[6px] font-black uppercase tracking-widest text-muted-foreground opacity-60">{label}</p>
-      <p className="text-[9px] md:text-[10px] font-black truncate">{value}</p>
+    <div className="flex items-center gap-3 group/item">
+      <div className={cn("p-1.5 rounded-lg bg-muted/50 transition-colors group-hover/item:bg-primary/10", color)}>
+        {icon}
+      </div>
+      <div className="space-y-0 min-w-0">
+        <p className="text-[6px] md:text-[7px] font-black uppercase tracking-widest text-muted-foreground opacity-60 leading-none mb-1">{label}</p>
+        <p className="text-[9px] md:text-[10px] font-black truncate text-foreground">{value}</p>
+      </div>
     </div>
   );
 }
