@@ -869,7 +869,7 @@ export default function ReportsPage() {
                       <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} stroke="hsl(var(--muted-foreground))" />
                       <XAxis 
                         dataKey="name" 
-                        fontSize={8} 
+                        fontSize={7} 
                         tick={(props: any) => {
                           const { x, y, payload, index } = props;
                           const data = chartsData.spendingData[index];
@@ -886,14 +886,15 @@ export default function ReportsPage() {
                             );
                           }
                           return (
-                            <text x={x} y={y} dy={10} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={8} fontWeight={600}>
+                            <text x={x} y={y} dy={10} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={7} fontWeight={600}>
                               {payload.value}
                             </text>
                           );
                         }}
                         axisLine={{ stroke: 'hsl(var(--border))' }} 
                         tickLine={false}
-                        interval={0}
+                        interval="preserveStartEnd"
+                        minTickGap={5}
                       />
                       <YAxis fontSize={9} tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
                       <Tooltip 
