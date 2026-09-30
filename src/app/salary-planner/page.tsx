@@ -38,7 +38,8 @@ import {
   Tag,
   PencilLine,
   ArrowRightLeft,
-  X
+  X,
+  History
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -93,6 +94,7 @@ export default function SalaryPlannerPage() {
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [strategyName, setStrategyName] = useState('');
   const [activeStrategyId, setActiveStrategyId] = useState<string | null>(null);
+  const [isStartingNew, setIsStartingNew] = useState(false);
   
   const [salary, setSalary] = useState<string>('');
   const [age, setAge] = useState<string>('');
@@ -122,7 +124,7 @@ export default function SalaryPlannerPage() {
     return collection(db, 'users', user.uid, 'monthlyBudgets', monthId, 'expenses');
   }, [db, user, monthId]);
 
-  const { data: rawProfiles } = useCollection(salaryProfilesRef);
+  const { data: rawProfiles, isLoading: isProfilesLoading } = useCollection(salaryProfilesRef);
   const { data: rawFixed } = useCollection(fixedExpensesRef);
   const { data: rawExpenses } = useCollection(monthExpensesRef);
   
@@ -174,6 +176,11 @@ export default function SalaryPlannerPage() {
     };
     decryptExps();
   }, [rawExpenses, user, mounted]);
+
+  const latestProfile = useMemo(() => {
+    if (!decryptedProfiles.length) return null;
+    return [...decryptedProfiles].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+  }, [decryptedProfiles]);
 
   const committedCosts = useMemo(() => {
     const totals: Record<string, number> = {};
@@ -387,6 +394,7 @@ export default function SalaryPlannerPage() {
     setShowResults(true);
     setIsSynced(false);
     setIsEditingMetrics(false);
+    setIsStartingNew(false);
     toast({ title: "Strategy Loaded", description: strat.name });
   };
 
@@ -400,6 +408,7 @@ export default function SalaryPlannerPage() {
     setShowResults(false);
     setIsSynced(false);
     setIsEditingMetrics(false);
+    setIsStartingNew(true);
     setLockedPillars(new Set());
   };
 
@@ -447,7 +456,7 @@ export default function SalaryPlannerPage() {
 
   return (
     <AppShell>
-      {!mounted || isDecrypting ? (
+      {!mounted || (isDecrypting && !decryptedProfiles.length) ? (
         <div className="flex h-[60vh] w-full items-center justify-center flex-col gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Unlocking Planner...</p>
@@ -480,64 +489,140 @@ export default function SalaryPlannerPage() {
 
           {!showResults || isEditingMetrics ? (
             <div className="flex items-center justify-center py-10 md:py-20 animate-in zoom-in-95 duration-500">
-              <Card className="shadow-2xl rounded-3xl border-none ring-1 ring-border max-w-lg w-full overflow-hidden">
-                <CardHeader className="bg-muted/30 pb-6 border-b px-8 pt-8">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-2xl font-black tracking-tight flex items-center gap-3">
-                        <Target className="h-6 w-6 text-primary" />
-                        Initial Metrics
-                      </CardTitle>
-                      <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-1">Define your financial baseline</CardDescription>
+              {(!isStartingNew && !isEditingMetrics && decryptedProfiles.length > 0) ? (
+                <Card className="shadow-2xl rounded-[2.5rem] border-none ring-1 ring-border max-w-2xl w-full overflow-hidden bg-card/50 backdrop-blur-md">
+                   <CardHeader className="bg-primary/5 border-b p-8 sm:p-10">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-primary/20 rounded-2xl text-primary">
+                          <History className="h-7 w-7" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-2xl font-black tracking-tight">Strategic Hub</CardTitle>
+                          <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-1">Welcome back to your financial control center</CardDescription>
+                        </div>
+                      </div>
+                   </CardHeader>
+                   <CardContent className="p-8 sm:p-10 space-y-8">
+                      {latestProfile && (
+                        <div className="space-y-4">
+                           <p className="text-[10px] font-black uppercase text-primary tracking-widest ml-1">Continue Latest</p>
+                           <button 
+                             onClick={() => loadStrategy(latestProfile)}
+                             className="w-full p-6 rounded-3xl border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all group text-left flex items-center justify-between"
+                           >
+                              <div>
+                                <h4 className="text-xl font-black uppercase tracking-tight group-hover:text-primary transition-colors">{latestProfile.name}</h4>
+                                <div className="flex items-center gap-3 mt-1.5 opacity-70">
+                                   <Badge variant="outline" className="text-[9px] font-black bg-background">₹{parseFloat(latestProfile.salary).toLocaleString()}</Badge>
+                                   <span className="text-[9px] font-black uppercase tracking-widest">Modified {format(new Date(latestProfile.updatedAt), 'MMM dd')}</span>
+                                </div>
+                              </div>
+                              <div className="h-12 w-12 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                <ChevronRight className="h-6 w-6" />
+                              </div>
+                           </button>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                         <div className="space-y-3">
+                            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest ml-1">New Intent</p>
+                            <Button onClick={() => setIsStartingNew(true)} variant="outline" className="w-full h-16 rounded-2xl border-dashed font-black text-xs uppercase gap-2 hover:bg-primary/5 hover:border-primary/40">
+                               <Plus className="h-4 w-4" /> Create New Strategy
+                            </Button>
+                         </div>
+                         <div className="space-y-3">
+                            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest ml-1">Vault</p>
+                            <Popover>
+                               <PopoverTrigger asChild>
+                                  <Button variant="outline" className="w-full h-16 rounded-2xl font-black text-xs uppercase gap-2">
+                                     <Library className="h-4 w-4" /> Choose From Vault
+                                  </Button>
+                               </PopoverTrigger>
+                               <PopoverContent align="center" className="w-80 p-0 rounded-3xl overflow-hidden shadow-2xl border-none ring-1 ring-border">
+                                  <div className="bg-muted/30 p-4 border-b">
+                                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Strategic Profiles</p>
+                                  </div>
+                                  <ScrollArea className="h-64">
+                                     <div className="divide-y divide-dashed">
+                                        {decryptedProfiles.map(p => (
+                                           <button 
+                                             key={p.id} 
+                                             onClick={() => loadStrategy(p)}
+                                             className="w-full p-4 hover:bg-primary/5 transition-colors text-left flex flex-col gap-1 group"
+                                           >
+                                              <span className="text-xs font-black uppercase group-hover:text-primary transition-colors">{p.name}</span>
+                                              <span className="text-[8px] font-bold text-muted-foreground uppercase">₹{parseFloat(p.salary).toLocaleString()} • Age {p.age}</span>
+                                           </button>
+                                        ))}
+                                     </div>
+                                  </ScrollArea>
+                               </PopoverContent>
+                            </Popover>
+                         </div>
+                      </div>
+                   </CardContent>
+                </Card>
+              ) : (
+                <Card className="shadow-2xl rounded-3xl border-none ring-1 ring-border max-w-lg w-full overflow-hidden">
+                  <CardHeader className="bg-muted/30 pb-6 border-b px-8 pt-8">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-2xl font-black tracking-tight flex items-center gap-3">
+                          <Target className="h-6 w-6 text-primary" />
+                          Initial Metrics
+                        </CardTitle>
+                        <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-1">Define your financial baseline</CardDescription>
+                      </div>
+                      {(isEditingMetrics || (decryptedProfiles.length > 0 && isStartingNew)) && (
+                        <Button variant="ghost" size="icon" onClick={() => { setIsEditingMetrics(false); setIsStartingNew(false); }} className="h-8 w-8 rounded-full">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
-                    {isEditingMetrics && (
-                      <Button variant="ghost" size="icon" onClick={() => setIsEditingMetrics(false)} className="h-8 w-8 rounded-full">
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-6 pt-8 px-8 pb-10">
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Strategy Alias (Optional)</Label>
-                    <Input 
-                      placeholder="e.g. AGGRESSIVE 2026" 
-                      value={strategyName} 
-                      onChange={(e) => setStrategyName(e.target.value)}
-                      className="h-12 font-black rounded-xl text-base uppercase bg-muted/10 border-primary/5 focus:ring-primary/20"
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  </CardHeader>
+                  <CardContent className="space-y-6 pt-8 px-8 pb-10">
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Monthly Salary (₹)</Label>
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Strategy Alias (Optional)</Label>
                       <Input 
-                        type="number" 
-                        placeholder="e.g. 75000" 
-                        value={salary} 
-                        onChange={(e) => setSalary(e.target.value)}
-                        className="font-black text-xl h-14 bg-muted/20 border-primary/10 rounded-2xl tracking-tighter"
+                        placeholder="e.g. AGGRESSIVE 2026" 
+                        value={strategyName} 
+                        onChange={(e) => setStrategyName(e.target.value)}
+                        className="h-12 font-black rounded-xl text-base uppercase bg-muted/10 border-primary/5 focus:ring-primary/20"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Current Age</Label>
-                      <Input 
-                        type="number" 
-                        placeholder="e.g. 28" 
-                        value={age} 
-                        onChange={(e) => setAge(e.target.value)}
-                        className="h-14 font-black rounded-2xl text-xl bg-muted/20 border-primary/10 tracking-tighter"
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Monthly Salary (₹)</Label>
+                        <Input 
+                          type="number" 
+                          placeholder="e.g. 75000" 
+                          value={salary} 
+                          onChange={(e) => setSalary(e.target.value)}
+                          className="font-black text-xl h-14 bg-muted/20 border-primary/10 rounded-2xl tracking-tighter"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Current Age</Label>
+                        <Input 
+                          type="number" 
+                          placeholder="e.g. 28" 
+                          value={age} 
+                          onChange={(e) => setAge(e.target.value)}
+                          className="h-14 font-black rounded-2xl text-xl bg-muted/20 border-primary/10 tracking-tighter"
+                        />
+                      </div>
                     </div>
-                  </div>
-                  <Button 
-                    onClick={() => { setShowResults(true); setIsEditingMetrics(false); }} 
-                    disabled={!salary || !age}
-                    className="w-full h-14 text-base font-black shadow-lg rounded-2xl gap-2 mt-4"
-                  >
-                    Generate Wealth Dashboard <ChevronRight className="h-5 w-5" />
-                  </Button>
-                </CardContent>
-              </Card>
+                    <Button 
+                      onClick={() => { setShowResults(true); setIsEditingMetrics(false); setIsStartingNew(false); }} 
+                      disabled={!salary || !age}
+                      className="w-full h-14 text-base font-black shadow-lg rounded-2xl gap-2 mt-4"
+                    >
+                      Generate Wealth Dashboard <ChevronRight className="h-5 w-5" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           ) : (
             <div className="grid gap-6 lg:grid-cols-12">
