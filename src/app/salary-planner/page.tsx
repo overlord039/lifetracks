@@ -467,7 +467,8 @@ export default function SalaryPlannerPage() {
   const renderAllocationLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, name, fill }: any) => {
     if (cx === undefined || cy === undefined || midAngle === undefined) return null;
     const RADIAN = Math.PI / 180;
-    const radius = outerRadius + 22; // Increased padding for longer names
+    // Standardize label positioning for all screens
+    const radius = outerRadius + 24; 
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
     
@@ -480,7 +481,7 @@ export default function SalaryPlannerPage() {
         fill={fill} 
         textAnchor={x > cx ? 'start' : 'end'} 
         dominantBaseline="central"
-        className="font-black text-[7px] md:text-[9px] uppercase tracking-tighter"
+        className="font-black text-[8px] md:text-[9px] uppercase tracking-tighter"
       >
         {name}
       </text>
@@ -680,7 +681,7 @@ export default function SalaryPlannerPage() {
                       <div className="flex items-center gap-2">
                         <div>
                           <CardTitle className="text-base md:text-lg font-black tracking-tight">Income Allocation Engine</CardTitle>
-                          <CardDescription className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground">Dynamic funds split with utilization tracking</CardDescription>
+                          <CardDescription className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground">Utilization tracking</CardDescription>
                         </div>
                         <Popover>
                           <PopoverTrigger asChild>
@@ -710,20 +711,20 @@ export default function SalaryPlannerPage() {
                       </div>
                     </div>
                     <Badge variant={totalPercent === 100 ? "secondary" : "destructive"} className="h-7 px-3 rounded-full text-[8px] font-black uppercase tracking-widest shadow-md">
-                      Total Distribution: {totalPercent}%
+                      {totalPercent}% Allocated
                     </Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4 md:gap-6 p-5 md:p-8">
-                  {/* Compact Chart Container */}
+                  {/* Standardized Chart Container for all views */}
                   <div className="flex flex-col items-center justify-center p-3 md:p-4 bg-muted/5 rounded-[1.5rem] md:rounded-[2rem] border border-dashed border-primary/10">
-                    <div className="w-full aspect-square max-w-[220px] md:max-w-[300px] relative">
+                    <div className="w-full aspect-square max-w-[280px] relative">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie 
                             data={salaryData} 
-                            innerRadius={65} 
-                            outerRadius={95} 
+                            innerRadius={55} 
+                            outerRadius={85} 
                             paddingAngle={5} 
                             dataKey="value" 
                             stroke="none"
@@ -737,7 +738,7 @@ export default function SalaryPlannerPage() {
                               position="inside" 
                               content={(props: any) => {
                                 const { cx, cy, midAngle, innerRadius, outerRadius, value } = props;
-                                if (cx === undefined || cy === undefined || midAngle === undefined) return null;
+                                if (cx === undefined || cy === undefined || midAngle === undefined || innerRadius === undefined || outerRadius === undefined) return null;
                                 
                                 const RADIAN = Math.PI / 180;
                                 const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
@@ -749,7 +750,7 @@ export default function SalaryPlannerPage() {
                                 const p = Math.round(value);
                                 if (p < 8) return null;
                                 return (
-                                  <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="font-black text-[8px] md:text-[10px]">
+                                  <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="font-black text-[8px] md:text-[9px]">
                                     {`${p}%`}
                                   </text>
                                 );
@@ -760,8 +761,8 @@ export default function SalaryPlannerPage() {
                         </PieChart>
                       </ResponsiveContainer>
                       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none drop-shadow-sm">
-                        <span className="text-[7px] font-black uppercase text-muted-foreground tracking-widest opacity-60">Total Monthly</span>
-                        <p className="text-xl md:text-2xl font-black tracking-tighter">₹{numSalary.toLocaleString()}</p>
+                        <span className="text-[7px] font-black uppercase text-muted-foreground tracking-widest opacity-60">Total</span>
+                        <p className="text-sm md:text-base font-black tracking-tighter">₹{numSalary.toLocaleString()}</p>
                       </div>
                     </div>
                   </div>
@@ -788,7 +789,7 @@ export default function SalaryPlannerPage() {
                                 </div>
                                 <div className="flex flex-col min-w-[80px]">
                                   <Label className="font-black text-[11px] md:text-[13px] uppercase tracking-tighter leading-none mb-0.5">{item.label}</Label>
-                                  <span className={cn("text-[8px] font-bold uppercase", isOverspent ? "text-destructive" : "text-primary/60")}>₹{committed.toLocaleString()} Logged Spend</span>
+                                  <span className={cn("text-[8px] font-bold uppercase", isOverspent ? "text-destructive" : "text-primary/60")}>₹{committed.toLocaleString()} Used</span>
                                 </div>
                               </div>
                               
@@ -813,8 +814,8 @@ export default function SalaryPlannerPage() {
                             <div className="space-y-1.5 px-1">
                               <Slider value={[percents[item.id] || 0]} max={100} step={0.5} onValueChange={([val]) => updatePercent(item.id, val)} className={cn("h-1.5", isLocked && "[&_.relative]:opacity-50")} />
                               <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-widest opacity-60">
-                                 <span className={cn(isOverspent ? "text-destructive" : "text-muted-foreground")}>{isOverspent ? "Warning: Exceeded Strategy" : "Strategic Usage"}</span>
-                                 <span className={cn(isOverspent ? "text-destructive" : "text-primary")}>{Math.round(committedPercent)}% of pillar</span>
+                                 <span className={cn(isOverspent ? "text-destructive" : "text-muted-foreground")}>{isOverspent ? "CAP EXCEEDED" : "ALLOCATION LOAD"}</span>
+                                 <span className={cn(isOverspent ? "text-destructive" : "text-primary")}>{Math.round(committedPercent)}%</span>
                               </div>
                             </div>
                           </div>
@@ -834,7 +835,7 @@ export default function SalaryPlannerPage() {
                 {percents['investment'] !== undefined && (
                   <Card className="shadow-lg rounded-[1.2rem] md:rounded-[1.5rem] border-none ring-1 ring-orange-500/10 overflow-hidden">
                     <CardHeader className="py-2.5 md:py-3 border-b bg-muted/10 px-5 md:px-6">
-                      <CardTitle className="text-[10px] md:text-xs flex items-center gap-2 font-black"><Target className="h-3.5 w-3.5 text-orange-500" /> Investment Asset Matrix</CardTitle>
+                      <CardTitle className="text-[10px] md:text-xs flex items-center gap-2 font-black"><Target className="h-3.5 w-3.5 text-orange-500" /> Asset matrix</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-4 px-5 md:px-6 pb-5 md:pb-6 space-y-4">
                       <div className="h-[120px] md:h-[150px] w-full relative">
@@ -851,7 +852,7 @@ export default function SalaryPlannerPage() {
                         </div>
                       </div>
                       <div className="grid grid-cols-3 gap-1.5 md:gap-2">
-                        {[{ label: 'Equity', p: invAllocation.equityP, color: 'text-purple-500' }, { label: 'Debt', p: invAllocation.debtP, color: 'text-blue-500' }, { label: 'Gold', p: invAllocation.goldP, color: 'text-yellow-500' }].map(item => (
+                        {[{ label: 'Eq', p: invAllocation.equityP, color: 'text-purple-500' }, { label: 'Db', p: invAllocation.debtP, color: 'text-blue-500' }, { label: 'Gl', p: invAllocation.goldP, color: 'text-yellow-500' }].map(item => (
                           <div key={item.label} className="p-1.5 md:p-2 border rounded-lg md:rounded-xl bg-muted/5 text-center space-y-0.5">
                             <p className="text-[6px] md:text-[7px] font-black text-muted-foreground uppercase">{item.label}</p>
                             <span className={cn("text-[9px] md:text-[10px] font-black", item.color)}>{item.p}%</span>
