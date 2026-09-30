@@ -460,7 +460,7 @@ export default function SalaryPlannerPage() {
   };
 
   const renderAllocationLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, name, fill }: any) => {
-    if (cx === undefined || cy === undefined || midAngle === undefined) return null;
+    if (cx === undefined || cy === undefined || midAngle === undefined || outerRadius === undefined) return null;
     const RADIAN = Math.PI / 180;
     const radius = outerRadius + 24; 
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
@@ -712,7 +712,7 @@ export default function SalaryPlannerPage() {
                 <CardContent className="flex flex-col gap-4 md:gap-6 p-5 md:p-8">
                   {/* Allocation Chart */}
                   <div className="flex flex-col items-center justify-center p-3 md:p-4 bg-muted/5 rounded-[1.5rem] md:rounded-[2rem] border border-dashed border-primary/10">
-                    <div className="w-full aspect-square max-w-[280px] relative">
+                    <div className="w-[280px] h-[280px] relative">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie 
@@ -850,9 +850,34 @@ export default function SalaryPlannerPage() {
               {/* Asset Matrix */}
               <div className="grid gap-4 md:gap-6 grid-cols-1">
                 {percents['investment'] !== undefined && (
-                  <Card className="shadow-lg rounded-[1.2rem] md:rounded-[1.5rem] border-none ring-1 ring-orange-500/10 overflow-hidden">
-                    <CardHeader className="py-2.5 md:py-3 border-b bg-muted/10 px-5 md:px-6">
-                      <CardTitle className="text-[10px] md:text-xs flex items-center gap-2 font-black"><Target className="h-3.5 w-3.5 text-orange-500" /> Asset matrix</CardTitle>
+                  <Card className="shadow-lg rounded-[1.2rem] md:rounded-[2rem] border-none ring-1 ring-orange-500/10 overflow-hidden">
+                    <CardHeader className="py-2.5 md:py-3 border-b bg-muted/10 px-5 md:px-6 flex flex-row items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-[10px] md:text-xs flex items-center gap-2 font-black">
+                          <Target className="h-3.5 w-3.5 text-orange-500" /> Asset Matrix
+                        </CardTitle>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-5 w-5 rounded-full hover:bg-orange-500/10">
+                              <Info className="h-3 w-3 text-muted-foreground" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
+                            <div className="space-y-3">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-orange-600">Allocation Logic</p>
+                              <p className="text-[9px] text-muted-foreground font-medium leading-relaxed">
+                                Strategy automatically calculates asset splits based on your age baseline using the 100-Age rule for equity.
+                              </p>
+                              <div className="space-y-1">
+                                <p className="text-[8px] font-black uppercase text-foreground">Equity: Max(100 - Age, 30%)</p>
+                                <p className="text-[8px] font-black uppercase text-foreground">Gold: Fixed 5% Baseline</p>
+                                <p className="text-[8px] font-black uppercase text-foreground">Debt: Balance Allocation</p>
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <Badge variant="outline" className="text-[7px] font-black uppercase bg-orange-50 text-orange-600 border-orange-200">Age Dynamic</Badge>
                     </CardHeader>
                     <CardContent className="pt-4 px-5 md:px-6 pb-5 md:pb-6 space-y-4">
                       <div className="h-[120px] md:h-[150px] w-full relative">
@@ -865,14 +890,19 @@ export default function SalaryPlannerPage() {
                           </PieChart>
                         </ResponsiveContainer>
                         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                           <span className="text-[7px] font-black uppercase text-muted-foreground opacity-60">Total</span>
                            <p className="text-[10px] md:text-xs font-black tracking-tighter">₹{Math.round(amounts['investment'] || 0).toLocaleString()}</p>
                         </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-1.5 md:gap-2">
-                        {[{ label: 'Eq', p: invAllocation.equityP, color: 'text-purple-500' }, { label: 'Db', p: invAllocation.debtP, color: 'text-blue-500' }, { label: 'Gl', p: invAllocation.goldP, color: 'text-yellow-500' }].map(item => (
-                          <div key={item.label} className="p-1.5 md:p-2 border rounded-lg md:rounded-xl bg-muted/5 text-center space-y-0.5">
-                            <p className="text-[6px] md:text-[7px] font-black text-muted-foreground uppercase">{item.label}</p>
-                            <span className={cn("text-[9px] md:text-[10px] font-black", item.color)}>{item.p}%</span>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { label: 'Equity', p: invAllocation.equityP, color: 'text-purple-500', bg: 'bg-purple-50' }, 
+                          { label: 'Debt', p: invAllocation.debtP, color: 'text-blue-500', bg: 'bg-blue-50' }, 
+                          { label: 'Gold', p: invAllocation.goldP, color: 'text-yellow-600', bg: 'bg-yellow-50' }
+                        ].map(item => (
+                          <div key={item.label} className={cn("p-2 rounded-xl border border-dashed text-center space-y-1 transition-colors hover:bg-muted/10", item.bg)}>
+                            <p className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">{item.label}</p>
+                            <span className={cn("text-xs font-black tracking-tight", item.color)}>{item.p}%</span>
                           </div>
                         ))}
                       </div>
@@ -913,3 +943,4 @@ export default function SalaryPlannerPage() {
     </AppShell>
   );
 }
+
