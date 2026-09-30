@@ -345,6 +345,25 @@ export default function SalaryPlannerPage() {
 
   const totalPercent = useMemo(() => Math.round(Object.values(percents).reduce((a, b) => a + b, 0)), [percents]);
 
+  const syncWithBudget = async () => {
+    if (!user || !db) return;
+    const monthId = format(new Date(), 'yyyyMM');
+    const budgetRef = doc(db, 'users', user.uid, 'monthlyBudgets', monthId);
+    const expenseAmt = amounts['expense'] || 0;
+    setDocumentNonBlocking(budgetRef, {
+      userId: user.uid,
+      month: new Date().getMonth() + 1,
+      year: new Date().getFullYear(),
+      totalBudgetAmount: await encryptData(expenseAmt.toString(), user.uid),
+      baseBudgetAmount: await encryptData(expenseAmt.toString(), user.uid),
+      isEncrypted: true,
+      updatedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString()
+    }, { merge: true });
+    setIsSynced(true);
+    toast({ title: 'Budget Synced', description: `₹${Math.round(expenseAmt).toLocaleString()} set as monthly target.` });
+  };
+
   const handleSaveStrategy = async () => {
     if (!user || !salaryProfilesRef || !strategyName.trim()) {
       if (!strategyName.trim()) {
@@ -366,7 +385,13 @@ export default function SalaryPlannerPage() {
 
     if (activeStrategyId) {
       setDocumentNonBlocking(doc(salaryProfilesRef, activeStrategyId), payload, { merge: true });
-      toast({ title: 'Strategy Updated', description: `"${strategyName.toUpperCase()}" has been refined.` });
+      toast({ 
+        title: 'Strategy Updated', 
+        description: `"${strategyName.toUpperCase()}" has been refined.`,
+        action: (
+          <Button variant="outline" size="sm" className="h-8 font-black uppercase text-[10px]" onClick={syncWithBudget}>Sync to Budget</Button>
+        )
+      });
     } else {
       addDocumentNonBlocking(salaryProfilesRef, {
         ...payload,
@@ -374,7 +399,13 @@ export default function SalaryPlannerPage() {
       }).then(docRef => {
         if (docRef) setActiveStrategyId(docRef.id);
       });
-      toast({ title: 'Strategy Vaulted', description: `"${strategyName.toUpperCase()}" secured in vault.` });
+      toast({ 
+        title: 'Strategy Vaulted', 
+        description: `"${strategyName.toUpperCase()}" secured in vault.`,
+        action: (
+          <Button variant="outline" size="sm" className="h-8 font-black uppercase text-[10px]" onClick={syncWithBudget}>Sync to Budget</Button>
+        )
+      });
     }
 
     setIsSaveModalOpen(false);
@@ -424,25 +455,6 @@ export default function SalaryPlannerPage() {
     toast({ title: "Strategy Erased" });
   };
 
-  const syncWithBudget = async () => {
-    if (!user || !db) return;
-    const monthId = format(new Date(), 'yyyyMM');
-    const budgetRef = doc(db, 'users', user.uid, 'monthlyBudgets', monthId);
-    const expenseAmt = amounts['expense'] || 0;
-    setDocumentNonBlocking(budgetRef, {
-      userId: user.uid,
-      month: new Date().getMonth() + 1,
-      year: new Date().getFullYear(),
-      totalBudgetAmount: await encryptData(expenseAmt.toString(), user.uid),
-      baseBudgetAmount: await encryptData(expenseAmt.toString(), user.uid),
-      isEncrypted: true,
-      updatedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString()
-    }, { merge: true });
-    setIsSynced(true);
-    toast({ title: 'Budget Synced', description: `₹${Math.round(expenseAmt).toLocaleString()} set as monthly target.` });
-  };
-
   const chartTooltipStyle = {
     borderRadius: '16px',
     border: '1px solid hsl(var(--border))',
@@ -473,22 +485,21 @@ export default function SalaryPlannerPage() {
                 <Calculator className="w-7 h-7" />
               </div>
               <div>
-                <h2 className="text-3xl font-black tracking-tighter">Wealth Planner</h2>
+                <h2 className="text-3xl font-black tracking-tighter">
+                  {showResults ? (activeStrategyId ? "Strategy Refinement" : "New Strategy Creation") : "Wealth Planner"}
+                </h2>
                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                  {activeStrategyId ? strategyName : "New Strategic Logic"}
+                  {activeStrategyId ? strategyName : "Design your financial architecture"}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={createNewStrategy} className="h-11 px-6 font-black rounded-2xl border-dashed gap-2 text-xs">
-                <PlusCircle className="h-4 w-4" /> New Strategy
-              </Button>
-              {showResults && (
-                <Button onClick={() => setIsSaveModalOpen(true)} className="shadow-lg h-11 px-6 font-black rounded-2xl bg-primary hover:bg-primary/90 text-xs">
-                  <Save className="h-4 w-4 mr-2" /> {activeStrategyId ? "Update" : "Save"} Strategy
+            {showResults && (
+              <div className="flex items-center gap-3">
+                <Button onClick={() => setIsSaveModalOpen(true)} className="shadow-lg h-11 px-8 font-black rounded-2xl bg-primary hover:bg-primary/90 text-xs gap-2">
+                  <Save className="h-4 w-4" /> {activeStrategyId ? "Update strategy" : "Secure strategy"}
                 </Button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {!showResults || isEditingMetrics ? (
@@ -555,7 +566,10 @@ export default function SalaryPlannerPage() {
                                              onClick={() => loadStrategy(p)}
                                              className="w-full p-4 hover:bg-primary/5 transition-colors text-left flex flex-col gap-1 group"
                                            >
-                                              <span className="text-xs font-black uppercase group-hover:text-primary transition-colors">{p.name}</span>
+                                              <div className="flex items-center justify-between">
+                                                <span className="text-xs font-black uppercase group-hover:text-primary transition-colors">{p.name}</span>
+                                                <Button variant="ghost" size="icon" onClick={(e) => deleteStrategy(p.id, e)} className="h-6 w-6 text-destructive/40 hover:text-destructive"><Trash2 className="h-3 w-3" /></Button>
+                                              </div>
                                               <span className="text-[8px] font-bold text-muted-foreground uppercase">₹{parseFloat(p.salary).toLocaleString()} • Age {p.age}</span>
                                            </button>
                                         ))}
@@ -629,85 +643,8 @@ export default function SalaryPlannerPage() {
               )}
             </div>
           ) : (
-            <div className="grid gap-6 lg:grid-cols-12">
-              {/* Sidebar: Strategy Vault & Bridge */}
-              <div className="lg:col-span-3 space-y-6">
-                <Card className="shadow-xl rounded-3xl border-none ring-1 ring-border overflow-hidden">
-                  <CardHeader className="bg-muted/30 pb-3 border-b px-6">
-                    <CardTitle className="text-sm flex items-center gap-2 font-black">
-                      <Library className="h-4 w-4 text-primary" />
-                      Strategy Vault
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <ScrollArea className="h-[400px]">
-                      {decryptedProfiles.length === 0 ? (
-                        <div className="p-12 text-center opacity-30 grayscale space-y-3">
-                          <Clock className="h-10 w-10 mx-auto" />
-                          <p className="text-[10px] font-black uppercase tracking-widest">No saved strategies</p>
-                        </div>
-                      ) : (
-                        <div className="divide-y divide-dashed">
-                          {decryptedProfiles.map((strat) => (
-                            <div 
-                              key={strat.id} 
-                              onClick={() => loadStrategy(strat)}
-                              className={cn(
-                                "p-5 flex items-center justify-between cursor-pointer transition-all hover:bg-primary/5 group relative",
-                                activeStrategyId === strat.id && "bg-primary/10 border-l-4 border-l-primary"
-                              )}
-                            >
-                              <div className="min-w-0">
-                                <h4 className="font-black text-xs truncate uppercase tracking-tight">{strat.name}</h4>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Badge variant="outline" className="text-[8px] font-black uppercase bg-background px-1.5 py-0 border-primary/10">₹{parseFloat(strat.salary).toLocaleString()}</Badge>
-                                  <span className="text-[8px] text-muted-foreground font-bold uppercase tracking-tight">Age {strat.age}</span>
-                                </div>
-                              </div>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={(e) => deleteStrategy(strat.id, e)}
-                                className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-xl rounded-3xl border-none ring-1 ring-blue-500/30 bg-blue-50/10 dark:bg-blue-900/10">
-                  <CardHeader className="pb-2 px-6">
-                    <CardTitle className="text-sm flex items-center gap-2 font-black">
-                      <ShieldCheck className="h-4 w-4 text-blue-500" />
-                      Budget Bridge
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4 px-6 pb-6">
-                    <div className="p-4 bg-background/50 rounded-2xl border border-dashed border-blue-500/20">
-                       <p className="text-[10px] leading-relaxed text-muted-foreground font-medium uppercase tracking-tight">
-                        Your planned expenses are <span className="font-black text-foreground">₹{Math.round(amounts['expense'] || 0).toLocaleString()}</span>. 
-                      </p>
-                    </div>
-                    
-                    {isSynced ? (
-                      <div className="p-3 bg-green-500/10 border border-green-200 rounded-2xl flex flex-col items-center gap-2 animate-in zoom-in-95">
-                        <Check className="h-4 w-4 text-green-600" />
-                        <p className="text-[9px] font-black text-green-700 uppercase tracking-widest text-center leading-tight">Monthly Vault Updated</p>
-                      </div>
-                    ) : (
-                      <Button size="sm" onClick={syncWithBudget} className="w-full bg-blue-600 hover:bg-blue-700 font-black rounded-xl h-10 text-[10px] uppercase shadow-lg shadow-blue-600/20">Sync Monthly Budget</Button>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Main Area: Planner Dashboard */}
-              <div className="lg:col-span-9 space-y-6">
+            <div className="grid gap-6 grid-cols-1">
+              <div className="space-y-6">
                 {/* Compact Metrics Bar */}
                 <Card className="shadow-lg rounded-[2rem] border-none ring-1 ring-border bg-card/50 backdrop-blur-sm overflow-hidden animate-in slide-in-from-top-4 duration-500">
                   <CardContent className="p-4 md:p-6 flex flex-col md:flex-row items-center justify-between gap-6">
@@ -727,9 +664,14 @@ export default function SalaryPlannerPage() {
                         <p className="text-xl font-black tracking-tight uppercase text-primary truncate max-w-[150px]">{strategyName || "Unnamed Strategy"}</p>
                       </div>
                     </div>
-                    <Button variant="outline" onClick={() => setIsEditingMetrics(true)} className="rounded-2xl h-12 px-6 font-black uppercase text-[10px] tracking-widest gap-2 bg-background/50 hover:bg-primary/5 hover:text-primary transition-all border-dashed">
-                      <PencilLine className="h-4 w-4" /> Edit Metrics
-                    </Button>
+                    <div className="flex items-center gap-3">
+                      <Button variant="outline" onClick={() => setIsEditingMetrics(true)} className="rounded-2xl h-12 px-6 font-black uppercase text-[10px] tracking-widest gap-2 bg-background/50 hover:bg-primary/5 hover:text-primary transition-all border-dashed">
+                        <PencilLine className="h-4 w-4" /> Edit Metrics
+                      </Button>
+                      <Button variant="ghost" onClick={createNewStrategy} className="rounded-2xl h-12 px-6 font-black uppercase text-[10px] tracking-widest gap-2 border border-dashed">
+                        <PlusCircle className="h-4 w-4" /> Change Strategy
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -751,8 +693,8 @@ export default function SalaryPlannerPage() {
                       </Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="grid gap-10 md:grid-cols-12 p-8 md:p-12">
-                    <div className="md:col-span-7 space-y-10">
+                  <CardContent className="grid gap-10 lg:grid-cols-12 p-8 md:p-12">
+                    <div className="lg:col-span-7 space-y-10">
                       <div className="space-y-8">
                         {pillars.map((item) => {
                           const committed = committedCosts[item.id] || 0;
@@ -774,7 +716,7 @@ export default function SalaryPlannerPage() {
                                   </div>
                                   <div className="flex flex-col">
                                     <Label className="font-black text-sm uppercase tracking-tighter leading-none mb-1">{item.label}</Label>
-                                    <span className={cn("text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full w-fit", isOverspent ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary")}>
+                                    <span className={cn("text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full w-fit", isOverspent ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary")}>
                                       ₹{committed.toLocaleString()} Logged Spend
                                     </span>
                                   </div>
@@ -818,8 +760,8 @@ export default function SalaryPlannerPage() {
                       </div>
                     </div>
 
-                    <div className="md:col-span-5 flex flex-col items-center justify-start pt-10 sticky top-20">
-                      <div className="w-full aspect-square max-w-[350px] relative animate-in zoom-in-95 duration-1000">
+                    <div className="lg:col-span-5 flex flex-col items-center justify-start pt-10">
+                      <div className="w-full aspect-square max-w-[350px] relative animate-in zoom-in-95 duration-1000 lg:sticky lg:top-20">
                         <div className="absolute inset-0 bg-primary/5 rounded-full blur-3xl opacity-50 animate-pulse" />
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
