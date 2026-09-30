@@ -62,7 +62,8 @@ import {
   Zap,
   ArrowLeft,
   ChevronRight as ChevronRightIcon,
-  Filter
+  Filter,
+  Info
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -94,6 +95,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from '@/lib/utils';
 import { decryptData, decryptNumber } from '@/lib/encryption';
 import { useToast } from '@/hooks/use-toast';
@@ -566,13 +572,32 @@ export default function ReportsPage() {
                 <CardTitle className="text-base md:text-lg flex items-center gap-2 font-black">
                   <TableProperties className="h-4 w-4 md:h-5 md:w-5 text-primary" />
                   Expense Pool Tally
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-5 w-5 rounded-full hover:bg-primary/10 ml-1">
+                        <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-primary">Tally Overview</p>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed mt-2">
+                        This section provides a high-level summary of your variable spending vs. your planned targets for the Expenses pillar.
+                      </p>
+                    </PopoverContent>
+                  </Popover>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 md:space-y-6 p-4 md:p-6">
                 <div className="space-y-4">
                   <div className="flex justify-between items-start text-xs md:sm">
                     <div className="flex flex-col">
-                      <span className="text-foreground font-black uppercase text-[10px] tracking-tight">Monthly Pool</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-foreground font-black uppercase text-[10px] tracking-tight">Monthly Pool</span>
+                        <Popover>
+                          <PopoverTrigger asChild><button className="hover:text-primary transition-colors"><Info className="h-2.5 w-2.5 text-muted-foreground/50" /></button></PopoverTrigger>
+                          <PopoverContent className="w-64 p-3 text-[9px] font-medium leading-tight">Total target funds allocated for the Expenses pillar in your Wealth Strategy.</PopoverContent>
+                        </Popover>
+                      </div>
                       <span className="text-muted-foreground text-[9px] font-medium leading-tight">Total target for Expenses pillar</span>
                     </div>
                     <span className="font-black text-lg tracking-tighter">₹{totals.budget.toLocaleString()}</span>
@@ -581,7 +606,13 @@ export default function ReportsPage() {
                   <Separator className="opacity-50" />
 
                   <div className="space-y-2">
-                    <p className="text-foreground font-black uppercase text-[10px] tracking-tight">Total Amount Spends</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-foreground font-black uppercase text-[10px] tracking-tight">Total Amount Spends</p>
+                      <Popover>
+                        <PopoverTrigger asChild><button className="hover:text-primary transition-colors"><Info className="h-2.5 w-2.5 text-muted-foreground/50" /></button></PopoverTrigger>
+                        <PopoverContent className="w-64 p-3 text-[9px] font-medium leading-tight">Sum of all Fixed (recurring) and Daily (variable) expenses logged this month.</PopoverContent>
+                      </Popover>
+                    </div>
                     
                     <div className="pl-2 space-y-1.5 border-l-2 border-primary/20">
                       <div className="flex justify-between items-center text-[11px]">
@@ -618,7 +649,13 @@ export default function ReportsPage() {
                 
                 <div className="pt-1 md:pt-2 flex items-center justify-between">
                   <div className="flex flex-col text-left">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">Remaining Vault</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-primary">Remaining Vault</p>
+                      <Popover>
+                        <PopoverTrigger asChild><button className="hover:text-primary transition-colors"><Info className="h-2.5 w-2.5 text-primary/50" /></button></PopoverTrigger>
+                        <PopoverContent className="w-64 p-3 text-[9px] font-medium leading-tight">Funds remaining in your variable spending pool before you exceed your strategy target.</PopoverContent>
+                      </Popover>
+                    </div>
                     <p className="text-[9px] text-muted-foreground font-medium mb-1">Funds available before exhaustion</p>
                   </div>
                   <p className={cn(
@@ -640,6 +677,19 @@ export default function ReportsPage() {
                 <CardTitle className="text-base md:text-lg flex items-center gap-2 font-black">
                   <Activity className="h-4 w-4 md:h-5 md:w-5 text-secondary-foreground" />
                   Categories
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-5 w-5 rounded-full hover:bg-secondary/10 ml-1">
+                        <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-secondary-foreground">Distribution Logic</p>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed mt-2">
+                        Visual breakdown of your spending across different labels. Click the card to perform a deep-dive audit of specific transactions.
+                      </p>
+                    </PopoverContent>
+                  </Popover>
                 </CardTitle>
                 <CheckSquare className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               </CardHeader>
@@ -691,9 +741,24 @@ export default function ReportsPage() {
                   <div className="p-2 bg-primary/10 rounded-xl text-primary">
                     <BarChartIcon className="h-5 w-5" />
                   </div>
-                  <div>
-                    <CardTitle className="text-base md:text-lg font-black tracking-tight">Spending Tracker</CardTitle>
-                    <CardDescription className="text-[9px] md:text-[10px] uppercase font-bold tracking-tight">Track how your spending changes over time.</CardDescription>
+                  <div className="flex items-center gap-2">
+                    <div>
+                      <CardTitle className="text-base md:text-lg font-black tracking-tight">Spending Tracker</CardTitle>
+                      <CardDescription className="text-[9px] md:text-[10px] uppercase font-bold tracking-tight">Track how your spending changes over time.</CardDescription>
+                    </div>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-primary/10">
+                          <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">Pulse Analytics</p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed mt-2">
+                          Monitor spending velocity and trends. Use filters to compare labels and switch between weekly, monthly, or annual views for deep historical context.
+                        </p>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 </div>
                 <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
