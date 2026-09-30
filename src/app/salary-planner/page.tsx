@@ -333,9 +333,10 @@ export default function SalaryPlannerPage() {
     return pillars.map(p => ({
       name: p.label,
       value: amounts[p.id] || 0,
-      color: p.color
+      color: p.color,
+      percent: percents[p.id] || 0
     })).filter(d => d.value > 0);
-  }, [pillars, amounts]);
+  }, [pillars, amounts, percents]);
 
   const invData = useMemo(() => [
     { name: 'Equity', value: invAllocation.equityAmt, color: '#BA68C8' },
@@ -470,6 +471,10 @@ export default function SalaryPlannerPage() {
     return `${name} ${(percent * 100).toFixed(0)}% (₹${Math.round(value).toLocaleString()})`;
   };
 
+  const renderAllocationLabel = ({ name, percent, value }: any) => {
+    return `${name}: ${(percent * 100).toFixed(0)}%`;
+  };
+
   return (
     <AppShell>
       {!mounted || (isDecrypting && !decryptedProfiles.length) ? (
@@ -525,14 +530,14 @@ export default function SalaryPlannerPage() {
                              onClick={() => loadStrategy(latestProfile)}
                              className="w-full p-6 rounded-3xl border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all group text-left flex items-center justify-between"
                            >
-                              <div>
+                              <div className="pointer-events-none">
                                 <h4 className="text-xl font-black uppercase tracking-tight group-hover:text-primary transition-colors">{latestProfile.name}</h4>
                                 <div className="flex items-center gap-3 mt-1.5 opacity-70">
                                    <Badge variant="outline" className="text-[9px] font-black bg-background">₹{parseFloat(latestProfile.salary).toLocaleString()}</Badge>
                                    <span className="text-[9px] font-black uppercase tracking-widest">Modified {format(new Date(latestProfile.updatedAt), 'MMM dd')}</span>
                                 </div>
                               </div>
-                              <div className="h-12 w-12 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                              <div className="h-12 w-12 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform pointer-events-none">
                                 <ChevronRight className="h-6 w-6" />
                               </div>
                            </button>
@@ -704,86 +709,22 @@ export default function SalaryPlannerPage() {
                       </Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="grid gap-10 lg:grid-cols-12 p-8 md:p-12">
-                    <div className="lg:col-span-7 space-y-10">
-                      <div className="space-y-8">
-                        {pillars.map((item) => {
-                          const committed = committedCosts[item.id] || 0;
-                          const totalAllowed = amounts[item.id] || 0;
-                          const committedPercent = totalAllowed > 0 ? (committed / totalAllowed) * 100 : 0;
-                          const isOverspent = committed > totalAllowed;
-                          const isLocked = lockedPillars.has(item.id);
-                          const Icon = item.icon || Coins;
-                          
-                          return (
-                            <div key={item.id} className="space-y-5 group relative animate-in fade-in slide-in-from-left-2">
-                              <div className="flex justify-between items-end flex-wrap gap-4">
-                                <div className="flex items-center gap-3">
-                                  <button onClick={() => toggleLock(item.id)} className={cn("p-2 rounded-xl transition-all shadow-sm", isLocked ? "bg-orange-100 text-orange-600 ring-1 ring-orange-200" : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground")}>
-                                    {isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-                                  </button>
-                                  <div className={cn("p-2 rounded-xl shadow-md text-white", isOverspent ? "bg-destructive animate-pulse" : "")} style={{ backgroundColor: isOverspent ? undefined : item.color }}>
-                                    <Icon className="h-5 w-5" />
-                                  </div>
-                                  <div className="flex flex-col">
-                                    <Label className="font-black text-sm uppercase tracking-tighter leading-none mb-1">{item.label}</Label>
-                                    <span className={cn("text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full w-fit", isOverspent ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary")}>
-                                      ₹{committed.toLocaleString()} Logged Spend
-                                    </span>
-                                  </div>
-                                </div>
-                                
-                                <div className="flex items-center gap-3">
-                                  <div className={cn("flex flex-col gap-0.5 px-4 py-2 rounded-2xl border shadow-inner transition-all min-w-[120px]", isLocked ? "bg-orange-50/50 border-orange-200" : "bg-muted/20 border-primary/10 group-hover:border-primary/30")}>
-                                    <span className="text-[7px] font-black uppercase text-muted-foreground tracking-widest">Planned Cap</span>
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-sm font-bold text-muted-foreground opacity-50">₹</span>
-                                      <Input type="number" value={Math.round(totalAllowed)} onChange={(e) => updateAmount(item.id, e.target.value)} className="w-20 h-6 border-none bg-transparent p-0 text-base font-black focus-visible:ring-0 shadow-none tracking-tighter" />
-                                    </div>
-                                  </div>
-                                  <div className={cn("flex flex-col gap-0.5 px-4 py-2 rounded-2xl border shadow-inner transition-all w-24", isLocked ? "bg-orange-100/50 border-orange-300" : "bg-primary/5 border-primary/20")}>
-                                    <span className="text-[7px] font-black uppercase tracking-widest text-primary/60">Scale</span>
-                                    <div className="flex items-center gap-1">
-                                      <Input type="number" value={Math.round((percents[item.id] || 0) * 10) / 10} onChange={(e) => updatePercent(item.id, parseFloat(e.target.value) || 0)} className="w-10 h-6 border-none bg-transparent p-0 text-base font-black text-right focus-visible:ring-0 shadow-none tracking-tighter" />
-                                      <span className="text-sm font-bold text-primary">%</span>
-                                    </div>
-                                  </div>
-                                  <Button variant="ghost" size="icon" onClick={() => deletePillar(item.id)} className="h-10 w-10 text-destructive/40 hover:text-destructive hover:bg-destructive/10 rounded-xl transition-all"><Trash2 className="h-4 w-4" /></Button>
-                                </div>
-                              </div>
-                              <div className="space-y-2">
-                                <Slider value={[percents[item.id] || 0]} max={100} step={0.5} onValueChange={([val]) => updatePercent(item.id, val)} className={cn("h-2", isLocked && "[&_.relative]:opacity-50")} />
-                                <div className="h-2 w-full bg-muted rounded-full overflow-hidden shadow-inner ring-1 ring-border">
-                                  <div className={cn("h-full transition-all duration-1000", isOverspent ? "bg-destructive" : "bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]")} style={{ width: `${Math.min(100, committedPercent)}%` }} />
-                                </div>
-                                <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-widest opacity-60">
-                                   <span>{isOverspent ? "Warning: Exceeded Strategy" : "Strategic Usage"}</span>
-                                   <span>{Math.round(committedPercent)}% of pillar</span>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <div className="p-6 rounded-[2rem] bg-primary/5 border border-dashed border-primary/20 flex flex-col sm:flex-row items-center gap-4 shadow-inner">
-                        <Input placeholder="Add New Strategy Pillar Name..." value={newPillarName} onChange={e => setNewPillarName(e.target.value)} className="h-12 text-xs uppercase font-black tracking-tight rounded-xl bg-background shadow-sm" />
-                        <Button onClick={addPillar} className="h-12 px-8 shrink-0 rounded-xl shadow-lg gap-2 uppercase font-black text-[10px] tracking-widest"><Plus className="h-4 w-4" /> Add Pillar</Button>
-                      </div>
-                    </div>
-
-                    <div className="lg:col-span-5 flex flex-col items-center justify-start pt-10">
-                      <div className="w-full aspect-square max-w-[350px] relative animate-in zoom-in-95 duration-1000 lg:sticky lg:top-20">
+                  <CardContent className="flex flex-col gap-10 p-8 md:p-12">
+                    {/* Top Chart Section */}
+                    <div className="flex flex-col items-center justify-center p-6 bg-muted/10 rounded-[3rem] border border-dashed border-primary/10">
+                      <div className="w-full aspect-square max-w-[400px] relative animate-in zoom-in-95 duration-1000">
                         <div className="absolute inset-0 bg-primary/5 rounded-full blur-3xl opacity-50 animate-pulse" />
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie 
                               data={salaryData} 
-                              innerRadius={70} 
-                              outerRadius={110} 
+                              innerRadius={80} 
+                              outerRadius={120} 
                               paddingAngle={6} 
                               dataKey="value" 
                               stroke="none"
-                              labelLine={false}
+                              label={renderAllocationLabel}
+                              labelLine={true}
                               animationDuration={1500}
                               animationBegin={0}
                             >
@@ -797,6 +738,72 @@ export default function SalaryPlannerPage() {
                           <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest opacity-60">Total Monthly</span>
                           <p className="text-3xl font-black tracking-tighter">₹{numSalary.toLocaleString()}</p>
                         </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-10">
+                      <div className="grid gap-8 sm:grid-cols-1">
+                        {pillars.map((item) => {
+                          const committed = committedCosts[item.id] || 0;
+                          const totalAllowed = amounts[item.id] || 0;
+                          const committedPercent = totalAllowed > 0 ? (committed / totalAllowed) * 100 : 0;
+                          const isOverspent = committed > totalAllowed;
+                          const isLocked = lockedPillars.has(item.id);
+                          const Icon = item.icon || Coins;
+                          
+                          return (
+                            <div key={item.id} className="space-y-5 group relative animate-in fade-in slide-in-from-bottom-2">
+                              <div className="flex justify-between items-end flex-wrap gap-4">
+                                <div className="flex items-center gap-3">
+                                  <button onClick={() => toggleLock(item.id)} className={cn("p-2.5 rounded-xl transition-all shadow-sm", isLocked ? "bg-orange-100 text-orange-600 ring-1 ring-orange-200" : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground")}>
+                                    {isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                                  </button>
+                                  <div className={cn("p-2.5 rounded-xl shadow-md text-white", isOverspent ? "bg-destructive animate-pulse" : "")} style={{ backgroundColor: isOverspent ? undefined : item.color }}>
+                                    <Icon className="h-5 w-5" />
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <Label className="font-black text-sm uppercase tracking-tighter leading-none mb-1">{item.label}</Label>
+                                    <span className={cn("text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full w-fit", isOverspent ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary")}>
+                                      ₹{committed.toLocaleString()} Logged Spend
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-3">
+                                  <div className={cn("flex flex-col gap-1 px-5 py-3 rounded-2xl border shadow-inner transition-all min-w-[140px]", isLocked ? "bg-orange-50/50 border-orange-200" : "bg-muted/20 border-primary/10 group-hover:border-primary/30")}>
+                                    <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Planned Cap</span>
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-base font-bold text-muted-foreground opacity-50">₹</span>
+                                      <Input type="number" value={Math.round(totalAllowed)} onChange={(e) => updateAmount(item.id, e.target.value)} className="w-24 h-7 border-none bg-transparent p-0 text-lg font-black focus-visible:ring-0 shadow-none tracking-tighter" />
+                                    </div>
+                                  </div>
+                                  <div className={cn("flex flex-col gap-1 px-5 py-3 rounded-2xl border shadow-inner transition-all w-28", isLocked ? "bg-orange-100/50 border-orange-300" : "bg-primary/5 border-primary/20")}>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-primary/60">Scale</span>
+                                    <div className="flex items-center gap-1">
+                                      <Input type="number" value={Math.round((percents[item.id] || 0) * 10) / 10} onChange={(e) => updatePercent(item.id, parseFloat(e.target.value) || 0)} className="w-12 h-7 border-none bg-transparent p-0 text-lg font-black text-right focus-visible:ring-0 shadow-none tracking-tighter" />
+                                      <span className="text-base font-bold text-primary">%</span>
+                                    </div>
+                                  </div>
+                                  <Button variant="ghost" size="icon" onClick={() => deletePillar(item.id)} className="h-12 w-12 text-destructive/40 hover:text-destructive hover:bg-destructive/10 rounded-2xl transition-all"><Trash2 className="h-5 w-5" /></Button>
+                                </div>
+                              </div>
+                              <div className="space-y-3">
+                                <Slider value={[percents[item.id] || 0]} max={100} step={0.5} onValueChange={([val]) => updatePercent(item.id, val)} className={cn("h-3", isLocked && "[&_.relative]:opacity-50")} />
+                                <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden shadow-inner ring-1 ring-border">
+                                  <div className={cn("h-full transition-all duration-1000", isOverspent ? "bg-destructive" : "bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]")} style={{ width: `${Math.min(100, committedPercent)}%` }} />
+                                </div>
+                                <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest opacity-60">
+                                   <span>{isOverspent ? "Warning: Exceeded Strategy" : "Strategic Usage"}</span>
+                                   <span>{Math.round(committedPercent)}% of pillar</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="p-8 rounded-[2.5rem] bg-primary/5 border border-dashed border-primary/20 flex flex-col sm:flex-row items-center gap-5 shadow-inner">
+                        <Input placeholder="Add New Strategy Pillar Name..." value={newPillarName} onChange={e => setNewPillarName(e.target.value)} className="h-14 text-sm uppercase font-black tracking-tight rounded-2xl bg-background shadow-sm px-6" />
+                        <Button onClick={addPillar} className="h-14 px-10 shrink-0 rounded-2xl shadow-lg gap-3 uppercase font-black text-[11px] tracking-widest"><Plus className="h-5 w-5" /> Add Pillar</Button>
                       </div>
                     </div>
                   </CardContent>
