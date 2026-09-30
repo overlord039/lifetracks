@@ -459,14 +459,13 @@ export default function SalaryPlannerPage() {
     fontWeight: 'bold'
   };
 
-  const renderAllocationLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, name, fill }: any) => {
+  const renderLabel = (props: any) => {
+    const { cx, cy, midAngle, outerRadius, name, fill } = props;
     if (cx === undefined || cy === undefined || midAngle === undefined || outerRadius === undefined) return null;
     const RADIAN = Math.PI / 180;
-    const radius = outerRadius + 24; 
+    const radius = outerRadius + 22;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
-    
-    if (isNaN(x) || isNaN(y)) return null;
 
     return (
       <text 
@@ -475,9 +474,28 @@ export default function SalaryPlannerPage() {
         fill={fill} 
         textAnchor={x > cx ? 'start' : 'end'} 
         dominantBaseline="central"
-        className="font-black text-[8px] md:text-[9px] uppercase tracking-tighter"
+        className="font-black text-[7px] md:text-[8px] uppercase tracking-tighter"
       >
         {name}
+      </text>
+    );
+  };
+
+  const renderInternalPercent = (props: any) => {
+    const { cx, cy, midAngle, innerRadius, outerRadius, value, percent } = props;
+    if (cx === undefined || cy === undefined || midAngle === undefined || innerRadius === undefined || outerRadius === undefined) return null;
+    
+    const RADIAN = Math.PI / 180;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    
+    const p = Math.round(percent * 100);
+    if (p < 8) return null;
+
+    return (
+      <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="font-black text-[7px] md:text-[8px]">
+        {`${p}%`}
       </text>
     );
   };
@@ -640,18 +658,36 @@ export default function SalaryPlannerPage() {
               <Card className="shadow-lg rounded-xl md:rounded-2xl border-none ring-1 ring-border bg-card/50 backdrop-blur-sm overflow-hidden">
                 <CardContent className="p-3 md:p-4 flex flex-col md:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-4 md:gap-6 flex-wrap justify-center md:justify-start">
-                    <div className="space-y-0.5 text-center md:text-left">
-                      <p className="text-[7px] font-black uppercase text-muted-foreground tracking-widest">Monthly Income</p>
+                    <div className="space-y-0.5 text-center md:text-left flex flex-col items-center md:items-start">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-[7px] font-black uppercase text-muted-foreground tracking-widest">Monthly Income</p>
+                        <Popover>
+                          <PopoverTrigger asChild><button className="hover:text-primary transition-colors"><Info className="h-2.5 w-2.5 text-muted-foreground/50" /></button></PopoverTrigger>
+                          <PopoverContent className="w-56 p-3 text-[9px] font-medium leading-tight">Your total take-home pay after taxes. This serves as the pool for all strategic allocations.</PopoverContent>
+                        </Popover>
+                      </div>
                       <p className="text-base md:text-lg font-black tracking-tighter">₹{numSalary.toLocaleString()}</p>
                     </div>
                     <Separator orientation="vertical" className="h-6 hidden md:block" />
-                    <div className="space-y-0.5 text-center md:text-left">
-                      <p className="text-[7px] font-black uppercase text-muted-foreground tracking-widest">Age Baseline</p>
+                    <div className="space-y-0.5 text-center md:text-left flex flex-col items-center md:items-start">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-[7px] font-black uppercase text-muted-foreground tracking-widest">Age Baseline</p>
+                        <Popover>
+                          <PopoverTrigger asChild><button className="hover:text-primary transition-colors"><Info className="h-2.5 w-2.5 text-muted-foreground/50" /></button></PopoverTrigger>
+                          <PopoverContent className="w-56 p-3 text-[9px] font-medium leading-tight">Your current age is used to calculate high-impact risk profiles for investments (e.g., 100-Age Rule).</PopoverContent>
+                        </Popover>
+                      </div>
                       <p className="text-base md:text-lg font-black tracking-tighter">{numAge} Years</p>
                     </div>
                     <Separator orientation="vertical" className="h-6 hidden md:block" />
-                    <div className="space-y-0.5 text-center md:text-left">
-                      <p className="text-[7px] font-black uppercase text-muted-foreground tracking-widest">Active Alias</p>
+                    <div className="space-y-0.5 text-center md:text-left flex flex-col items-center md:items-start">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-[7px] font-black uppercase text-muted-foreground tracking-widest">Active Alias</p>
+                        <Popover>
+                          <PopoverTrigger asChild><button className="hover:text-primary transition-colors"><Info className="h-2.5 w-2.5 text-muted-foreground/50" /></button></PopoverTrigger>
+                          <PopoverContent className="w-56 p-3 text-[9px] font-medium leading-tight">The name assigned to this specific strategic profile in your secure vault.</PopoverContent>
+                        </Popover>
+                      </div>
                       <p className="text-sm md:text-base font-black tracking-tight uppercase text-primary truncate max-w-[100px] md:max-w-[120px]">{strategyName || "Unnamed Strategy"}</p>
                     </div>
                   </div>
@@ -683,7 +719,7 @@ export default function SalaryPlannerPage() {
                               <Info className="h-3.5 w-3.5 text-muted-foreground" />
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-64 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
+                          <PopoverContent className="w-72 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
                              <div className="space-y-3">
                                 <p className="text-[10px] font-black uppercase tracking-widest text-primary">Strategic Logic</p>
                                 <div className="space-y-2">
@@ -712,51 +748,29 @@ export default function SalaryPlannerPage() {
                 <CardContent className="flex flex-col gap-4 md:gap-6 p-5 md:p-8">
                   {/* Allocation Chart */}
                   <div className="flex flex-col items-center justify-center p-3 md:p-4 bg-muted/5 rounded-[1.5rem] md:rounded-[2rem] border border-dashed border-primary/10">
-                    <div className="w-[280px] h-[280px] relative">
+                    <div className="w-[220px] h-[220px] relative">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie 
                             data={salaryData} 
-                            innerRadius={55} 
-                            outerRadius={85} 
+                            innerRadius={65} 
+                            outerRadius={95} 
                             paddingAngle={5} 
                             dataKey="value" 
                             stroke="none"
-                            label={renderAllocationLabel}
+                            label={renderLabel}
                             labelLine={false}
                             animationDuration={1000}
                           >
                             {salaryData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
-                            <LabelList 
-                              dataKey="percent" 
-                              position="inside" 
-                              content={(props: any) => {
-                                const { cx, cy, midAngle, innerRadius, outerRadius, value } = props;
-                                if (cx === undefined || cy === undefined || midAngle === undefined || innerRadius === undefined || outerRadius === undefined) return null;
-                                
-                                const RADIAN = Math.PI / 180;
-                                const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                                const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                                const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                                
-                                if (isNaN(x) || isNaN(y)) return null;
-
-                                const p = Math.round(value);
-                                if (p < 8) return null;
-                                return (
-                                  <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="font-black text-[8px] md:text-[9px]">
-                                    {`${p}%`}
-                                  </text>
-                                );
-                              }}
-                            />
+                            <LabelList dataKey="percent" position="inside" content={renderInternalPercent} />
                           </Pie>
                           <RechartsTooltip contentStyle={chartTooltipStyle} itemStyle={{ color: 'hsl(var(--popover-foreground))' }} formatter={(v: number) => `₹${Math.round(v).toLocaleString()}`} />
                         </PieChart>
                       </ResponsiveContainer>
                       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none drop-shadow-sm">
                         <span className="text-[7px] font-black uppercase text-muted-foreground tracking-widest opacity-60">Total</span>
-                        <p className="text-sm md:text-base font-black tracking-tighter">₹{numSalary.toLocaleString()}</p>
+                        <p className="text-[10px] md:text-xs font-black tracking-tighter">₹{numSalary.toLocaleString()}</p>
                       </div>
                     </div>
                   </div>
@@ -781,7 +795,29 @@ export default function SalaryPlannerPage() {
                                   <Icon className="h-4 w-4" />
                                 </div>
                                 <div className="flex flex-col min-w-0">
-                                  <span className="font-black text-[10px] md:text-xs uppercase tracking-tight truncate">{item.label}</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-black text-[10px] md:text-xs uppercase tracking-tight truncate">{item.label}</span>
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <button className="text-muted-foreground/30 hover:text-primary transition-colors">
+                                          <Info className="h-3 w-3" />
+                                        </button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-64 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
+                                        <div className="space-y-2">
+                                          <p className="text-[10px] font-black uppercase tracking-widest text-primary">{item.label} STRATEGY</p>
+                                          <p className="text-[9px] text-muted-foreground leading-relaxed">
+                                            {item.id === 'expense' ? 'Daily living costs, bills, and monthly essentials. This pillar syncs directly with your Monthly Budget vault.' : 
+                                             item.id === 'savings' ? 'Emergency funds and short-term liquid cash. Building a safety net for unexpected situations.' :
+                                             item.id === 'investment' ? 'Wealth building and long-term asset accumulation. These funds are further split in the Asset Matrix.' :
+                                             item.id === 'health' ? 'Insurance premiums, gym memberships, and medical reserves. Prioritizing physical and mental longevity.' :
+                                             item.id === 'personal' ? 'Lifestyle, guilt-free spending, and self-care. Funds reserved for personal enjoyment and growth.' :
+                                             `Custom strategic node for ${item.label} allocation. Tracking specific financial intent.`}
+                                          </p>
+                                        </div>
+                                      </PopoverContent>
+                                    </Popover>
+                                  </div>
                                   <span className={cn("text-[8px] font-bold uppercase", isOverspent ? "text-destructive" : "text-muted-foreground")}>
                                     Used: ₹{committed.toLocaleString()}
                                   </span>
