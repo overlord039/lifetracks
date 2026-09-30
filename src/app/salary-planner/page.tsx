@@ -561,17 +561,28 @@ export default function SalaryPlannerPage() {
                                   <ScrollArea className="h-64">
                                      <div className="divide-y divide-dashed">
                                         {decryptedProfiles.map(p => (
-                                           <button 
+                                           <div 
                                              key={p.id} 
-                                             onClick={() => loadStrategy(p)}
-                                             className="w-full p-4 hover:bg-primary/5 transition-colors text-left flex flex-col gap-1 group"
+                                             className="w-full hover:bg-primary/5 transition-colors group flex flex-col gap-1 p-4 border-b border-dashed last:border-0"
                                            >
                                               <div className="flex items-center justify-between">
-                                                <span className="text-xs font-black uppercase group-hover:text-primary transition-colors">{p.name}</span>
-                                                <Button variant="ghost" size="icon" onClick={(e) => deleteStrategy(p.id, e)} className="h-6 w-6 text-destructive/40 hover:text-destructive"><Trash2 className="h-3 w-3" /></Button>
+                                                <button 
+                                                  onClick={() => loadStrategy(p)}
+                                                  className="flex-1 text-left flex flex-col gap-1 focus:outline-none"
+                                                >
+                                                  <span className="text-xs font-black uppercase group-hover:text-primary transition-colors">{p.name}</span>
+                                                  <span className="text-[8px] font-bold text-muted-foreground uppercase">₹{parseFloat(p.salary).toLocaleString()} • Age {p.age}</span>
+                                                </button>
+                                                <Button 
+                                                  variant="ghost" 
+                                                  size="icon" 
+                                                  onClick={(e) => deleteStrategy(p.id, e)} 
+                                                  className="h-8 w-8 text-destructive/40 hover:text-destructive shrink-0 ml-2"
+                                                >
+                                                  <Trash2 className="h-4 w-4" />
+                                                </Button>
                                               </div>
-                                              <span className="text-[8px] font-bold text-muted-foreground uppercase">₹{parseFloat(p.salary).toLocaleString()} • Age {p.age}</span>
-                                           </button>
+                                           </div>
                                         ))}
                                      </div>
                                   </ScrollArea>
