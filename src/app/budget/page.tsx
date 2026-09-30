@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -11,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, getDocs } from 'firebase/firestore';
-import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, Pencil, X, ShieldAlert, AlertTriangle, Lock, ShieldCheck, Activity, PiggyBank, TrendingUp, HeartPulse, Smile, Check, Tag, Download } from 'lucide-react';
+import { Plus, Trash2, BrainCircuit, Loader2, Wallet, ReceiptText, CalendarDays, Coins, LayoutGrid, History, Pencil, X, ShieldAlert, AlertTriangle, Lock, ShieldCheck, Activity, PiggyBank, TrendingUp, HeartPulse, Smile, Check, Tag, Download, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { format, getDaysInMonth } from 'date-fns';
@@ -29,6 +28,11 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const ALLOCATION_BUCKETS = [
   { id: 'expense', label: 'Expenses', icon: Wallet, color: 'text-blue-500' },
@@ -418,8 +422,25 @@ export default function BudgetPage() {
             <Card className={cn("shadow-lg border-t-4 border-t-primary rounded-2xl overflow-hidden transition-opacity", isDecrypting && "opacity-60")}>
               <CardHeader className="bg-muted/30 pb-3 md:pb-4 px-4 md:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center justify-between w-full sm:w-auto gap-4">
-                  <div className="space-y-0.5">
-                    <CardTitle className="flex items-center gap-2 text-base md:text-lg font-black tracking-tight"><Wallet className="h-5 w-5 text-primary" /> Monthly Vault</CardTitle>
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="flex items-center gap-2 text-base md:text-lg font-black tracking-tight"><Wallet className="h-5 w-5 text-primary" /> Monthly Vault</CardTitle>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-primary/10">
+                            <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Monthly Guidance</p>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                              This section manages your overall monthly financial targets. You can enable weekend extra bonuses and choose between 'Rolling' tracking (where unspent funds carry over) or 'Pool' tracking (simple remaining balance).
+                            </p>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                     <CardDescription className="text-[10px] uppercase font-bold tracking-tight">Protected targets for {monthName}.</CardDescription>
                   </div>
                   <Button 
@@ -472,7 +493,24 @@ export default function BudgetPage() {
               <CardContent className="space-y-4 md:space-y-6 pt-4 md:pt-6 px-4 md:px-6">
                 <div className="grid gap-4 md:grid-cols-1">
                   <div className="space-y-3">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Expense Pool (E2EE)</Label>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Expense Pool (E2EE)</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-5 w-5 rounded-full hover:bg-primary/10">
+                            <Info className="h-3 w-3 text-muted-foreground/50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-72 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Budget Pool Logic</p>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                              Your expense pool is the total amount available for variable spending this month after accounting for fixed costs. 'Base' is your starting budget, and 'Extra' can be added at any time.
+                            </p>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                     {decryptedBudget?.totalBudgetAmount > 0 ? (
                       <div className="space-y-3 md:space-y-4">
                         <div className="grid grid-cols-2 gap-2 md:gap-3">
@@ -536,10 +574,22 @@ export default function BudgetPage() {
                 
                 <TabsContent value="logger" className="mt-0 p-4 md:p-6 space-y-4 animate-in fade-in slide-in-from-left-2">
                   <div className="space-y-4">
-                    <div className="space-y-2">
+                    <div className="flex items-center gap-2">
                       <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Private Description</Label>
-                      <Input placeholder="What was this for?..." value={newExpense.description} onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })} className="h-11 text-[11px] md:text-sm rounded-xl" />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-5 w-5 rounded-full hover:bg-muted">
+                            <Info className="h-3 w-3 text-muted-foreground/50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-72 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            Log your daily transactions here. Every entry is end-to-end encrypted (E2EE) on your device using your Master Key before being synchronized.
+                          </p>
+                        </PopoverContent>
+                      </Popover>
                     </div>
+                    <Input placeholder="What was this for?..." value={newExpense.description} onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })} className="h-11 text-[11px] md:text-sm rounded-xl" />
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Category Label</Label>
@@ -582,10 +632,22 @@ export default function BudgetPage() {
 
                 <TabsContent value="fixed" className="mt-0 p-4 md:p-6 space-y-4 animate-in fade-in slide-in-from-right-2">
                   <div className="space-y-4">
-                    <div className="space-y-2">
+                    <div className="flex items-center gap-2">
                       <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Item Name (Optional)</Label>
-                      <Input placeholder="Rent, SIP, Insurance, etc. ..." value={newFixed.name} onChange={(e) => setNewFixed({ ...newFixed, name: e.target.value })} className="h-11 text-[11px] md:text-sm rounded-xl" />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-5 w-5 rounded-full hover:bg-muted">
+                            <Info className="h-3 w-3 text-muted-foreground/50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-72 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            Define your recurring monthly obligations here (like Rent, SIPs, or Insurance). These amounts are automatically deducted from your total budget to determine your daily spending limit.
+                          </p>
+                        </PopoverContent>
+                      </Popover>
                     </div>
+                    <Input placeholder="Rent, SIP, Insurance, etc. ..." value={newFixed.name} onChange={(e) => setNewFixed({ ...newFixed, name: e.target.value })} className="h-11 text-[11px] md:text-sm rounded-xl" />
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
@@ -686,10 +748,22 @@ export default function BudgetPage() {
             </div>
             
             <Card className="shadow-lg rounded-2xl border-none ring-1 ring-border overflow-hidden">
-              <CardHeader className="bg-muted/30 border-b py-2.5 px-4">
+              <CardHeader className="bg-muted/30 border-b py-2.5 px-4 flex flex-row items-center justify-between">
                 <CardTitle className="text-sm md:text-base flex items-center gap-2 font-black">
                   <LayoutGrid className="h-4 w-4 text-primary" /> Label Vault
                 </CardTitle>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-primary/10">
+                      <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      Categorize your spending with custom labels. 'Isolation Mode' (Private) ensures labels and their associated expenses are hidden from shared rooms.
+                    </p>
+                  </PopoverContent>
+                </Popover>
               </CardHeader>
               <CardContent className="pt-4 md:pt-6 px-4">
                 <Tabs defaultValue="daily" onValueChange={(v) => setNewCategory({ ...newCategory, type: v as any })}>
@@ -820,9 +894,23 @@ function SustainableTodayCard({ isOverspentToday, isWithinBudget, todayStr, dail
     const total = remainingNetPool + totalSpentThisMonth;
     return (
       <Card className={cn("shadow-2xl transition-all duration-500 rounded-3xl border-none ring-4 ring-offset-4 ring-offset-background bg-primary text-primary-foreground ring-primary", isDecrypting && "animate-pulse opacity-80")}>
-        <CardHeader className="pb-1 px-5 pt-5 md:px-6 md:pt-6">
-          <CardTitle className="text-xl md:text-2xl font-black flex items-center gap-3 drop-shadow-md"><Coins className="h-6 w-6 md:h-7 md:h-7" /> Monthly Pool</CardTitle>
-          <CardDescription className="text-inherit opacity-80 font-black text-[9px] md:text-[10px] uppercase tracking-widest mt-1">Vault Status • {monthName}</CardDescription>
+        <CardHeader className="pb-1 px-5 pt-5 md:px-6 md:pt-6 flex flex-row items-center justify-between">
+          <div className="space-y-1">
+            <CardTitle className="text-xl md:text-2xl font-black flex items-center gap-3 drop-shadow-md"><Coins className="h-6 w-6 md:h-7 md:h-7" /> Monthly Pool</CardTitle>
+            <CardDescription className="text-inherit opacity-80 font-black text-[9px] md:text-[10px] uppercase tracking-widest mt-1">Vault Status • {monthName}</CardDescription>
+          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-white/50 hover:text-white hover:bg-white/10">
+                <Info className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Your personalized daily spending limit. It accounts for your remaining monthly pool, days left, and any carry-forward from previous days to keep you on track.
+              </p>
+            </PopoverContent>
+          </Popover>
         </CardHeader>
         <CardContent className="space-y-6 pt-2 px-5 md:px-6">
           <div className="space-y-1">
@@ -857,9 +945,23 @@ function SustainableTodayCard({ isOverspentToday, isWithinBudget, todayStr, dail
       isWithinBudget ? "bg-secondary text-secondary-foreground ring-secondary" : 
       "bg-primary text-primary-foreground ring-primary"
     )}>
-      <CardHeader className="pb-1 px-5 pt-5 md:px-6 md:pt-6">
-        <CardTitle className="text-xl md:text-2xl font-black flex items-center gap-3 drop-shadow-md"><Coins className="h-6 w-6 md:h-7 md:h-7" /> Safe Today</CardTitle>
-        <CardDescription className="text-inherit opacity-80 font-black text-[9px] md:text-[10px] uppercase tracking-widest mt-1">{todayStr} • Daily Limit</CardDescription>
+      <CardHeader className="pb-1 px-5 pt-5 md:px-6 md:pt-6 flex flex-row items-center justify-between">
+        <div className="space-y-1">
+          <CardTitle className="text-xl md:text-2xl font-black flex items-center gap-3 drop-shadow-md"><Coins className="h-6 w-6 md:h-7 md:h-7" /> Safe Today</CardTitle>
+          <CardDescription className="text-inherit opacity-80 font-black text-[9px] md:text-[10px] uppercase tracking-widest mt-1">{todayStr} • Daily Limit</CardDescription>
+        </div>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-white/50 hover:text-white hover:bg-white/10">
+              <Info className="h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-72 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Your personalized daily spending limit. It accounts for your remaining monthly pool, days left, and any carry-forward from previous days to keep you on track.
+            </p>
+          </PopoverContent>
+        </Popover>
       </CardHeader>
       <CardContent className="space-y-6 pt-2 px-5 md:px-6">
         <div className="space-y-1">
