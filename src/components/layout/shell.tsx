@@ -60,14 +60,14 @@ import { Separator } from '@/components/ui/separator';
 
 const navItems = [
   { id: 'dashboard', title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
-  { id: 'salary-planner', title: 'Planner', url: '/salary-planner', icon: Calculator },
   { id: 'budget', title: 'Budget', url: '/budget', icon: Wallet },
   { id: 'split-pay', title: 'Split', url: '/split-pay', icon: Users },
   { id: 'craving-meter', title: 'Willpower', url: '/craving-meter', icon: Flame },
-  { id: 'future-vision', title: 'Vision', url: '/future-vision', icon: Mountain },
   { id: 'learning', title: 'Learning', url: '/learning', icon: GraduationCap },
   { id: 'diary', title: 'Diary', url: '/diary', icon: BookText },
   { id: 'reports', title: 'Reports', url: '/reports', icon: BarChart3 },
+  { id: 'future-vision', title: 'Vision', url: '/future-vision', icon: Mountain },
+  { id: 'salary-planner', title: 'Planner', url: '/salary-planner', icon: Calculator },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
