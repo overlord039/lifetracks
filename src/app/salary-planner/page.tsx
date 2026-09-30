@@ -462,10 +462,28 @@ export default function SalaryPlannerPage() {
     fontWeight: 'bold'
   };
 
-  const renderAllocationLabel = ({ name, percent }: any) => {
+  const renderAllocationLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name, fill }: any) => {
+    const RADIAN = Math.PI / 180;
+    // Position labels slightly outside the outer radius for mobile clarity
+    const radius = outerRadius + 12;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
     const p = Math.round(percent * 100);
-    if (p < 5) return null; // Hide small labels for cleaner mobile look
-    return `${name}: ${p}%`;
+    
+    if (p < 5) return null;
+
+    return (
+      <text 
+        x={x} 
+        y={y} 
+        fill={fill} 
+        textAnchor={x > cx ? 'start' : 'end'} 
+        dominantBaseline="central"
+        className="font-black text-[7px] md:text-[9px] uppercase tracking-tighter"
+      >
+        {`${name.substring(0, 3)}: ${p}%`}
+      </text>
+    );
   };
 
   return (
