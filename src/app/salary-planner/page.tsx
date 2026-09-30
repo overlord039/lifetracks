@@ -32,7 +32,6 @@ import {
   BrainCircuit,
   Library,
   Sparkles,
-  PlusCircle,
   PencilLine,
   X,
   History
@@ -89,7 +88,6 @@ export default function SalaryPlannerPage() {
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [isDecrypting, setIsDecrypting] = useState(false);
-  const [isSynced, setIsSynced] = useState(false);
   const [lockedPillars, setLockedPillars] = useState<Set<string>>(new Set());
   const [newPillarName, setNewPillarName] = useState('');
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
@@ -358,7 +356,6 @@ export default function SalaryPlannerPage() {
       updatedAt: new Date().toISOString(),
       createdAt: new Date().toISOString()
     }, { merge: true });
-    setIsSynced(true);
     toast({ title: 'Budget Synced', description: `₹${Math.round(expenseAmt).toLocaleString()} set as monthly target.` });
   };
 
@@ -425,7 +422,6 @@ export default function SalaryPlannerPage() {
     }
     
     setShowResults(true);
-    setIsSynced(false);
     setIsEditingMetrics(false);
     setIsStartingNew(false);
     toast({ title: "Strategy Loaded", description: strat.name });
@@ -439,7 +435,6 @@ export default function SalaryPlannerPage() {
     setPercents(DEFAULT_RATIOS);
     setPillars(STANDARD_PILLARS);
     setShowResults(false);
-    setIsSynced(false);
     setIsEditingMetrics(false);
     setIsStartingNew(true);
     setLockedPillars(new Set());
@@ -467,7 +462,6 @@ export default function SalaryPlannerPage() {
   const renderAllocationLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, name, fill }: any) => {
     if (cx === undefined || cy === undefined || midAngle === undefined) return null;
     const RADIAN = Math.PI / 180;
-    // Standardize label positioning for all screens
     const radius = outerRadius + 24; 
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
@@ -672,7 +666,7 @@ export default function SalaryPlannerPage() {
                 </CardContent>
               </Card>
 
-              {/* Main Allocation Logic */}
+              {/* Main Allocation Engine */}
               <Card className="shadow-xl rounded-[1.5rem] md:rounded-[2rem] border-none ring-1 ring-border overflow-hidden">
                 <CardHeader className="bg-muted/30 border-b py-3 px-5 md:px-8">
                   <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
@@ -716,7 +710,7 @@ export default function SalaryPlannerPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4 md:gap-6 p-5 md:p-8">
-                  {/* Standardized Chart Container for all views */}
+                  {/* Allocation Chart */}
                   <div className="flex flex-col items-center justify-center p-3 md:p-4 bg-muted/5 rounded-[1.5rem] md:rounded-[2rem] border border-dashed border-primary/10">
                     <div className="w-full aspect-square max-w-[280px] relative">
                       <ResponsiveContainer width="100%" height="100%">
@@ -767,6 +761,7 @@ export default function SalaryPlannerPage() {
                     </div>
                   </div>
 
+                  {/* Pillar Rows */}
                   <div className="space-y-4 md:space-y-5">
                     <div className="grid gap-3 md:gap-4">
                       {pillars.map((item) => {
@@ -778,44 +773,66 @@ export default function SalaryPlannerPage() {
                         const Icon = item.icon || Coins;
                         
                         return (
-                          <div key={item.id} className="space-y-2 group relative border-b last:border-0 pb-3 md:pb-4 last:pb-0">
-                            <div className="flex justify-between items-center flex-wrap gap-2">
-                              <div className="flex items-center gap-3">
-                                <button onClick={() => toggleLock(item.id)} className={cn("p-1.5 rounded-md transition-all", isLocked ? "bg-orange-100 text-orange-600 ring-1 ring-orange-200" : "bg-muted text-muted-foreground hover:text-foreground")}>
-                                  {isLocked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
-                                </button>
-                                <div className={cn("p-2 rounded-lg shadow-md text-white transition-transform group-hover:scale-105", isOverspent ? "bg-destructive animate-pulse" : "")} style={{ backgroundColor: isOverspent ? undefined : item.color }}>
+                          <div key={item.id} className="p-3 md:p-4 rounded-2xl border bg-card hover:shadow-md transition-all space-y-4 group relative overflow-hidden">
+                            {isLocked && <div className="absolute top-0 right-0 p-1 bg-orange-100 rounded-bl-xl text-orange-600"><Lock className="h-2.5 w-2.5" /></div>}
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className={cn("p-2 rounded-xl text-white shadow-sm shrink-0 transition-transform group-hover:scale-110")} style={{ backgroundColor: item.color }}>
                                   <Icon className="h-4 w-4" />
                                 </div>
-                                <div className="flex flex-col min-w-[80px]">
-                                  <Label className="font-black text-[11px] md:text-[13px] uppercase tracking-tighter leading-none mb-0.5">{item.label}</Label>
-                                  <span className={cn("text-[8px] font-bold uppercase", isOverspent ? "text-destructive" : "text-primary/60")}>₹{committed.toLocaleString()} Used</span>
+                                <div className="flex flex-col min-w-0">
+                                  <span className="font-black text-[10px] md:text-xs uppercase tracking-tight truncate">{item.label}</span>
+                                  <span className={cn("text-[8px] font-bold uppercase", isOverspent ? "text-destructive" : "text-muted-foreground")}>
+                                    Used: ₹{committed.toLocaleString()}
+                                  </span>
                                 </div>
                               </div>
-                              
-                              <div className="flex items-center gap-2">
-                                <div className={cn("flex flex-col items-center px-3 py-1.5 rounded-xl border shadow-inner transition-all w-28 md:w-32", isLocked ? "bg-orange-50 border-orange-200" : "bg-muted/20 border-primary/10")}>
-                                  <span className="text-[10px] md:text-[11px] font-black uppercase text-muted-foreground mb-0.5 tracking-widest">Planned Cap</span>
-                                  <div className="flex items-center gap-1">
-                                    <span className="text-[11px] font-bold text-muted-foreground opacity-40">₹</span>
-                                    <Input type="number" value={Math.round(totalAllowed)} onChange={(e) => updateAmount(item.id, e.target.value)} className="w-20 md:w-24 h-5 border-none bg-transparent p-0 text-[13px] md:text-[15px] font-black focus-visible:ring-0 shadow-none tracking-tighter" />
-                                  </div>
-                                </div>
-                                <div className={cn("flex flex-col items-center px-2.5 py-1.5 rounded-xl border shadow-inner transition-all w-16 md:w-20", isLocked ? "bg-orange-100 border-orange-300" : "bg-primary/5 border-primary/20")}>
-                                  <span className="text-[10px] md:text-[11px] font-black uppercase text-primary/60 mb-0.5">Scale</span>
-                                  <div className="flex items-center gap-0.5">
-                                    <Input type="number" value={Math.round((percents[item.id] || 0) * 10) / 10} onChange={(e) => updatePercent(item.id, parseFloat(e.target.value) || 0)} className="w-10 md:w-12 h-5 border-none bg-transparent p-0 text-[13px] md:text-[15px] font-black text-right focus-visible:ring-0 shadow-none tracking-tighter" />
-                                    <span className="text-[11px] font-bold text-primary opacity-60">%</span>
-                                  </div>
-                                </div>
-                                <Button variant="ghost" size="icon" onClick={() => deletePillar(item.id)} className="h-8 w-8 text-destructive/30 hover:text-destructive hover:bg-destructive/10 rounded-lg"><Trash2 className="h-4 w-4" /></Button>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button onClick={() => toggleLock(item.id)} className={cn("p-1.5 rounded-lg transition-colors", isLocked ? "bg-orange-100 text-orange-600" : "hover:bg-muted text-muted-foreground")}>
+                                  {isLocked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+                                </button>
+                                <Button variant="ghost" size="icon" onClick={() => deletePillar(item.id)} className="h-8 w-8 text-destructive/40 hover:text-destructive hover:bg-destructive/10">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
                               </div>
                             </div>
-                            <div className="space-y-1.5 px-1">
-                              <Slider value={[percents[item.id] || 0]} max={100} step={0.5} onValueChange={([val]) => updatePercent(item.id, val)} className={cn("h-1.5", isLocked && "[&_.relative]:opacity-50")} />
-                              <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-widest opacity-60">
-                                 <span className={cn(isOverspent ? "text-destructive" : "text-muted-foreground")}>{isOverspent ? "CAP EXCEEDED" : "ALLOCATION LOAD"}</span>
-                                 <span className={cn(isOverspent ? "text-destructive" : "text-primary")}>{Math.round(committedPercent)}%</span>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className={cn("flex flex-col p-2.5 rounded-xl border bg-muted/10 transition-all", isLocked && "border-orange-200 bg-orange-50/20")}>
+                                <span className="text-[7px] md:text-[8px] font-black uppercase text-muted-foreground mb-1 tracking-widest">Planned Target</span>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] font-bold opacity-30">₹</span>
+                                  <input 
+                                    type="number" 
+                                    value={Math.round(totalAllowed)} 
+                                    onChange={(e) => updateAmount(item.id, e.target.value)}
+                                    className="w-full bg-transparent font-black text-xs md:text-sm focus:outline-none tracking-tight"
+                                  />
+                                </div>
+                              </div>
+                              <div className={cn("flex flex-col p-2.5 rounded-xl border bg-muted/10 transition-all", isLocked && "border-orange-200 bg-orange-50/20")}>
+                                <span className="text-[7px] md:text-[8px] font-black uppercase text-muted-foreground mb-1 tracking-widest">Scale Ratio</span>
+                                <div className="flex items-center gap-1">
+                                  <input 
+                                    type="number" 
+                                    value={Math.round(percents[item.id] * 10) / 10} 
+                                    onChange={(e) => updatePercent(item.id, parseFloat(e.target.value) || 0)}
+                                    className="w-full bg-transparent font-black text-xs md:text-sm text-right focus:outline-none tracking-tight"
+                                  />
+                                  <span className="text-[10px] font-bold opacity-30">%</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="space-y-1.5 px-0.5">
+                              <Slider value={[percents[item.id] || 0]} max={100} step={0.5} onValueChange={([val]) => updatePercent(item.id, val)} className={cn(isLocked && "opacity-50")} />
+                              <div className="flex justify-between items-center text-[7px] md:text-[8px] font-black uppercase tracking-widest px-0.5">
+                                <span className={cn(isOverspent ? "text-destructive animate-pulse" : "text-muted-foreground")}>
+                                  {isOverspent ? "CAP EXCEEDED" : "ALLOCATION LOAD"}
+                                </span>
+                                <span className={cn(isOverspent ? "text-destructive" : "text-primary")}>
+                                  {Math.round(committedPercent)}% of pillar
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -830,7 +847,7 @@ export default function SalaryPlannerPage() {
                 </CardContent>
               </Card>
 
-              {/* Asset Matrix Container */}
+              {/* Asset Matrix */}
               <div className="grid gap-4 md:gap-6 grid-cols-1">
                 {percents['investment'] !== undefined && (
                   <Card className="shadow-lg rounded-[1.2rem] md:rounded-[1.5rem] border-none ring-1 ring-orange-500/10 overflow-hidden">
