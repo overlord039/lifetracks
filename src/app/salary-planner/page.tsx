@@ -467,7 +467,7 @@ export default function SalaryPlannerPage() {
   const renderAllocationLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, name, fill }: any) => {
     if (cx === undefined || cy === undefined || midAngle === undefined) return null;
     const RADIAN = Math.PI / 180;
-    const radius = outerRadius + 12;
+    const radius = outerRadius + 22; // Increased padding for longer names
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
     
@@ -482,7 +482,7 @@ export default function SalaryPlannerPage() {
         dominantBaseline="central"
         className="font-black text-[7px] md:text-[9px] uppercase tracking-tighter"
       >
-        {name.substring(0, 3)}
+        {name}
       </text>
     );
   };
@@ -503,7 +503,7 @@ export default function SalaryPlannerPage() {
               </div>
               <div>
                 <h2 className="text-xl md:text-2xl font-black tracking-tighter">
-                  {showResults ? (activeStrategyId ? "Strategy Refinement" : "New Strategy") : "Wealth Planner"}
+                  {showResults ? (activeStrategyId ? "Strategy Refinement" : "New Strategy Creation") : "Wealth Planner"}
                 </h2>
                 <p className="text-[8px] md:text-[9px] font-black text-muted-foreground uppercase tracking-widest">
                   {activeStrategyId ? strategyName : "Financial architecture"}
@@ -615,16 +615,16 @@ export default function SalaryPlannerPage() {
                   </CardHeader>
                   <CardContent className="space-y-4 pt-6 px-5 md:px-6 pb-8">
                     <div className="space-y-1.5">
-                      <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Strategy Alias</Label>
+                      <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Strategy Alias (Optional)</Label>
                       <Input placeholder="e.g. AGGRESSIVE 2026" value={strategyName} onChange={(e) => setStrategyName(e.target.value)} className="h-10 font-black rounded-lg text-sm uppercase bg-muted/10" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Salary (₹)</Label>
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Monthly Salary (₹)</Label>
                         <Input type="number" placeholder="75000" value={salary} onChange={(e) => setSalary(e.target.value)} className="font-black text-base md:text-lg h-11 md:h-12 bg-muted/20 rounded-xl" />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Age</Label>
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Current Age</Label>
                         <Input type="number" placeholder="28" value={age} onChange={(e) => setAge(e.target.value)} className="h-11 md:h-12 font-black rounded-xl text-base md:text-lg bg-muted/20" />
                       </div>
                     </div>
@@ -633,7 +633,7 @@ export default function SalaryPlannerPage() {
                       disabled={!salary || !age}
                       className="w-full h-12 text-[11px] md:text-sm font-black shadow-lg rounded-xl gap-2 mt-2"
                     >
-                      Generate Dashboard <ChevronRight className="h-4 w-4" />
+                      Generate Wealth Dashboard <ChevronRight className="h-4 w-4" />
                     </Button>
                   </CardContent>
                 </Card>
@@ -646,26 +646,26 @@ export default function SalaryPlannerPage() {
                 <CardContent className="p-3 md:p-4 flex flex-col md:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-4 md:gap-6 flex-wrap justify-center md:justify-start">
                     <div className="space-y-0.5 text-center md:text-left">
-                      <p className="text-[7px] font-black uppercase text-muted-foreground tracking-widest">Income</p>
+                      <p className="text-[7px] font-black uppercase text-muted-foreground tracking-widest">Monthly Income</p>
                       <p className="text-base md:text-lg font-black tracking-tighter">₹{numSalary.toLocaleString()}</p>
                     </div>
                     <Separator orientation="vertical" className="h-6 hidden md:block" />
                     <div className="space-y-0.5 text-center md:text-left">
-                      <p className="text-[7px] font-black uppercase text-muted-foreground tracking-widest">Age</p>
-                      <p className="text-base md:text-lg font-black tracking-tighter">{numAge}y</p>
+                      <p className="text-[7px] font-black uppercase text-muted-foreground tracking-widest">Age Baseline</p>
+                      <p className="text-base md:text-lg font-black tracking-tighter">{numAge} Years</p>
                     </div>
                     <Separator orientation="vertical" className="h-6 hidden md:block" />
                     <div className="space-y-0.5 text-center md:text-left">
-                      <p className="text-[7px] font-black uppercase text-muted-foreground tracking-widest">Alias</p>
-                      <p className="text-sm md:text-base font-black tracking-tight uppercase text-primary truncate max-w-[100px] md:max-w-[120px]">{strategyName || "Unnamed"}</p>
+                      <p className="text-[7px] font-black uppercase text-muted-foreground tracking-widest">Active Alias</p>
+                      <p className="text-sm md:text-base font-black tracking-tight uppercase text-primary truncate max-w-[100px] md:max-w-[120px]">{strategyName || "Unnamed Strategy"}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 w-full md:w-auto justify-center">
                     <Button variant="outline" size="sm" onClick={() => setIsEditingMetrics(true)} className="rounded-lg h-8 md:h-9 px-3 font-black uppercase text-[8px] tracking-widest gap-1.5 border-dashed flex-1 md:flex-none">
-                      <PencilLine className="h-3.5 w-3.5" /> Edit
+                      <PencilLine className="h-3.5 w-3.5" /> Edit Metrics
                     </Button>
                     <Button variant="ghost" size="sm" onClick={createNewStrategy} className="rounded-lg h-8 md:h-9 px-3 font-black uppercase text-[8px] tracking-widest gap-1.5 border border-dashed flex-1 md:flex-none">
-                      <PlusCircle className="h-3.5 w-3.5" /> New
+                      <X className="h-3.5 w-3.5" /> Change Strategy
                     </Button>
                   </div>
                 </CardContent>
@@ -680,7 +680,7 @@ export default function SalaryPlannerPage() {
                       <div className="flex items-center gap-2">
                         <div>
                           <CardTitle className="text-base md:text-lg font-black tracking-tight">Income Allocation Engine</CardTitle>
-                          <CardDescription className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground">Utilization tracking</CardDescription>
+                          <CardDescription className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground">Dynamic funds split with utilization tracking</CardDescription>
                         </div>
                         <Popover>
                           <PopoverTrigger asChild>
@@ -710,21 +710,21 @@ export default function SalaryPlannerPage() {
                       </div>
                     </div>
                     <Badge variant={totalPercent === 100 ? "secondary" : "destructive"} className="h-7 px-3 rounded-full text-[8px] font-black uppercase tracking-widest shadow-md">
-                      {totalPercent}% Allocated
+                      Total Distribution: {totalPercent}%
                     </Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4 md:gap-6 p-5 md:p-8">
                   {/* Compact Chart Container */}
                   <div className="flex flex-col items-center justify-center p-3 md:p-4 bg-muted/5 rounded-[1.5rem] md:rounded-[2rem] border border-dashed border-primary/10">
-                    <div className="w-full aspect-square max-w-[220px] md:max-w-[280px] relative">
+                    <div className="w-full aspect-square max-w-[220px] md:max-w-[300px] relative">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie 
                             data={salaryData} 
-                            innerRadius={55} 
-                            outerRadius={85} 
-                            paddingAngle={4} 
+                            innerRadius={65} 
+                            outerRadius={95} 
+                            paddingAngle={5} 
                             dataKey="value" 
                             stroke="none"
                             label={renderAllocationLabel}
@@ -767,7 +767,7 @@ export default function SalaryPlannerPage() {
                   </div>
 
                   <div className="space-y-4 md:space-y-5">
-                    <div className="grid gap-4 md:gap-5">
+                    <div className="grid gap-3 md:gap-4">
                       {pillars.map((item) => {
                         const committed = committedCosts[item.id] || 0;
                         const totalAllowed = amounts[item.id] || 0;
@@ -779,42 +779,42 @@ export default function SalaryPlannerPage() {
                         return (
                           <div key={item.id} className="space-y-2 group relative border-b last:border-0 pb-3 md:pb-4 last:pb-0">
                             <div className="flex justify-between items-center flex-wrap gap-2">
-                              <div className="flex items-center gap-2">
-                                <button onClick={() => toggleLock(item.id)} className={cn("p-1 rounded-md transition-all", isLocked ? "bg-orange-100 text-orange-600 ring-1 ring-orange-200" : "bg-muted text-muted-foreground hover:text-foreground")}>
-                                  {isLocked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+                              <div className="flex items-center gap-3">
+                                <button onClick={() => toggleLock(item.id)} className={cn("p-1.5 rounded-md transition-all", isLocked ? "bg-orange-100 text-orange-600 ring-1 ring-orange-200" : "bg-muted text-muted-foreground hover:text-foreground")}>
+                                  {isLocked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
                                 </button>
-                                <div className={cn("p-1.5 rounded-lg shadow-sm text-white", isOverspent ? "bg-destructive animate-pulse" : "")} style={{ backgroundColor: isOverspent ? undefined : item.color }}>
-                                  <Icon className="h-3 w-3" />
+                                <div className={cn("p-2 rounded-lg shadow-md text-white transition-transform group-hover:scale-105", isOverspent ? "bg-destructive animate-pulse" : "")} style={{ backgroundColor: isOverspent ? undefined : item.color }}>
+                                  <Icon className="h-4 w-4" />
                                 </div>
-                                <div className="flex flex-col min-w-[70px]">
-                                  <Label className="font-black text-[10px] md:text-[11px] uppercase tracking-tighter leading-none mb-0.5">{item.label}</Label>
-                                  <span className={cn("text-[7px] font-bold uppercase", isOverspent ? "text-destructive" : "text-primary/60")}>₹{committed.toLocaleString()} Used</span>
+                                <div className="flex flex-col min-w-[80px]">
+                                  <Label className="font-black text-[11px] md:text-[13px] uppercase tracking-tighter leading-none mb-0.5">{item.label}</Label>
+                                  <span className={cn("text-[8px] font-bold uppercase", isOverspent ? "text-destructive" : "text-primary/60")}>₹{committed.toLocaleString()} Logged Spend</span>
                                 </div>
                               </div>
                               
                               <div className="flex items-center gap-2">
-                                <div className={cn("flex flex-col items-center px-2 py-1 rounded-lg border shadow-inner transition-all w-24 md:w-28", isLocked ? "bg-orange-50 border-orange-200" : "bg-muted/20 border-primary/10")}>
-                                  <span className="text-[10px] md:text-[11px] font-black uppercase text-muted-foreground mb-0.5">Planned Cap</span>
+                                <div className={cn("flex flex-col items-center px-3 py-1.5 rounded-xl border shadow-inner transition-all w-28 md:w-32", isLocked ? "bg-orange-50 border-orange-200" : "bg-muted/20 border-primary/10")}>
+                                  <span className="text-[10px] md:text-[11px] font-black uppercase text-muted-foreground mb-0.5 tracking-widest">Planned Cap</span>
                                   <div className="flex items-center gap-1">
-                                    <span className="text-[10px] font-bold text-muted-foreground opacity-40">₹</span>
-                                    <Input type="number" value={Math.round(totalAllowed)} onChange={(e) => updateAmount(item.id, e.target.value)} className="w-16 md:w-20 h-4 border-none bg-transparent p-0 text-[11px] md:text-[13px] font-black focus-visible:ring-0 shadow-none tracking-tighter" />
+                                    <span className="text-[11px] font-bold text-muted-foreground opacity-40">₹</span>
+                                    <Input type="number" value={Math.round(totalAllowed)} onChange={(e) => updateAmount(item.id, e.target.value)} className="w-20 md:w-24 h-5 border-none bg-transparent p-0 text-[13px] md:text-[15px] font-black focus-visible:ring-0 shadow-none tracking-tighter" />
                                   </div>
                                 </div>
-                                <div className={cn("flex flex-col items-center px-2 py-1 rounded-lg border shadow-inner transition-all w-14 md:w-16", isLocked ? "bg-orange-100 border-orange-300" : "bg-primary/5 border-primary/20")}>
+                                <div className={cn("flex flex-col items-center px-2.5 py-1.5 rounded-xl border shadow-inner transition-all w-16 md:w-20", isLocked ? "bg-orange-100 border-orange-300" : "bg-primary/5 border-primary/20")}>
                                   <span className="text-[10px] md:text-[11px] font-black uppercase text-primary/60 mb-0.5">Scale</span>
                                   <div className="flex items-center gap-0.5">
-                                    <Input type="number" value={Math.round((percents[item.id] || 0) * 10) / 10} onChange={(e) => updatePercent(item.id, parseFloat(e.target.value) || 0)} className="w-8 md:w-10 h-4 border-none bg-transparent p-0 text-[11px] md:text-[13px] font-black text-right focus-visible:ring-0 shadow-none tracking-tighter" />
-                                    <span className="text-[10px] md:text-[11px] font-bold text-primary opacity-60">%</span>
+                                    <Input type="number" value={Math.round((percents[item.id] || 0) * 10) / 10} onChange={(e) => updatePercent(item.id, parseFloat(e.target.value) || 0)} className="w-10 md:w-12 h-5 border-none bg-transparent p-0 text-[13px] md:text-[15px] font-black text-right focus-visible:ring-0 shadow-none tracking-tighter" />
+                                    <span className="text-[11px] font-bold text-primary opacity-60">%</span>
                                   </div>
                                 </div>
-                                <Button variant="ghost" size="icon" onClick={() => deletePillar(item.id)} className="h-7 w-7 text-destructive/30 hover:text-destructive hover:bg-destructive/10 rounded-lg"><Trash2 className="h-3 w-3" /></Button>
+                                <Button variant="ghost" size="icon" onClick={() => deletePillar(item.id)} className="h-8 w-8 text-destructive/30 hover:text-destructive hover:bg-destructive/10 rounded-lg"><Trash2 className="h-4 w-4" /></Button>
                               </div>
                             </div>
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5 px-1">
                               <Slider value={[percents[item.id] || 0]} max={100} step={0.5} onValueChange={([val]) => updatePercent(item.id, val)} className={cn("h-1.5", isLocked && "[&_.relative]:opacity-50")} />
-                              <div className="flex justify-between items-center text-[7px] font-black uppercase tracking-widest opacity-50">
-                                 <span>{isOverspent ? "CAP EXCEEDED" : "ALLOCATION LOAD"}</span>
-                                 <span>{Math.round(committedPercent)}%</span>
+                              <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-widest opacity-60">
+                                 <span className={cn(isOverspent ? "text-destructive" : "text-muted-foreground")}>{isOverspent ? "Warning: Exceeded Strategy" : "Strategic Usage"}</span>
+                                 <span className={cn(isOverspent ? "text-destructive" : "text-primary")}>{Math.round(committedPercent)}% of pillar</span>
                               </div>
                             </div>
                           </div>
@@ -822,8 +822,8 @@ export default function SalaryPlannerPage() {
                       })}
                     </div>
                     <div className="p-4 md:p-6 rounded-[1.2rem] md:rounded-[1.5rem] bg-primary/5 border border-dashed border-primary/20 flex flex-col sm:flex-row items-center gap-3">
-                      <Input placeholder="ADD CUSTOM PILLAR..." value={newPillarName} onChange={e => setNewPillarName(e.target.value)} className="h-9 md:h-10 text-[9px] md:text-[10px] uppercase font-black tracking-tight rounded-lg bg-background shadow-sm px-4" />
-                      <Button onClick={addPillar} className="h-9 md:h-10 w-full sm:w-auto px-6 shrink-0 rounded-lg shadow-md gap-2 uppercase font-black text-[9px] tracking-widest"><Plus className="h-3.5 w-3.5 md:h-4 md:h-4" /> Add Pillar</Button>
+                      <Input placeholder="ADD CUSTOM PILLAR..." value={newPillarName} onChange={e => setNewPillarName(e.target.value)} className="h-10 md:h-11 text-[9px] md:text-[10px] uppercase font-black tracking-tight rounded-lg bg-background shadow-sm px-4" />
+                      <Button onClick={addPillar} className="h-10 md:h-11 w-full sm:w-auto px-6 shrink-0 rounded-lg shadow-md gap-2 uppercase font-black text-[9px] tracking-widest"><Plus className="h-4 w-4 md:h-5 md:h-5" /> Add Pillar</Button>
                     </div>
                   </div>
                 </CardContent>
@@ -834,7 +834,7 @@ export default function SalaryPlannerPage() {
                 {percents['investment'] !== undefined && (
                   <Card className="shadow-lg rounded-[1.2rem] md:rounded-[1.5rem] border-none ring-1 ring-orange-500/10 overflow-hidden">
                     <CardHeader className="py-2.5 md:py-3 border-b bg-muted/10 px-5 md:px-6">
-                      <CardTitle className="text-[10px] md:text-xs flex items-center gap-2 font-black"><Target className="h-3.5 w-3.5 text-orange-500" /> Asset matrix</CardTitle>
+                      <CardTitle className="text-[10px] md:text-xs flex items-center gap-2 font-black"><Target className="h-3.5 w-3.5 text-orange-500" /> Investment Asset Matrix</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-4 px-5 md:px-6 pb-5 md:pb-6 space-y-4">
                       <div className="h-[120px] md:h-[150px] w-full relative">
@@ -851,7 +851,7 @@ export default function SalaryPlannerPage() {
                         </div>
                       </div>
                       <div className="grid grid-cols-3 gap-1.5 md:gap-2">
-                        {[{ label: 'Eq', p: invAllocation.equityP, color: 'text-purple-500' }, { label: 'Db', p: invAllocation.debtP, color: 'text-blue-500' }, { label: 'Gl', p: invAllocation.goldP, color: 'text-yellow-500' }].map(item => (
+                        {[{ label: 'Equity', p: invAllocation.equityP, color: 'text-purple-500' }, { label: 'Debt', p: invAllocation.debtP, color: 'text-blue-500' }, { label: 'Gold', p: invAllocation.goldP, color: 'text-yellow-500' }].map(item => (
                           <div key={item.label} className="p-1.5 md:p-2 border rounded-lg md:rounded-xl bg-muted/5 text-center space-y-0.5">
                             <p className="text-[6px] md:text-[7px] font-black text-muted-foreground uppercase">{item.label}</p>
                             <span className={cn("text-[9px] md:text-[10px] font-black", item.color)}>{item.p}%</span>
