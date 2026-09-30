@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -34,7 +35,10 @@ import {
   Sparkles,
   PlusCircle,
   Clock,
-  Tag
+  Tag,
+  PencilLine,
+  ArrowRightLeft,
+  X
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -57,6 +61,7 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 const CHART_COLORS = ['#64B5F6', '#81C784', '#FFB74D', '#BA68C8', '#F06292', '#4DB6AC', '#FF8A65'];
 
@@ -94,6 +99,7 @@ export default function SalaryPlannerPage() {
   const [percents, setPercents] = useState<Record<string, number>>(DEFAULT_RATIOS);
   const [pillars, setPillars] = useState<any[]>(STANDARD_PILLARS);
   const [showResults, setShowResults] = useState(false);
+  const [isEditingMetrics, setIsEditingMetrics] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -380,6 +386,7 @@ export default function SalaryPlannerPage() {
     
     setShowResults(true);
     setIsSynced(false);
+    setIsEditingMetrics(false);
     toast({ title: "Strategy Loaded", description: strat.name });
   };
 
@@ -392,6 +399,7 @@ export default function SalaryPlannerPage() {
     setPillars(STANDARD_PILLARS);
     setShowResults(false);
     setIsSynced(false);
+    setIsEditingMetrics(false);
     setLockedPillars(new Set());
   };
 
@@ -445,346 +453,419 @@ export default function SalaryPlannerPage() {
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Unlocking Planner...</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-4 md:gap-6 max-w-7xl mx-auto pb-12">
+        <div className="flex flex-col gap-6 max-w-7xl mx-auto pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3 md:gap-4">
-              <div className="p-2 md:p-3 bg-primary/10 rounded-2xl text-primary shadow-sm border border-primary/10">
-                <Calculator className="w-6 h-6 md:w-7 md:h-7" />
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-primary/10 rounded-2xl text-primary shadow-sm border border-primary/10">
+                <Calculator className="w-7 h-7" />
               </div>
               <div>
-                <h2 className="text-xl md:text-3xl font-black tracking-tighter">Wealth Planner</h2>
-                <p className="text-[9px] md:text-[10px] font-black text-muted-foreground uppercase tracking-widest">{activeStrategyId ? strategyName : "New Strategic Logic"}</p>
+                <h2 className="text-3xl font-black tracking-tighter">Wealth Planner</h2>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                  {activeStrategyId ? strategyName : "New Strategic Logic"}
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={createNewStrategy} className="h-10 md:h-12 px-5 md:px-6 font-black rounded-2xl border-dashed gap-2 text-[11px] md:text-sm">
+            <div className="flex items-center gap-3">
+              <Button variant="outline" onClick={createNewStrategy} className="h-11 px-6 font-black rounded-2xl border-dashed gap-2 text-xs">
                 <PlusCircle className="h-4 w-4" /> New Strategy
               </Button>
               {showResults && (
-                <Button onClick={() => setIsSaveModalOpen(true)} className="shadow-lg h-10 md:h-12 px-5 md:px-6 font-black rounded-2xl bg-primary hover:bg-primary/90 text-[11px] md:text-sm">
+                <Button onClick={() => setIsSaveModalOpen(true)} className="shadow-lg h-11 px-6 font-black rounded-2xl bg-primary hover:bg-primary/90 text-xs">
                   <Save className="h-4 w-4 mr-2" /> {activeStrategyId ? "Update" : "Save"} Strategy
                 </Button>
               )}
             </div>
           </div>
 
-          <div className="grid gap-4 md:gap-6 lg:grid-cols-12">
-            <div className="lg:col-span-4 flex flex-col gap-4 md:gap-6">
-              <Card className="shadow-xl rounded-2xl border-none ring-1 ring-border overflow-hidden">
-                <CardHeader className="bg-muted/30 pb-3 md:pb-4 border-b px-4 md:px-6">
-                  <CardTitle className="text-sm md:text-base flex items-center gap-2 font-black">
-                    <Coins className="h-4 w-4 text-primary" />
-                    Base Metrics
-                  </CardTitle>
+          {!showResults || isEditingMetrics ? (
+            <div className="flex items-center justify-center py-10 md:py-20 animate-in zoom-in-95 duration-500">
+              <Card className="shadow-2xl rounded-3xl border-none ring-1 ring-border max-w-lg w-full overflow-hidden">
+                <CardHeader className="bg-muted/30 pb-6 border-b px-8 pt-8">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-2xl font-black tracking-tight flex items-center gap-3">
+                        <Target className="h-6 w-6 text-primary" />
+                        Initial Metrics
+                      </CardTitle>
+                      <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-1">Define your financial baseline</CardDescription>
+                    </div>
+                    {isEditingMetrics && (
+                      <Button variant="ghost" size="icon" onClick={() => setIsEditingMetrics(false)} className="h-8 w-8 rounded-full">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </CardHeader>
-                <CardContent className="space-y-4 md:space-y-5 pt-4 md:pt-6 px-4 md:px-6">
+                <CardContent className="space-y-6 pt-8 px-8 pb-10">
                   <div className="space-y-2">
-                    <Label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1">
-                      <Tag className="h-3 w-3" /> Strategy Alias (Optional)
-                    </Label>
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Strategy Alias (Optional)</Label>
                     <Input 
                       placeholder="e.g. AGGRESSIVE 2026" 
                       value={strategyName} 
                       onChange={(e) => setStrategyName(e.target.value)}
-                      className="h-10 md:h-12 font-black rounded-xl text-sm md:text-base uppercase bg-muted/10 border-primary/5 focus:ring-primary/20"
+                      className="h-12 font-black rounded-xl text-base uppercase bg-muted/10 border-primary/5 focus:ring-primary/20"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground">Monthly Salary (₹)</Label>
-                    <Input 
-                      type="number" 
-                      placeholder="e.g. 75000" 
-                      value={salary} 
-                      onChange={(e) => setSalary(e.target.value)}
-                      className="font-black text-xl md:text-2xl h-12 md:h-14 bg-muted/20 border-primary/10 rounded-2xl tracking-tighter"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Monthly Salary (₹)</Label>
+                      <Input 
+                        type="number" 
+                        placeholder="e.g. 75000" 
+                        value={salary} 
+                        onChange={(e) => setSalary(e.target.value)}
+                        className="font-black text-xl h-14 bg-muted/20 border-primary/10 rounded-2xl tracking-tighter"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Current Age</Label>
+                      <Input 
+                        type="number" 
+                        placeholder="e.g. 28" 
+                        value={age} 
+                        onChange={(e) => setAge(e.target.value)}
+                        className="h-14 font-black rounded-2xl text-xl bg-muted/20 border-primary/10 tracking-tighter"
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground">Age</Label>
-                    <Input 
-                      type="number" 
-                      placeholder="e.g. 28" 
-                      value={age} 
-                      onChange={(e) => setAge(e.target.value)}
-                      className="h-10 md:h-12 font-black rounded-xl text-sm md:text-base"
-                    />
-                  </div>
-                  <Button onClick={() => setShowResults(true)} className="w-full h-10 md:h-12 text-[11px] md:text-sm font-black shadow-md rounded-xl gap-2">
-                    Generate Strategy <ChevronRight className="h-3.5 w-3.5" />
+                  <Button 
+                    onClick={() => { setShowResults(true); setIsEditingMetrics(false); }} 
+                    disabled={!salary || !age}
+                    className="w-full h-14 text-base font-black shadow-lg rounded-2xl gap-2 mt-4"
+                  >
+                    Generate Wealth Dashboard <ChevronRight className="h-5 w-5" />
                   </Button>
                 </CardContent>
               </Card>
-
-              <Card className="shadow-xl rounded-2xl border-none ring-1 ring-border overflow-hidden">
-                <CardHeader className="bg-muted/30 pb-3 md:pb-4 border-b px-4 md:px-6">
-                  <CardTitle className="text-sm md:text-base flex items-center gap-2 font-black">
-                    <Library className="h-4 w-4 text-primary" />
-                    Strategy Vault
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <ScrollArea className="h-[300px]">
-                    {decryptedProfiles.length === 0 ? (
-                      <div className="p-8 text-center opacity-30 grayscale space-y-2">
-                        <Clock className="h-8 w-8 mx-auto" />
-                        <p className="text-[10px] font-black uppercase tracking-widest">No saved strategies</p>
-                      </div>
-                    ) : (
-                      <div className="divide-y">
-                        {decryptedProfiles.map((strat) => (
-                          <div 
-                            key={strat.id} 
-                            onClick={() => loadStrategy(strat)}
-                            className={cn(
-                              "p-4 flex items-center justify-between cursor-pointer transition-all hover:bg-primary/5 group",
-                              activeStrategyId === strat.id && "bg-primary/10 border-l-4 border-l-primary"
-                            )}
-                          >
-                            <div className="min-w-0">
-                              <h4 className="font-black text-xs truncate uppercase tracking-tight">{strat.name}</h4>
-                              <p className="text-[9px] text-muted-foreground font-bold mt-0.5">₹{parseFloat(strat.salary).toLocaleString()} • Age {strat.age}</p>
-                            </div>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              onClick={(e) => deleteStrategy(strat.id, e)}
-                              className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+            </div>
+          ) : (
+            <div className="grid gap-6 lg:grid-cols-12">
+              {/* Sidebar: Strategy Vault & Bridge */}
+              <div className="lg:col-span-3 space-y-6">
+                <Card className="shadow-xl rounded-3xl border-none ring-1 ring-border overflow-hidden">
+                  <CardHeader className="bg-muted/30 pb-3 border-b px-6">
+                    <CardTitle className="text-sm flex items-center gap-2 font-black">
+                      <Library className="h-4 w-4 text-primary" />
+                      Strategy Vault
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <ScrollArea className="h-[400px]">
+                      {decryptedProfiles.length === 0 ? (
+                        <div className="p-12 text-center opacity-30 grayscale space-y-3">
+                          <Clock className="h-10 w-10 mx-auto" />
+                          <p className="text-[10px] font-black uppercase tracking-widest">No saved strategies</p>
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-dashed">
+                          {decryptedProfiles.map((strat) => (
+                            <div 
+                              key={strat.id} 
+                              onClick={() => loadStrategy(strat)}
+                              className={cn(
+                                "p-5 flex items-center justify-between cursor-pointer transition-all hover:bg-primary/5 group relative",
+                                activeStrategyId === strat.id && "bg-primary/10 border-l-4 border-l-primary"
+                              )}
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </ScrollArea>
-                </CardContent>
-              </Card>
+                              <div className="min-w-0">
+                                <h4 className="font-black text-xs truncate uppercase tracking-tight">{strat.name}</h4>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Badge variant="outline" className="text-[8px] font-black uppercase bg-background px-1.5 py-0 border-primary/10">₹{parseFloat(strat.salary).toLocaleString()}</Badge>
+                                  <span className="text-[8px] text-muted-foreground font-bold uppercase tracking-tight">Age {strat.age}</span>
+                                </div>
+                              </div>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={(e) => deleteStrategy(strat.id, e)}
+                                className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
 
-              {showResults && percents['expense'] !== undefined && (
-                <Card className="shadow-xl rounded-2xl border-none ring-1 ring-blue-500/30 bg-blue-50/10 dark:bg-blue-900/10 animate-in slide-in-from-left-4">
-                  <CardHeader className="pb-2 px-4 md:px-6">
+                <Card className="shadow-xl rounded-3xl border-none ring-1 ring-blue-500/30 bg-blue-50/10 dark:bg-blue-900/10">
+                  <CardHeader className="pb-2 px-6">
                     <CardTitle className="text-sm flex items-center gap-2 font-black">
                       <ShieldCheck className="h-4 w-4 text-blue-500" />
                       Budget Bridge
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3 px-4 md:px-6 pb-5 md:pb-6">
-                    <p className="text-[10px] md:text-[11px] leading-relaxed text-muted-foreground font-medium">
-                      Your planned expenses are <span className="font-black text-foreground">₹{Math.round(amounts['expense'] || 0).toLocaleString()}</span>. 
-                      Set this as your monthly budget cap?
-                    </p>
+                  <CardContent className="space-y-4 px-6 pb-6">
+                    <div className="p-4 bg-background/50 rounded-2xl border border-dashed border-blue-500/20">
+                       <p className="text-[10px] leading-relaxed text-muted-foreground font-medium uppercase tracking-tight">
+                        Your planned expenses are <span className="font-black text-foreground">₹{Math.round(amounts['expense'] || 0).toLocaleString()}</span>. 
+                      </p>
+                    </div>
                     
                     {isSynced ? (
-                      <div className="p-3 md:p-4 bg-green-500/10 border border-green-200 rounded-2xl flex flex-col items-center gap-2 animate-in zoom-in-95">
+                      <div className="p-3 bg-green-500/10 border border-green-200 rounded-2xl flex flex-col items-center gap-2 animate-in zoom-in-95">
                         <Check className="h-4 w-4 text-green-600" />
                         <p className="text-[9px] font-black text-green-700 uppercase tracking-widest text-center leading-tight">Monthly Vault Updated</p>
                       </div>
                     ) : (
-                      <Button size="sm" onClick={syncWithBudget} className="w-full bg-blue-600 hover:bg-blue-700 font-black rounded-xl h-9 text-[10px]">Sync Monthly Budget</Button>
+                      <Button size="sm" onClick={syncWithBudget} className="w-full bg-blue-600 hover:bg-blue-700 font-black rounded-xl h-10 text-[10px] uppercase shadow-lg shadow-blue-600/20">Sync Monthly Budget</Button>
                     )}
                   </CardContent>
                 </Card>
-              )}
-            </div>
+              </div>
 
-            <div className="lg:col-span-8">
-              {!showResults ? (
-                <div className="h-full flex flex-col items-center justify-center p-8 md:p-12 border-2 border-dashed rounded-3xl bg-muted/5 opacity-50 grayscale space-y-4">
-                  <Calculator className="h-12 w-12 md:h-16 md:w-16 text-muted-foreground" />
-                  <div className="text-center">
-                    <p className="text-base md:text-lg font-black uppercase tracking-tighter">Strategy Pending</p>
-                    <p className="text-[9px] md:text-[10px] font-black text-muted-foreground uppercase tracking-widest">Provide metrics to visualize wealth</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-4 md:space-y-6">
-                  <Card className="shadow-xl rounded-3xl border-none ring-1 ring-border overflow-hidden">
-                    <CardHeader className="bg-muted/30 border-b py-4 md:py-5 px-5 md:px-8">
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4">
-                        <div className="flex items-center gap-4">
-                           <div>
-                            <CardTitle className="text-lg md:text-xl font-black tracking-tight">Income Allocation</CardTitle>
-                            <CardDescription className="text-[9px] md:text-[10px] font-black uppercase tracking-tight opacity-70">Customizable funds split</CardDescription>
-                          </div>
-                          <BrainCircuit className="h-6 w-6 text-primary animate-pulse" />
-                        </div>
-                        <Badge variant={totalPercent === 100 ? "secondary" : "destructive"} className="h-7 md:h-8 px-3 md:px-4 rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest shadow-sm">
-                          Total: {totalPercent}%
-                        </Badge>
+              {/* Main Area: Planner Dashboard */}
+              <div className="lg:col-span-9 space-y-6">
+                {/* Compact Metrics Bar */}
+                <Card className="shadow-lg rounded-[2rem] border-none ring-1 ring-border bg-card/50 backdrop-blur-sm overflow-hidden animate-in slide-in-from-top-4 duration-500">
+                  <CardContent className="p-4 md:p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div className="flex items-center gap-8 flex-wrap justify-center md:justify-start">
+                      <div className="space-y-1">
+                        <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Monthly Income</p>
+                        <p className="text-2xl font-black tracking-tighter">₹{numSalary.toLocaleString()}</p>
                       </div>
-                    </CardHeader>
-                    <CardContent className="grid gap-6 md:gap-8 md:grid-cols-5 p-5 md:p-8">
-                      <div className="md:col-span-3 space-y-8 md:space-y-10">
-                        <div className="space-y-6">
-                          {pillars.map((item) => {
-                            const committed = committedCosts[item.id] || 0;
-                            const totalAllowed = amounts[item.id] || 0;
-                            const committedPercent = totalAllowed > 0 ? (committed / totalAllowed) * 100 : 0;
-                            const isOverspent = committed > totalAllowed;
-                            const isLocked = lockedPillars.has(item.id);
-                            const Icon = item.icon || Coins;
-                            
-                            return (
-                              <div key={item.id} className="space-y-4 group relative">
-                                <div className="flex justify-between items-start md:items-end flex-col md:flex-row gap-3">
-                                  <div className="flex items-center gap-2">
-                                    <button onClick={() => toggleLock(item.id)} className={cn("p-1.5 rounded-lg transition-all", isLocked ? "bg-orange-100 text-orange-600 shadow-sm" : "text-muted-foreground hover:bg-muted")}>
-                                      {isLocked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
-                                    </button>
-                                    <Icon className="h-4 w-4 md:h-5 md:w-5" style={{ color: item.color }} />
-                                    <div className="flex flex-col">
-                                      <Label className="font-black text-[11px] md:text-[13px] uppercase tracking-tighter">{item.label}</Label>
-                                      <span className={cn("text-[9px] md:text-[10px] font-black", isOverspent ? "text-destructive" : "text-primary")}>₹{committed.toLocaleString()} Spent</span>
-                                    </div>
+                      <Separator orientation="vertical" className="h-10 hidden md:block" />
+                      <div className="space-y-1">
+                        <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Age Baseline</p>
+                        <p className="text-2xl font-black tracking-tighter">{numAge} Years</p>
+                      </div>
+                      <Separator orientation="vertical" className="h-10 hidden md:block" />
+                      <div className="space-y-1">
+                        <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Active Alias</p>
+                        <p className="text-xl font-black tracking-tight uppercase text-primary truncate max-w-[150px]">{strategyName || "Unnamed Strategy"}</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" onClick={() => setIsEditingMetrics(true)} className="rounded-2xl h-12 px-6 font-black uppercase text-[10px] tracking-widest gap-2 bg-background/50 hover:bg-primary/5 hover:text-primary transition-all border-dashed">
+                      <PencilLine className="h-4 w-4" /> Edit Metrics
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Main Allocation Logic */}
+                <Card className="shadow-2xl rounded-[2.5rem] border-none ring-1 ring-border overflow-hidden">
+                  <CardHeader className="bg-muted/30 border-b py-5 px-8">
+                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="p-2 bg-primary/20 rounded-xl text-primary">
+                          <BrainCircuit className="h-6 w-6 animate-pulse" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-xl font-black tracking-tight">Income Allocation Engine</CardTitle>
+                          <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Dynamic funds split with utilization tracking</CardDescription>
+                        </div>
+                      </div>
+                      <Badge variant={totalPercent === 100 ? "secondary" : "destructive"} className="h-9 px-5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-md">
+                        Total Distribution: {totalPercent}%
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="grid gap-10 md:grid-cols-12 p-8 md:p-12">
+                    <div className="md:col-span-7 space-y-10">
+                      <div className="space-y-8">
+                        {pillars.map((item) => {
+                          const committed = committedCosts[item.id] || 0;
+                          const totalAllowed = amounts[item.id] || 0;
+                          const committedPercent = totalAllowed > 0 ? (committed / totalAllowed) * 100 : 0;
+                          const isOverspent = committed > totalAllowed;
+                          const isLocked = lockedPillars.has(item.id);
+                          const Icon = item.icon || Coins;
+                          
+                          return (
+                            <div key={item.id} className="space-y-5 group relative animate-in fade-in slide-in-from-left-2">
+                              <div className="flex justify-between items-end flex-wrap gap-4">
+                                <div className="flex items-center gap-3">
+                                  <button onClick={() => toggleLock(item.id)} className={cn("p-2 rounded-xl transition-all shadow-sm", isLocked ? "bg-orange-100 text-orange-600 ring-1 ring-orange-200" : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground")}>
+                                    {isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                                  </button>
+                                  <div className={cn("p-2 rounded-xl shadow-md text-white", isOverspent ? "bg-destructive animate-pulse" : "")} style={{ backgroundColor: isOverspent ? undefined : item.color }}>
+                                    <Icon className="h-5 w-5" />
                                   </div>
-                                  
-                                  <div className="flex items-center gap-3 w-full md:w-auto">
-                                    <div className={cn("flex-1 md:flex-initial flex items-center gap-1.5 px-3 py-1.5 rounded-xl border shadow-inner transition-all", isLocked ? "bg-orange-50/50 border-orange-200" : "bg-muted/20 border-primary/10 group-hover:border-primary/30")}>
-                                      <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Cap</span>
-                                      <div className="flex items-center gap-1">
-                                        <span className="text-[10px] font-bold text-muted-foreground opacity-50">₹</span>
-                                        <Input type="number" value={Math.round(totalAllowed)} onChange={(e) => updateAmount(item.id, e.target.value)} className="w-16 h-5 border-none bg-transparent p-0 text-[10px] md:text-xs font-black focus-visible:ring-0 shadow-none" />
-                                      </div>
-                                    </div>
-                                    <div className={cn("flex-1 md:flex-initial flex items-center gap-1.5 px-3 py-1.5 rounded-xl border shadow-inner transition-all", isLocked ? "bg-orange-100/50 border-orange-300" : "bg-primary/5 border-primary/20")}>
-                                      <span className="text-[8px] font-black uppercase tracking-widest">Scale</span>
-                                      <div className="flex items-center gap-1">
-                                        <Input type="number" value={Math.round((percents[item.id] || 0) * 10) / 10} onChange={(e) => updatePercent(item.id, parseFloat(e.target.value) || 0)} className="w-8 h-5 border-none bg-transparent p-0 text-[10px] md:text-xs font-black text-right focus-visible:ring-0 shadow-none" />
-                                        <span className="text-[10px] font-bold">%</span>
-                                      </div>
-                                    </div>
-                                    <Button variant="ghost" size="icon" onClick={() => deletePillar(item.id)} className="h-8 w-8 text-destructive/40 hover:text-destructive hover:bg-destructive/10 rounded-lg"><Trash2 className="h-3.5 w-3.5" /></Button>
+                                  <div className="flex flex-col">
+                                    <Label className="font-black text-sm uppercase tracking-tighter leading-none mb-1">{item.label}</Label>
+                                    <span className={cn("text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full w-fit", isOverspent ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary")}>
+                                      ₹{committed.toLocaleString()} Logged Spend
+                                    </span>
                                   </div>
                                 </div>
-                                <div className="space-y-1.5">
-                                  <Slider value={[percents[item.id] || 0]} max={100} step={0.5} onValueChange={([val]) => updatePercent(item.id, val)} className={cn("h-1.5 md:h-2", isLocked && "[&_.relative]:opacity-50")} />
-                                  <div className="h-1.5 md:h-2 w-full bg-muted rounded-full overflow-hidden">
-                                    <div className={cn("h-full transition-all duration-700", isOverspent ? "bg-destructive" : "bg-primary")} style={{ width: `${Math.min(100, committedPercent)}%` }} />
+                                
+                                <div className="flex items-center gap-3">
+                                  <div className={cn("flex flex-col gap-0.5 px-4 py-2 rounded-2xl border shadow-inner transition-all min-w-[120px]", isLocked ? "bg-orange-50/50 border-orange-200" : "bg-muted/20 border-primary/10 group-hover:border-primary/30")}>
+                                    <span className="text-[7px] font-black uppercase text-muted-foreground tracking-widest">Planned Cap</span>
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-sm font-bold text-muted-foreground opacity-50">₹</span>
+                                      <Input type="number" value={Math.round(totalAllowed)} onChange={(e) => updateAmount(item.id, e.target.value)} className="w-20 h-6 border-none bg-transparent p-0 text-base font-black focus-visible:ring-0 shadow-none tracking-tighter" />
+                                    </div>
                                   </div>
+                                  <div className={cn("flex flex-col gap-0.5 px-4 py-2 rounded-2xl border shadow-inner transition-all w-24", isLocked ? "bg-orange-100/50 border-orange-300" : "bg-primary/5 border-primary/20")}>
+                                    <span className="text-[7px] font-black uppercase tracking-widest text-primary/60">Scale</span>
+                                    <div className="flex items-center gap-1">
+                                      <Input type="number" value={Math.round((percents[item.id] || 0) * 10) / 10} onChange={(e) => updatePercent(item.id, parseFloat(e.target.value) || 0)} className="w-10 h-6 border-none bg-transparent p-0 text-base font-black text-right focus-visible:ring-0 shadow-none tracking-tighter" />
+                                      <span className="text-sm font-bold text-primary">%</span>
+                                    </div>
+                                  </div>
+                                  <Button variant="ghost" size="icon" onClick={() => deletePillar(item.id)} className="h-10 w-10 text-destructive/40 hover:text-destructive hover:bg-destructive/10 rounded-xl transition-all"><Trash2 className="h-4 w-4" /></Button>
                                 </div>
                               </div>
-                            );
-                          })}
-                        </div>
-                        <div className="p-4 rounded-2xl bg-muted/20 border border-dashed flex items-center gap-3">
-                          <Input placeholder="New Pillar Name..." value={newPillarName} onChange={e => setNewPillarName(e.target.value)} className="h-10 text-[10px] uppercase font-black tracking-tight" />
-                          <Button onClick={addPillar} size="icon" className="h-10 w-10 shrink-0 rounded-xl shadow-md"><Plus className="h-5 w-5" /></Button>
+                              <div className="space-y-2">
+                                <Slider value={[percents[item.id] || 0]} max={100} step={0.5} onValueChange={([val]) => updatePercent(item.id, val)} className={cn("h-2", isLocked && "[&_.relative]:opacity-50")} />
+                                <div className="h-2 w-full bg-muted rounded-full overflow-hidden shadow-inner ring-1 ring-border">
+                                  <div className={cn("h-full transition-all duration-1000", isOverspent ? "bg-destructive" : "bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]")} style={{ width: `${Math.min(100, committedPercent)}%` }} />
+                                </div>
+                                <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-widest opacity-60">
+                                   <span>{isOverspent ? "Warning: Exceeded Strategy" : "Strategic Usage"}</span>
+                                   <span>{Math.round(committedPercent)}% of pillar</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="p-6 rounded-[2rem] bg-primary/5 border border-dashed border-primary/20 flex flex-col sm:flex-row items-center gap-4 shadow-inner">
+                        <Input placeholder="Add New Strategy Pillar Name..." value={newPillarName} onChange={e => setNewPillarName(e.target.value)} className="h-12 text-xs uppercase font-black tracking-tight rounded-xl bg-background shadow-sm" />
+                        <Button onClick={addPillar} className="h-12 px-8 shrink-0 rounded-xl shadow-lg gap-2 uppercase font-black text-[10px] tracking-widest"><Plus className="h-4 w-4" /> Add Pillar</Button>
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-5 flex flex-col items-center justify-start pt-10 sticky top-20">
+                      <div className="w-full aspect-square max-w-[350px] relative animate-in zoom-in-95 duration-1000">
+                        <div className="absolute inset-0 bg-primary/5 rounded-full blur-3xl opacity-50 animate-pulse" />
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie 
+                              data={salaryData} 
+                              innerRadius={70} 
+                              outerRadius={110} 
+                              paddingAngle={6} 
+                              dataKey="value" 
+                              stroke="none"
+                              labelLine={false}
+                              animationDuration={1500}
+                              animationBegin={0}
+                            >
+                              {salaryData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
+                            </Pie>
+                            <RechartsTooltip contentStyle={chartTooltipStyle} itemStyle={{ color: 'hsl(var(--popover-foreground))' }} formatter={(v: number) => `₹${Math.round(v).toLocaleString()}`} />
+                            <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', paddingTop: '40px', textTransform: 'uppercase' }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none drop-shadow-sm">
+                          <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest opacity-60">Total Monthly</span>
+                          <p className="text-3xl font-black tracking-tighter">₹{numSalary.toLocaleString()}</p>
                         </div>
                       </div>
-                      <div className="md:col-span-2 flex flex-col items-center justify-center p-2 md:p-4">
-                        <div className="w-full h-[250px] md:h-[300px] relative">
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Sub Analysis Grid */}
+                <div className="grid gap-6 md:grid-cols-2">
+                  {percents['investment'] !== undefined && (
+                    <Card className="shadow-xl rounded-[2.5rem] border-none ring-1 ring-orange-500/20 overflow-hidden">
+                      <CardHeader className="pb-3 border-b bg-muted/10 px-8 pt-6">
+                        <CardTitle className="text-sm flex items-center gap-3 font-black">
+                          <Target className="h-5 w-5 text-orange-500" /> 
+                          Investment Asset Matrix
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-8 px-8 pb-10 space-y-8">
+                        <div className="h-[250px] w-full relative">
                           <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                               <Pie 
-                                data={salaryData} 
-                                innerRadius={55} 
-                                outerRadius={85} 
-                                paddingAngle={4} 
+                                data={invData} 
+                                innerRadius={60} 
+                                outerRadius={90} 
+                                paddingAngle={5} 
                                 dataKey="value" 
                                 stroke="none"
-                                labelLine={true}
                                 label={renderCustomLabel}
+                                labelLine={true}
                               >
-                                {salaryData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
+                                {invData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
                               </Pie>
                               <RechartsTooltip contentStyle={chartTooltipStyle} itemStyle={{ color: 'hsl(var(--popover-foreground))' }} formatter={(v: number) => `₹${Math.round(v).toLocaleString()}`} />
-                              <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', paddingTop: '20px' }} />
+                              <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }} />
                             </PieChart>
                           </ResponsiveContainer>
                           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                            <span className="text-[7px] md:text-[8px] uppercase font-black text-muted-foreground">Monthly</span>
-                            <p className="text-base md:text-xl font-black tracking-tighter">₹{numSalary.toLocaleString()}</p>
+                             <p className="text-xl font-black tracking-tighter">₹{Math.round(amounts['investment'] || 0).toLocaleString()}</p>
                           </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <div className="grid gap-4 md:gap-6 md:grid-cols-2">
-                    {percents['investment'] !== undefined && (
-                      <Card className="shadow-xl rounded-3xl border-none ring-1 ring-orange-500/20">
-                        <CardHeader className="pb-2 border-b bg-muted/10 px-5 md:px-6"><CardTitle className="text-xs md:text-sm flex items-center gap-2 font-black"><Target className="h-4 w-4 text-orange-500" /> Asset Matrix</CardTitle></CardHeader>
-                        <CardContent className="pt-4 md:pt-6 space-y-5 md:space-y-6 px-5 md:px-6">
-                          <div className="h-[200px] md:h-[250px] w-full relative">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <PieChart>
-                                <Pie 
-                                  data={invData} 
-                                  innerRadius={45} 
-                                  outerRadius={75} 
-                                  paddingAngle={4} 
-                                  dataKey="value" 
-                                  stroke="none"
-                                  labelLine={true}
-                                  label={renderCustomLabel}
-                                >
-                                  {invData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
-                                </Pie>
-                                <RechartsTooltip contentStyle={chartTooltipStyle} itemStyle={{ color: 'hsl(var(--popover-foreground))' }} formatter={(v: number) => `₹${Math.round(v).toLocaleString()}`} />
-                                <Legend iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold' }} />
-                              </PieChart>
-                            </ResponsiveContainer>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"><p className="text-sm md:text-lg font-black tracking-tighter">₹{Math.round(amounts['investment'] || 0).toLocaleString()}</p></div>
-                          </div>
-                          <div className="grid grid-cols-3 gap-2 pb-5">
-                            {[{ label: 'Equity', amt: invAllocation.equityAmt, p: invAllocation.equityP }, { label: 'Debt', amt: invAllocation.debtAmt, p: invAllocation.debtP }, { label: 'Gold', amt: invAllocation.goldAmt, p: invAllocation.goldP }].map(item => (
-                              <div key={item.label} className="p-2 md:p-3 border rounded-2xl bg-muted/5 text-center space-y-1">
-                                <p className="text-[7px] md:text-[8px] font-black text-muted-foreground uppercase truncate">{item.label}</p>
-                                <p className="text-[10px] font-black tracking-tighter">₹{Math.round(item.amt).toLocaleString()}</p>
-                                <span className="text-[8px] font-black text-primary">{item.p}%</span>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-                    <Card className="shadow-xl rounded-3xl border-none ring-1 ring-border overflow-hidden">
-                      <CardHeader className="pb-2 border-b bg-muted/10 px-5 md:px-6"><CardTitle className="text-xs md:text-sm flex items-center gap-2 font-black"><Info className="h-4 w-4 text-muted-foreground" /> Strategic Logic</CardTitle></CardHeader>
-                      <CardContent className="pt-4 md:pt-6 space-y-4 md:space-y-5 px-5 md:px-6 max-h-[300px] overflow-y-auto pb-6">
-                        <div className="space-y-3 md:space-y-4">
-                          <h4 className="text-[8px] md:text-[9px] font-black uppercase text-primary border-b pb-1">Dynamic Allocation</h4>
-                          {pillars.map(p => (
-                             <StrategyDesc key={p.id} committed={committedCosts[p.id]} label={p.label} text={`Custom allocation for ${p.label}.`} />
+                        <div className="grid grid-cols-3 gap-3">
+                          {[{ label: 'Equity', amt: invAllocation.equityAmt, p: invAllocation.equityP, color: 'text-purple-500' }, { label: 'Debt', amt: invAllocation.debtAmt, p: invAllocation.debtP, color: 'text-blue-500' }, { label: 'Gold', amt: invAllocation.goldAmt, p: invAllocation.goldP, color: 'text-yellow-500' }].map(item => (
+                            <div key={item.label} className="p-4 border rounded-3xl bg-muted/5 text-center space-y-1.5 shadow-inner">
+                              <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">{item.label}</p>
+                              <p className="text-xs font-black tracking-tight">₹{Math.round(item.amt).toLocaleString()}</p>
+                              <span className={cn("text-[10px] font-black", item.color)}>{item.p}%</span>
+                            </div>
                           ))}
                         </div>
                       </CardContent>
                     </Card>
-                  </div>
+                  )}
+                  <Card className="shadow-xl rounded-[2.5rem] border-none ring-1 ring-border overflow-hidden">
+                    <CardHeader className="pb-3 border-b bg-muted/10 px-8 pt-6">
+                      <CardTitle className="text-sm flex items-center gap-3 font-black">
+                        <Info className="h-5 w-5 text-muted-foreground" /> 
+                        Strategic Logic Logic
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-8 px-8 space-y-6 max-h-[500px] overflow-y-auto pb-10">
+                      <div className="space-y-5">
+                        <div className="flex items-center gap-3 text-[10px] font-black uppercase text-primary border-b border-primary/10 pb-2">
+                           <ArrowRightLeft className="h-4 w-4" />
+                           Dynamic Allocation Breakdown
+                        </div>
+                        {pillars.map(p => (
+                           <StrategyDesc key={p.id} committed={committedCosts[p.id]} label={p.label} text={`End-to-end encrypted allocation for ${p.label}. Your Master Key ensures this stay invisible to everyone.`} />
+                        ))}
+                      </div>
+                      <Separator className="border-dashed" />
+                      <div className="p-6 bg-primary/5 rounded-[1.5rem] border border-dashed border-primary/10">
+                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight leading-relaxed italic">
+                           Note: Allocations are recalculated in real-time as you adjust your income or age baseline. Your strategy is protected by client-side AES-GCM encryption.
+                         </p>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
-              )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
       <Dialog open={isSaveModalOpen} onOpenChange={setIsSaveModalOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-md rounded-3xl p-6">
+        <DialogContent className="max-w-[95vw] sm:max-w-md rounded-[2rem] p-8 border-none shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="text-xl font-black tracking-tighter flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
+            <DialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-3">
+              <Sparkles className="h-6 w-6 text-primary" />
               Vault Strategy
             </DialogTitle>
-            <DialogDescription className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Confirm the alias for this strategic profile.</DialogDescription>
+            <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-2">Confirm the unique identity for this strategic profile.</DialogDescription>
           </DialogHeader>
-          <div className="py-6 space-y-4">
-            <div className="space-y-2">
+          <div className="py-8 space-y-5">
+            <div className="space-y-3">
               <Label className="text-[10px] font-black uppercase tracking-widest text-primary ml-1">Strategy Alias</Label>
               <Input 
                 placeholder="e.g. BALANCED 2026, AGGRESSIVE GROWTH..." 
                 value={strategyName} 
                 onChange={(e) => setStrategyName(e.target.value)}
-                className="h-12 rounded-xl font-black uppercase tracking-tight"
+                className="h-14 rounded-2xl font-black uppercase tracking-tight text-lg shadow-inner bg-muted/20"
                 autoFocus
               />
             </div>
-            <div className="p-4 bg-muted/20 rounded-2xl border border-dashed text-[10px] font-medium leading-relaxed text-muted-foreground">
-              This strategy includes your monthly income of <span className="font-bold text-foreground">₹{numSalary.toLocaleString()}</span> and its specific pillar distribution.
+            <div className="p-5 bg-muted/30 rounded-2xl border border-dashed border-primary/20 text-[10px] font-bold leading-relaxed text-muted-foreground uppercase tracking-tight">
+              Synchronizing: Monthly income of <span className="text-foreground">₹{numSalary.toLocaleString()}</span> and its specific pillar distribution will be locked into the vault.
             </div>
           </div>
-          <DialogFooter className="gap-3">
-            <Button variant="ghost" onClick={() => setIsSaveModalOpen(false)} className="rounded-xl font-black text-[10px] uppercase">Cancel</Button>
-            <Button onClick={handleSaveStrategy} disabled={!strategyName.trim()} className="rounded-xl font-black text-[10px] uppercase gap-2 px-8 shadow-lg">
-              <ShieldCheck className="h-3.5 w-3.5" /> Secure to Vault
+          <DialogFooter className="flex flex-col sm:flex-row gap-3">
+            <Button variant="ghost" onClick={() => setIsSaveModalOpen(false)} className="rounded-xl font-black text-[10px] uppercase tracking-widest h-12 flex-1">Abort</Button>
+            <Button onClick={handleSaveStrategy} disabled={!strategyName.trim()} className="rounded-xl font-black text-[10px] uppercase tracking-[0.2em] h-12 flex-1 shadow-lg shadow-primary/20 gap-2">
+              <ShieldCheck className="h-4 w-4" /> Secure Strategy
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -795,14 +876,14 @@ export default function SalaryPlannerPage() {
 
 function StrategyDesc({ label, text, committed }: any) {
   return (
-    <div className="space-y-0.5 md:space-y-1">
+    <div className="space-y-2 group animate-in slide-in-from-bottom-1">
       <div className="flex items-center justify-between">
-        <p className="text-[9px] md:text-[10px] font-black uppercase text-foreground">{label}</p>
+        <p className="text-[11px] font-black uppercase text-foreground tracking-tight group-hover:text-primary transition-colors">{label}</p>
         {committed > 0 && (
-          <span className="text-[7px] font-black uppercase text-orange-600">₹{committed.toLocaleString()} Locked</span>
+          <Badge className="text-[8px] font-black uppercase bg-orange-100 text-orange-600 border-none px-2 py-0">₹{committed.toLocaleString()} Locked</Badge>
         )}
       </div>
-      <p className="text-[9px] md:text-[10px] text-muted-foreground leading-snug font-medium italic">{text}</p>
+      <p className="text-[10px] text-muted-foreground leading-relaxed font-medium opacity-80">{text}</p>
     </div>
   );
 }
