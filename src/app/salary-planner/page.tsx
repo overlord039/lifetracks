@@ -42,7 +42,8 @@ import {
   Pie, 
   Cell, 
   ResponsiveContainer, 
-  Tooltip as RechartsTooltip 
+  Tooltip as RechartsTooltip,
+  LabelList
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -464,7 +465,6 @@ export default function SalaryPlannerPage() {
 
   const renderAllocationLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name, fill }: any) => {
     const RADIAN = Math.PI / 180;
-    // Position labels slightly outside the outer radius for mobile clarity
     const radius = outerRadius + 12;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
@@ -481,7 +481,7 @@ export default function SalaryPlannerPage() {
         dominantBaseline="central"
         className="font-black text-[7px] md:text-[9px] uppercase tracking-tighter"
       >
-        {`${name.substring(0, 3)}: ${p}%`}
+        {name.substring(0, 3)}
       </text>
     );
   };
@@ -704,6 +704,24 @@ export default function SalaryPlannerPage() {
                             animationDuration={1000}
                           >
                             {salaryData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
+                            <LabelList 
+                              dataKey="percent" 
+                              position="inside" 
+                              content={(props: any) => {
+                                const { cx, cy, midAngle, innerRadius, outerRadius, value } = props;
+                                const RADIAN = Math.PI / 180;
+                                const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                                const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                const p = Math.round(value);
+                                if (p < 8) return null;
+                                return (
+                                  <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="font-black text-[8px] md:text-[10px]">
+                                    {`${p}%`}
+                                  </text>
+                                );
+                              }}
+                            />
                           </Pie>
                           <RechartsTooltip contentStyle={chartTooltipStyle} itemStyle={{ color: 'hsl(var(--popover-foreground))' }} formatter={(v: number) => `₹${Math.round(v).toLocaleString()}`} />
                         </PieChart>
