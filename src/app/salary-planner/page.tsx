@@ -463,14 +463,14 @@ export default function SalaryPlannerPage() {
     fontWeight: 'bold'
   };
 
-  const renderAllocationLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name, fill }: any) => {
+  const renderAllocationLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, name, fill }: any) => {
+    if (cx === undefined || cy === undefined || midAngle === undefined) return null;
     const RADIAN = Math.PI / 180;
     const radius = outerRadius + 12;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
-    const p = Math.round(percent * 100);
     
-    if (p < 5) return null;
+    if (isNaN(x) || isNaN(y)) return null;
 
     return (
       <text 
@@ -709,10 +709,15 @@ export default function SalaryPlannerPage() {
                               position="inside" 
                               content={(props: any) => {
                                 const { cx, cy, midAngle, innerRadius, outerRadius, value } = props;
+                                if (cx === undefined || cy === undefined || midAngle === undefined) return null;
+                                
                                 const RADIAN = Math.PI / 180;
                                 const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
                                 const x = cx + radius * Math.cos(-midAngle * RADIAN);
                                 const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                
+                                if (isNaN(x) || isNaN(y)) return null;
+
                                 const p = Math.round(value);
                                 if (p < 8) return null;
                                 return (
@@ -761,14 +766,14 @@ export default function SalaryPlannerPage() {
                               
                               <div className="flex items-center gap-2">
                                 <div className={cn("flex flex-col items-center px-2 py-1 rounded-lg border shadow-inner transition-all w-24 md:w-28", isLocked ? "bg-orange-50 border-orange-200" : "bg-muted/20 border-primary/10")}>
-                                  <span className="text-[6px] md:text-[7px] font-black uppercase text-muted-foreground mb-0.5">Planned Cap</span>
+                                  <span className="text-[10px] md:text-sm font-black uppercase text-muted-foreground mb-0.5">Planned Cap</span>
                                   <div className="flex items-center gap-1">
                                     <span className="text-[10px] font-bold text-muted-foreground opacity-40">₹</span>
                                     <Input type="number" value={Math.round(totalAllowed)} onChange={(e) => updateAmount(item.id, e.target.value)} className="w-16 md:w-20 h-4 border-none bg-transparent p-0 text-[11px] md:text-[13px] font-black focus-visible:ring-0 shadow-none tracking-tighter" />
                                   </div>
                                 </div>
                                 <div className={cn("flex flex-col items-center px-2 py-1 rounded-lg border shadow-inner transition-all w-14 md:w-16", isLocked ? "bg-orange-100 border-orange-300" : "bg-primary/5 border-primary/20")}>
-                                  <span className="text-[6px] md:text-[7px] font-black uppercase text-primary/60 mb-0.5">Scale</span>
+                                  <span className="text-[10px] md:text-sm font-black uppercase text-primary/60 mb-0.5">Scale</span>
                                   <div className="flex items-center gap-0.5">
                                     <Input type="number" value={Math.round((percents[item.id] || 0) * 10) / 10} onChange={(e) => updatePercent(item.id, parseFloat(e.target.value) || 0)} className="w-8 md:w-10 h-4 border-none bg-transparent p-0 text-[11px] md:text-[13px] font-black text-right focus-visible:ring-0 shadow-none tracking-tighter" />
                                     <span className="text-[10px] md:text-[11px] font-bold text-primary opacity-60">%</span>
