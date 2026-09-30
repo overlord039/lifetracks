@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -676,9 +677,36 @@ export default function SalaryPlannerPage() {
                   <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
                     <div className="flex items-center gap-2.5">
                       <div className="p-1.5 bg-primary/20 rounded-lg text-primary"><BrainCircuit className="h-4 w-4 animate-pulse" /></div>
-                      <div>
-                        <CardTitle className="text-base md:text-lg font-black tracking-tight">Income Allocation Engine</CardTitle>
-                        <CardDescription className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground">Utilization tracking</CardDescription>
+                      <div className="flex items-center gap-2">
+                        <div>
+                          <CardTitle className="text-base md:text-lg font-black tracking-tight">Income Allocation Engine</CardTitle>
+                          <CardDescription className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground">Utilization tracking</CardDescription>
+                        </div>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-primary/10 ml-1">
+                              <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
+                             <div className="space-y-3">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-primary">Strategic Logic</p>
+                                <div className="space-y-2">
+                                  {pillars.map(p => (
+                                     <div key={p.id} className="space-y-0.5">
+                                        <div className="flex items-center justify-between">
+                                          <p className="text-[9px] font-black uppercase text-foreground">{p.label}</p>
+                                          {committedCosts[p.id] > 0 && <Badge className="text-[5px] font-black uppercase bg-orange-100 text-orange-600 border-none px-1 h-3">Active</Badge>}
+                                        </div>
+                                        <p className="text-[8px] text-muted-foreground leading-snug font-medium opacity-70">Encrypted node for {p.label} allocation.</p>
+                                     </div>
+                                  ))}
+                                </div>
+                                <Separator className="border-dashed" />
+                                <p className="text-[7px] font-bold text-muted-foreground uppercase leading-relaxed italic opacity-60">Protected by client-side AES-GCM encryption.</p>
+                             </div>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                     </div>
                     <Badge variant={totalPercent === 100 ? "secondary" : "destructive"} className="h-7 px-3 rounded-full text-[8px] font-black uppercase tracking-widest shadow-md">
@@ -766,14 +794,14 @@ export default function SalaryPlannerPage() {
                               
                               <div className="flex items-center gap-2">
                                 <div className={cn("flex flex-col items-center px-2 py-1 rounded-lg border shadow-inner transition-all w-24 md:w-28", isLocked ? "bg-orange-50 border-orange-200" : "bg-muted/20 border-primary/10")}>
-                                  <span className="text-[10px] md:text-sm font-black uppercase text-muted-foreground mb-0.5">Planned Cap</span>
+                                  <span className="text-[10px] md:text-[11px] font-black uppercase text-muted-foreground mb-0.5">Planned Cap</span>
                                   <div className="flex items-center gap-1">
                                     <span className="text-[10px] font-bold text-muted-foreground opacity-40">₹</span>
                                     <Input type="number" value={Math.round(totalAllowed)} onChange={(e) => updateAmount(item.id, e.target.value)} className="w-16 md:w-20 h-4 border-none bg-transparent p-0 text-[11px] md:text-[13px] font-black focus-visible:ring-0 shadow-none tracking-tighter" />
                                   </div>
                                 </div>
                                 <div className={cn("flex flex-col items-center px-2 py-1 rounded-lg border shadow-inner transition-all w-14 md:w-16", isLocked ? "bg-orange-100 border-orange-300" : "bg-primary/5 border-primary/20")}>
-                                  <span className="text-[10px] md:text-sm font-black uppercase text-primary/60 mb-0.5">Scale</span>
+                                  <span className="text-[10px] md:text-[11px] font-black uppercase text-primary/60 mb-0.5">Scale</span>
                                   <div className="flex items-center gap-0.5">
                                     <Input type="number" value={Math.round((percents[item.id] || 0) * 10) / 10} onChange={(e) => updatePercent(item.id, parseFloat(e.target.value) || 0)} className="w-8 md:w-10 h-4 border-none bg-transparent p-0 text-[11px] md:text-[13px] font-black text-right focus-visible:ring-0 shadow-none tracking-tighter" />
                                     <span className="text-[10px] md:text-[11px] font-bold text-primary opacity-60">%</span>
@@ -802,7 +830,7 @@ export default function SalaryPlannerPage() {
               </Card>
 
               {/* Asset Matrix Container */}
-              <div className="grid gap-4 md:gap-6 md:grid-cols-2">
+              <div className="grid gap-4 md:gap-6 grid-cols-1">
                 {percents['investment'] !== undefined && (
                   <Card className="shadow-lg rounded-[1.2rem] md:rounded-[1.5rem] border-none ring-1 ring-orange-500/10 overflow-hidden">
                     <CardHeader className="py-2.5 md:py-3 border-b bg-muted/10 px-5 md:px-6">
@@ -833,26 +861,6 @@ export default function SalaryPlannerPage() {
                     </CardContent>
                   </Card>
                 )}
-                <Card className="shadow-lg rounded-[1.2rem] md:rounded-[1.5rem] border-none ring-1 ring-border overflow-hidden">
-                  <CardHeader className="py-2.5 md:py-3 border-b bg-muted/10 px-5 md:px-6">
-                    <CardTitle className="text-[10px] md:text-xs flex items-center gap-2 font-black"><Info className="h-3.5 w-3.5 text-muted-foreground" /> Strategy logic</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-4 px-5 md:px-6 space-y-3 md:space-y-4 max-h-[250px] md:max-h-[300px] overflow-y-auto pb-5 md:pb-6">
-                    <div className="space-y-2 md:space-y-3">
-                      {pillars.map(p => (
-                         <div key={p.id} className="space-y-0.5 md:space-y-1 group">
-                            <div className="flex items-center justify-between">
-                              <p className="text-[9px] md:text-[10px] font-black uppercase text-foreground tracking-tight">{p.label}</p>
-                              {committedCosts[p.id] > 0 && <Badge className="text-[5px] md:text-[6px] font-black uppercase bg-orange-100 text-orange-600 border-none px-1 h-3 md:h-3.5">Active</Badge>}
-                            </div>
-                            <p className="text-[8px] md:text-[9px] text-muted-foreground leading-snug font-medium opacity-70 truncate">Encrypted node for {p.label} allocation.</p>
-                         </div>
-                      ))}
-                    </div>
-                    <Separator className="border-dashed" />
-                    <p className="text-[7px] md:text-[8px] font-bold text-muted-foreground uppercase leading-relaxed italic opacity-60">Protected by client-side AES-GCM encryption.</p>
-                  </CardContent>
-                </Card>
               </div>
             </div>
           )}
