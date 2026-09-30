@@ -33,7 +33,8 @@ import {
   Library,
   Sparkles,
   PlusCircle,
-  Clock
+  Clock,
+  Tag
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -328,7 +329,12 @@ export default function SalaryPlannerPage() {
   const totalPercent = useMemo(() => Math.round(Object.values(percents).reduce((a, b) => a + b, 0)), [percents]);
 
   const handleSaveStrategy = async () => {
-    if (!user || !salaryProfilesRef || !strategyName.trim()) return;
+    if (!user || !salaryProfilesRef || !strategyName.trim()) {
+      if (!strategyName.trim()) {
+        toast({ variant: "destructive", title: "Name Required", description: "Please provide a name for this strategy." });
+      }
+      return;
+    }
     
     const payload = {
       userId: user.uid,
@@ -471,7 +477,18 @@ export default function SalaryPlannerPage() {
                     Base Metrics
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4 md:space-y-6 pt-4 md:pt-6 px-4 md:px-6">
+                <CardContent className="space-y-4 md:space-y-5 pt-4 md:pt-6 px-4 md:px-6">
+                  <div className="space-y-2">
+                    <Label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+                      <Tag className="h-3 w-3" /> Strategy Alias (Optional)
+                    </Label>
+                    <Input 
+                      placeholder="e.g. AGGRESSIVE 2026" 
+                      value={strategyName} 
+                      onChange={(e) => setStrategyName(e.target.value)}
+                      className="h-10 md:h-12 font-black rounded-xl text-sm md:text-base uppercase bg-muted/10 border-primary/5 focus:ring-primary/20"
+                    />
+                  </div>
                   <div className="space-y-2">
                     <Label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground">Monthly Salary (₹)</Label>
                     <Input 
@@ -714,7 +731,7 @@ export default function SalaryPlannerPage() {
                               <div key={item.label} className="p-2 md:p-3 border rounded-2xl bg-muted/5 text-center space-y-1">
                                 <p className="text-[7px] md:text-[8px] font-black text-muted-foreground uppercase truncate">{item.label}</p>
                                 <p className="text-[10px] font-black tracking-tighter">₹{Math.round(item.amt).toLocaleString()}</p>
-                                <span className="text-[8px] md:text-[9px] font-black text-primary">{item.p}%</span>
+                                <span className="text-[8px] font-black text-primary">{item.p}%</span>
                               </div>
                             ))}
                           </div>
@@ -747,7 +764,7 @@ export default function SalaryPlannerPage() {
               <Sparkles className="h-5 w-5 text-primary" />
               Vault Strategy
             </DialogTitle>
-            <DialogDescription className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Give this strategy a unique name to secure it.</DialogDescription>
+            <DialogDescription className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Confirm the alias for this strategic profile.</DialogDescription>
           </DialogHeader>
           <div className="py-6 space-y-4">
             <div className="space-y-2">
