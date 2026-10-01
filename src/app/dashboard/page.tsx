@@ -529,7 +529,7 @@ export default function Dashboard() {
             <DashboardCard 
               href="/split-pay" 
               title="Split & Debt" 
-              value={`₹{totalOwed.toFixed(0)}`} 
+              value={`₹${totalOwed.toFixed(0)}`} 
               subtext="Receivable total" 
               icon={<HandCoins className="w-4 h-4" />} 
               variant="default" 
