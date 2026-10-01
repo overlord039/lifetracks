@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -87,7 +86,7 @@ const PILLAR_ICONS: Record<string, any> = {
   expense: { icon: Wallet, color: 'text-blue-500', bg: 'bg-blue-500' },
   savings: { icon: PiggyBank, color: 'text-green-500', bg: 'bg-green-500' },
   investment: { icon: TrendingUp, color: 'text-orange-500', bg: 'bg-orange-500' },
-  health: { icon: HeartPulse, color: 'text-purple-500', bg: 'bg-purple-500' },
+  health: { icon: HeartPulse, color: 'text-purple-500', bg: 'bg-purple-50' },
   personal: { icon: Smile, color: 'text-pink-500', bg: 'bg-pink-500' }
 };
 
@@ -842,10 +841,7 @@ export default function Dashboard() {
                 </div>
               </ScrollArea>
 
-              <div className="p-4 border-t bg-muted/5 flex items-center justify-between shrink-0">
-                <Button variant="ghost" onClick={() => setSelectedPillarReport(null)} className="rounded-xl font-black text-[10px] uppercase tracking-widest h-10 px-6">
-                  Dismiss Report
-                </Button>
+              <div className="p-4 border-t bg-card shrink-0 flex items-center justify-end shadow-sm relative z-20">
                 <Button asChild className="rounded-xl font-black text-[10px] uppercase tracking-widest h-10 px-6 shadow-lg shadow-primary/20">
                   <Link href="/reports">
                     Full Analytics <ArrowRight className="ml-2 h-3 w-3" />
