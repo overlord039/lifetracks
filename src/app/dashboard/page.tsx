@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -426,7 +427,7 @@ export default function Dashboard() {
     return decryptedExpenses
       .filter(e => (e.allocationBucket || 'expense') === selectedPillarReport.id)
       .sort((a, b) => b.date.localeCompare(a.date))
-      .slice(0, 10);
+      .slice(0, 15);
   }, [selectedPillarReport, decryptedExpenses]);
 
   return (
@@ -706,11 +707,10 @@ export default function Dashboard() {
 
       {/* Pillar Report Exclusive Dialog */}
       <Dialog open={!!selectedPillarReport} onOpenChange={(open) => !open && setSelectedPillarReport(null)}>
-        <DialogContent className="max-w-[95vw] md:max-w-3xl rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl">
+        <DialogContent className="max-w-[95vw] md:max-w-4xl rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl h-[95vh] md:h-auto max-h-[95vh] flex flex-col">
           {selectedPillarReport && (
-            <div className="flex flex-col h-[85vh] md:h-auto max-h-[90vh]">
+            <>
               <div className={cn("p-4 md:p-6 text-white relative shrink-0 overflow-hidden", (PILLAR_ICONS[selectedPillarReport.id] || { bg: 'bg-primary' }).bg)}>
-                {/* Smaller background icon */}
                 <div className="absolute -top-4 -right-4 opacity-10 rotate-12">
                    {React.createElement((PILLAR_ICONS[selectedPillarReport.id] || { icon: Coins }).icon, { className: "h-20 w-20" })}
                 </div>
@@ -726,18 +726,18 @@ export default function Dashboard() {
                     <DialogDescription className="text-white/70 text-[8px] font-black uppercase tracking-widest leading-none">Performance Report</DialogDescription>
                   </DialogHeader>
 
-                  <div className="flex flex-1 items-center justify-end gap-4 sm:gap-6 md:gap-8">
-                     <div className="bg-white/10 px-4 py-2 rounded-2xl backdrop-blur-md border border-white/10 flex flex-col items-center min-w-[80px] shadow-inner">
+                  <div className="flex flex-1 items-center justify-end gap-3 sm:gap-6 md:gap-8">
+                     <div className="bg-white/10 px-3 md:px-4 py-2 rounded-2xl backdrop-blur-md border border-white/10 flex flex-col items-center min-w-[70px] md:min-w-[80px] shadow-inner">
                         <p className="text-[7px] font-black uppercase tracking-widest opacity-60">Target</p>
-                        <p className="text-sm font-black">₹{Math.round(selectedPillarReport.target).toLocaleString()}</p>
+                        <p className="text-xs md:text-sm font-black">₹{Math.round(selectedPillarReport.target).toLocaleString()}</p>
                      </div>
-                     <div className="bg-white/10 px-4 py-2 rounded-2xl backdrop-blur-md border border-white/10 flex flex-col items-center min-w-[80px] shadow-inner">
+                     <div className="bg-white/10 px-3 md:px-4 py-2 rounded-2xl backdrop-blur-md border border-white/10 flex flex-col items-center min-w-[70px] md:min-w-[80px] shadow-inner">
                         <p className="text-[7px] font-black uppercase tracking-widest opacity-60">Spent</p>
-                        <p className="text-sm font-black">₹{Math.round(selectedPillarReport.spent).toLocaleString()}</p>
+                        <p className="text-xs md:text-sm font-black">₹{Math.round(selectedPillarReport.spent).toLocaleString()}</p>
                      </div>
-                     <div className={cn("px-4 py-2 rounded-2xl backdrop-blur-md border flex flex-col items-center min-w-[80px] shadow-lg", selectedPillarReport.remaining >= 0 ? "bg-white/20 border-white/20" : "bg-red-500/40 border-red-500/20")}>
+                     <div className={cn("px-3 md:px-4 py-2 rounded-2xl backdrop-blur-md border flex flex-col items-center min-w-[70px] md:min-w-[80px] shadow-lg", selectedPillarReport.remaining >= 0 ? "bg-white/20 border-white/20" : "bg-red-500/40 border-red-500/20")}>
                         <p className="text-[7px] font-black uppercase tracking-widest opacity-60">Balance</p>
-                        <p className="text-sm font-black">
+                        <p className="text-xs md:text-sm font-black">
                           {selectedPillarReport.remaining >= 0 ? `₹${Math.round(selectedPillarReport.remaining).toLocaleString()}` : "EXCEEDED"}
                         </p>
                      </div>
@@ -746,11 +746,12 @@ export default function Dashboard() {
               </div>
 
               <ScrollArea className="flex-1 bg-background">
-                <div className="p-6 space-y-8">
+                <div className="p-4 md:p-6 space-y-6">
+                  {/* Visualization Section */}
                   <div className="space-y-4">
                     <div className="flex flex-col sm:flex-row items-center justify-between px-1 gap-4">
-                      <h4 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-primary" />
+                      <h4 className="text-[10px] md:text-xs font-black uppercase tracking-widest flex items-center gap-2">
+                        <TrendingUp className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
                         Utilization Pulse
                       </h4>
                       <Tabs value={pillarReportViewType} onValueChange={(v: any) => setPillarReportViewType(v)} className="w-full sm:w-auto">
@@ -761,13 +762,14 @@ export default function Dashboard() {
                         </TabsList>
                       </Tabs>
                     </div>
-                    <div className="h-[220px] w-full bg-muted/5 rounded-3xl border border-dashed p-4">
+                    
+                    <div className="h-[200px] md:h-[240px] w-full bg-muted/5 rounded-[1.5rem] md:rounded-3xl border border-dashed p-3 md:p-4">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={selectedPillarGraphData}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
                           <XAxis 
                             dataKey="name" 
-                            fontSize={8} 
+                            fontSize={7} 
                             fontWeight="bold" 
                             tickLine={false} 
                             axisLine={false} 
@@ -775,21 +777,21 @@ export default function Dashboard() {
                             minTickGap={pillarReportViewType === 'monthly' ? 10 : 0}
                           />
                           <YAxis 
-                            fontSize={8} 
+                            fontSize={7} 
                             fontWeight="bold" 
                             tickLine={false} 
                             axisLine={false} 
                             tickFormatter={(v) => `₹${v}`}
                           />
                           <Tooltip 
-                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', fontSize: '10px', fontWeight: 'bold' }}
+                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', fontSize: '9px', fontWeight: 'bold' }}
                             labelStyle={{ color: 'hsl(var(--primary))' }}
                             formatter={(v: number) => [`₹${v.toLocaleString()}`, 'Spent']}
                             labelFormatter={(label, payload) => payload[0]?.payload.fullDate}
                           />
                           <Bar 
                             dataKey="spent" 
-                            radius={[4, 4, 0, 0]}
+                            radius={[3, 3, 0, 0]}
                             animationDuration={1000}
                           >
                             {selectedPillarGraphData.map((entry, index) => (
@@ -804,38 +806,40 @@ export default function Dashboard() {
                     </div>
                   </div>
 
+                  {/* Ledger Section */}
                   <div className="space-y-4 pb-4">
                      <div className="flex items-center justify-between px-1">
-                        <h4 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
-                          <History className="h-4 w-4 text-primary" />
+                        <h4 className="text-[10px] md:text-xs font-black uppercase tracking-widest flex items-center gap-2">
+                          <History className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
                           Recent Pillar Activity
                         </h4>
-                        <span className="text-[9px] font-bold text-muted-foreground uppercase">{selectedPillarRecentExpenses.length} Records</span>
+                        <span className="text-[8px] font-bold text-muted-foreground uppercase">{selectedPillarRecentExpenses.length} Records</span>
                      </div>
                      
                      <div className="grid gap-2">
                         {selectedPillarRecentExpenses.length > 0 ? selectedPillarRecentExpenses.map((exp) => (
-                          <div key={exp.id} className="flex items-center justify-between p-4 rounded-2xl bg-muted/20 border group hover:bg-muted/30 transition-all">
-                             <div className="flex items-center gap-3">
-                                <div className="h-9 w-9 rounded-xl bg-background flex items-center justify-center border shadow-sm shrink-0">
-                                   <ReceiptText className="h-4 w-4 text-muted-foreground opacity-50" />
+                          <div key={exp.id} className="flex items-center justify-between p-3 md:p-3.5 rounded-xl md:rounded-2xl bg-muted/20 border border-border/50 group hover:bg-muted/30 transition-all shadow-sm">
+                             <div className="flex items-center gap-3 min-w-0">
+                                <div className="h-8 w-8 md:h-9 md:w-9 rounded-lg md:rounded-xl bg-background flex flex-col items-center justify-center border shadow-sm shrink-0">
+                                   <span className="text-[8px] font-black text-primary leading-none">{format(new Date(exp.date), 'dd')}</span>
+                                   <span className="text-[6px] font-black text-muted-foreground uppercase leading-none mt-0.5">{format(new Date(exp.date), 'MMM')}</span>
                                 </div>
                                 <div className="min-w-0">
-                                   <p className="text-xs font-black uppercase tracking-tight truncate max-w-[160px] md:max-w-[240px]">{exp.description}</p>
-                                   <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{format(new Date(exp.date), 'dd MMM yyyy')}</p>
+                                   <p className="text-[11px] md:text-xs font-black uppercase tracking-tight truncate max-w-[140px] md:max-w-[320px]">{exp.description}</p>
+                                   <div className="flex items-center gap-1.5 mt-0.5">
+                                      <Badge variant="outline" className="text-[6px] font-black uppercase px-1 py-0 h-3 leading-none opacity-60 bg-background">Verified</Badge>
+                                      <span className="text-[7px] font-bold text-muted-foreground/60 uppercase tracking-widest">{format(new Date(exp.date), 'yyyy')}</span>
+                                   </div>
                                 </div>
                              </div>
-                             <div className="text-right">
-                                <p className="text-sm font-black tracking-tighter">₹{exp.amount.toLocaleString()}</p>
-                                <div className="flex items-center gap-1 justify-end">
-                                   <Badge variant="outline" className="text-[6px] font-black uppercase px-1 py-0 h-3 leading-none opacity-60">Verified</Badge>
-                                </div>
+                             <div className="text-right shrink-0">
+                                <p className="text-xs md:text-sm font-black tracking-tighter">₹{exp.amount.toLocaleString()}</p>
                              </div>
                           </div>
                         )) : (
-                          <div className="py-12 flex flex-col items-center justify-center opacity-30 grayscale space-y-2 border-2 border-dashed rounded-3xl">
+                          <div className="py-12 flex flex-col items-center justify-center opacity-30 grayscale space-y-2 border-2 border-dashed rounded-[1.5rem] md:rounded-3xl">
                              <ReceiptText className="h-8 w-8" />
-                             <p className="text-[10px] font-black uppercase tracking-widest">No recent transactions found</p>
+                             <p className="text-[9px] font-black uppercase tracking-widest">No recent transactions found</p>
                           </div>
                         )}
                      </div>
@@ -843,14 +847,14 @@ export default function Dashboard() {
                 </div>
               </ScrollArea>
 
-              <div className="p-4 border-t bg-card shrink-0 flex items-center justify-end shadow-sm relative z-20">
-                <Button asChild className="rounded-xl font-black text-[10px] uppercase tracking-widest h-10 px-6 shadow-lg shadow-primary/20">
+              <div className="p-3 md:p-4 border-t bg-card shrink-0 flex items-center justify-end shadow-sm relative z-20">
+                <Button asChild className="rounded-xl font-black text-[9px] md:text-[10px] uppercase tracking-widest h-9 md:h-10 px-5 md:px-6 shadow-lg shadow-primary/20">
                   <Link href="/reports">
-                    Full Analytics <ArrowRight className="ml-2 h-3 w-3" />
+                    Full Vault Analytics <ArrowRight className="ml-2 h-3 w-3" />
                   </Link>
                 </Button>
               </div>
-            </div>
+            </>
           )}
         </DialogContent>
       </Dialog>
