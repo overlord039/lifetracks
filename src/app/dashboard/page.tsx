@@ -710,34 +710,36 @@ export default function Dashboard() {
         <DialogContent className="max-w-[95vw] md:max-w-4xl rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl h-[95vh] md:h-auto max-h-[95vh] flex flex-col">
           {selectedPillarReport && (
             <>
-              <div className={cn("p-4 md:p-6 text-white relative shrink-0 overflow-hidden", (PILLAR_ICONS[selectedPillarReport.id] || { bg: 'bg-primary' }).bg)}>
+              <div className={cn("px-4 py-3 md:px-6 md:py-4 text-white relative shrink-0 overflow-hidden", (PILLAR_ICONS[selectedPillarReport.id] || { bg: 'bg-primary' }).bg)}>
                 <div className="absolute -top-4 -right-4 opacity-10 rotate-12">
-                   {React.createElement((PILLAR_ICONS[selectedPillarReport.id] || { icon: Coins }).icon, { className: "h-20 w-20" })}
+                   {React.createElement((PILLAR_ICONS[selectedPillarReport.id] || { icon: Coins }).icon, { className: "h-16 w-16" })}
                 </div>
                 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
-                  <DialogHeader className="text-left space-y-0.5 min-w-fit">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-md">
-                        {React.createElement((PILLAR_ICONS[selectedPillarReport.id] || { icon: Coins }).icon, { className: "h-4 w-4" })}
-                      </div>
-                      <DialogTitle className="text-lg md:text-xl font-black tracking-tighter uppercase">{selectedPillarReport.label}</DialogTitle>
+                <div className="flex items-center justify-between gap-4 relative z-10">
+                  <div className="flex items-center gap-3">
+                    <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-md">
+                      {React.createElement((PILLAR_ICONS[selectedPillarReport.id] || { icon: Coins }).icon, { className: "h-4 w-4" })}
                     </div>
-                    <DialogDescription className="text-white/70 text-[8px] font-black uppercase tracking-widest leading-none">Performance Report</DialogDescription>
-                  </DialogHeader>
+                    <div>
+                      <h2 className="text-sm md:text-base font-black tracking-tighter uppercase leading-none">{selectedPillarReport.label}</h2>
+                      <p className="text-white/70 text-[7px] font-black uppercase tracking-widest leading-none mt-1">Performance Report</p>
+                    </div>
+                  </div>
 
-                  <div className="flex flex-1 items-center justify-end gap-3 sm:gap-6 md:gap-8">
-                     <div className="bg-white/10 px-3 md:px-4 py-2 rounded-2xl backdrop-blur-md border border-white/10 flex flex-col items-center min-w-[70px] md:min-w-[80px] shadow-inner">
-                        <p className="text-[7px] font-black uppercase tracking-widest opacity-60">Target</p>
-                        <p className="text-xs md:text-sm font-black">₹{Math.round(selectedPillarReport.target).toLocaleString()}</p>
+                  <div className="flex items-center gap-2 sm:gap-4 md:gap-6">
+                     <div className="flex flex-col items-center">
+                        <p className="text-[6px] font-black uppercase tracking-widest opacity-60">Target</p>
+                        <p className="text-[10px] md:text-xs font-black">₹{Math.round(selectedPillarReport.target).toLocaleString()}</p>
                      </div>
-                     <div className="bg-white/10 px-3 md:px-4 py-2 rounded-2xl backdrop-blur-md border border-white/10 flex flex-col items-center min-w-[70px] md:min-w-[80px] shadow-inner">
-                        <p className="text-[7px] font-black uppercase tracking-widest opacity-60">Spent</p>
-                        <p className="text-xs md:text-sm font-black">₹{Math.round(selectedPillarReport.spent).toLocaleString()}</p>
+                     <div className="w-px h-6 bg-white/20" />
+                     <div className="flex flex-col items-center">
+                        <p className="text-[6px] font-black uppercase tracking-widest opacity-60">Spent</p>
+                        <p className="text-[10px] md:text-xs font-black">₹{Math.round(selectedPillarReport.spent).toLocaleString()}</p>
                      </div>
-                     <div className={cn("px-3 md:px-4 py-2 rounded-2xl backdrop-blur-md border flex flex-col items-center min-w-[70px] md:min-w-[80px] shadow-lg", selectedPillarReport.remaining >= 0 ? "bg-white/20 border-white/20" : "bg-red-500/40 border-red-500/20")}>
-                        <p className="text-[7px] font-black uppercase tracking-widest opacity-60">Balance</p>
-                        <p className="text-xs md:text-sm font-black">
+                     <div className="w-px h-6 bg-white/20" />
+                     <div className={cn("px-3 py-1.5 rounded-xl backdrop-blur-md border flex flex-col items-center shadow-lg", selectedPillarReport.remaining >= 0 ? "bg-white/20 border-white/20" : "bg-red-500/40 border-red-500/20")}>
+                        <p className="text-[6px] font-black uppercase tracking-widest opacity-60">Balance</p>
+                        <p className="text-[10px] md:text-xs font-black">
                           {selectedPillarReport.remaining >= 0 ? `₹${Math.round(selectedPillarReport.remaining).toLocaleString()}` : "EXCEEDED"}
                         </p>
                      </div>
