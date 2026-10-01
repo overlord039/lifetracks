@@ -86,7 +86,7 @@ const PILLAR_ICONS: Record<string, any> = {
   expense: { icon: Wallet, color: 'text-blue-500', bg: 'bg-blue-500' },
   savings: { icon: PiggyBank, color: 'text-green-500', bg: 'bg-green-500' },
   investment: { icon: TrendingUp, color: 'text-orange-500', bg: 'bg-orange-500' },
-  health: { icon: HeartPulse, color: 'text-purple-500', bg: 'bg-purple-50' },
+  health: { icon: HeartPulse, color: 'text-purple-500', bg: 'bg-purple-500' },
   personal: { icon: Smile, color: 'text-pink-500', bg: 'bg-pink-500' }
 };
 
