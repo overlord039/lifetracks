@@ -1,10 +1,11 @@
+
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { collection, doc } from 'firebase/firestore';
 import { 
   TrendingUp, 
@@ -27,7 +28,11 @@ import {
   Smile,
   Coins,
   Wallet,
-  Info
+  Info,
+  History,
+  ReceiptText,
+  ChevronRight,
+  ArrowRight
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +46,25 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell
+} from 'recharts';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 const PILLAR_ICONS: Record<string, any> = {
   expense: { icon: Wallet, color: 'text-blue-500', bg: 'bg-blue-500' },
@@ -54,6 +78,7 @@ export default function Dashboard() {
   const { user } = useUser();
   const firestore = useFirestore();
   const [mounted, setMounted] = useState(false);
+  const [selectedPillarReport, setSelectedPillarReport] = useState<any | null>(null);
   
   const [decryptedBudget, setDecryptedBudget] = useState<any>(null);
   const [decryptedFixed, setDecryptedFixed] = useState<any[]>([]);
@@ -149,6 +174,7 @@ export default function Dashboard() {
       if (rawFixed) {
         const fixed = await Promise.all(rawFixed.map(async f => ({
           ...f,
+          name: f.isEncrypted ? await decryptData(f.name, user.uid) : (f.name || 'Fixed Record'),
           amount: f.isEncrypted ? await decryptNumber(f.amount, user.uid) : (f.amount || 0),
           includeInBudget: f.includeInBudget ?? true,
           allocationBucket: f.allocationBucket || 'expense'
@@ -159,6 +185,7 @@ export default function Dashboard() {
       if (rawExpenses) {
         const exps = await Promise.all(rawExpenses.map(async e => ({
           ...e,
+          description: e.isEncrypted ? await decryptData(e.description, user.uid) : (e.description || 'Spend Record'),
           amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : (e.amount || 0),
           date: e.date || '',
           allocationBucket: e.allocationBucket || 'expense'
@@ -276,11 +303,41 @@ export default function Dashboard() {
         percent,
         target,
         spent: totalSpent,
+        fixedSpent,
+        dailySpent,
         utilization,
         remaining: target - totalSpent
       };
     });
   }, [decryptedSalaryProfile, decryptedFixed, decryptedExpenses]);
+
+  const selectedPillarGraphData = useMemo(() => {
+    if (!selectedPillarReport || !decryptedExpenses) return [];
+    
+    const monthStart = startOfMonth(now);
+    const monthEnd = endOfMonth(now);
+    const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+    
+    return days.map(day => {
+      const dStr = format(day, 'yyyy-MM-dd');
+      const spent = decryptedExpenses
+        .filter(e => e.date === dStr && (e.allocationBucket || 'expense') === selectedPillarReport.id)
+        .reduce((s, e) => s + e.amount, 0);
+      return {
+        name: format(day, 'd'),
+        spent,
+        fullDate: format(day, 'dd MMM')
+      };
+    });
+  }, [selectedPillarReport, decryptedExpenses, now]);
+
+  const selectedPillarRecentExpenses = useMemo(() => {
+    if (!selectedPillarReport || !decryptedExpenses) return [];
+    return decryptedExpenses
+      .filter(e => (e.allocationBucket || 'expense') === selectedPillarReport.id)
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 10);
+  }, [selectedPillarReport, decryptedExpenses]);
 
   return (
     <AppShell>
@@ -425,7 +482,7 @@ export default function Dashboard() {
                     <div className="space-y-2">
                       <p className="text-[10px] font-black uppercase tracking-widest text-primary">Strategic Allocation Logic</p>
                       <p className="text-[11px] text-muted-foreground leading-relaxed">
-                        This row visualizes your current spending against the pillars defined in your Salary Strategy. The bars indicate how much of your planned monthly budget for each pillar has been consumed.
+                        This row visualizes your current spending against the pillars defined in your Salary Strategy. Click on any card to see a detailed report and spending trend for that pillar.
                       </p>
                     </div>
                   </PopoverContent>
@@ -449,7 +506,11 @@ export default function Dashboard() {
                     const isOverspent = pillar.utilization > 100;
                     
                     return (
-                      <div key={pillar.id} className="min-w-[160px] md:min-w-[200px] flex-shrink-0 snap-center space-y-3 p-3 md:p-4 rounded-2xl border bg-muted/5 transition-all hover:bg-muted/10 group">
+                      <div 
+                        key={pillar.id} 
+                        onClick={() => setSelectedPillarReport(pillar)}
+                        className="min-w-[160px] md:min-w-[200px] flex-shrink-0 snap-center space-y-3 p-3 md:p-4 rounded-2xl border bg-muted/5 transition-all hover:bg-muted/10 hover:ring-2 hover:ring-primary/20 cursor-pointer group shadow-sm"
+                      >
                         <div className="flex items-center justify-between">
                           <Badge variant={isOverspent ? "destructive" : "secondary"} className="text-[7px] md:text-[9px] font-black uppercase px-1 md:px-2">
                             {Math.round(pillar.utilization)}%
@@ -462,24 +523,7 @@ export default function Dashboard() {
                         <div className="space-y-0.5">
                           <div className="flex items-center justify-between">
                             <p className="text-[7px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground truncate">{pillar.label}</p>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <button className="text-muted-foreground/30 hover:text-primary transition-colors focus:outline-none">
-                                  <Info className="h-3 w-3" />
-                                </button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-64 p-3 rounded-xl shadow-xl border-none ring-1 ring-border">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-primary mb-1">{pillar.label} Utilization</p>
-                                <p className="text-[10px] text-muted-foreground leading-relaxed">
-                                  {pillar.id === 'expense' ? 'Tracks daily variable costs and recurring fixed bills against your expense budget.' : 
-                                   pillar.id === 'savings' ? 'Emergency funds and short-term savings growth tracking.' :
-                                   pillar.id === 'investment' ? 'Capital deployed into long-term assets vs strategy target.' :
-                                   pillar.id === 'health' ? 'Spending on physical wellness and insurance vs monthly plan.' :
-                                   pillar.id === 'personal' ? 'Guilt-free spending and lifestyle maintenance budget.' :
-                                   `Utilization of the ${pillar.label} strategic pillar.`}
-                                </p>
-                              </PopoverContent>
-                            </Popover>
+                            <ChevronRight className="h-3 w-3 text-muted-foreground/30 group-hover:text-primary transition-colors" />
                           </div>
                           <div className="flex flex-col md:flex-row md:items-baseline gap-0 md:gap-1">
                             <span className="text-[10px] md:text-lg font-black tracking-tighter">₹{Math.round(pillar.spent).toLocaleString()}</span>
@@ -557,6 +601,152 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Pillar Report Exclusive Dialog */}
+      <Dialog open={!!selectedPillarReport} onOpenChange={(open) => !open && setSelectedPillarReport(null)}>
+        <DialogContent className="max-w-[95vw] md:max-w-3xl rounded-[2rem] p-0 overflow-hidden border-none shadow-2xl">
+          {selectedPillarReport && (
+            <div className="flex flex-col h-[85vh] md:h-auto max-h-[90vh]">
+              <div className={cn("p-6 text-white relative shrink-0", (PILLAR_ICONS[selectedPillarReport.id] || { bg: 'bg-primary' }).bg)}>
+                <div className="absolute top-6 right-6 opacity-20 rotate-12">
+                   {React.createElement((PILLAR_ICONS[selectedPillarReport.id] || { icon: Coins }).icon, { className: "h-24 w-24" })}
+                </div>
+                <div className="space-y-1 relative z-10">
+                  <DialogHeader className="text-left">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="p-2 bg-white/20 rounded-xl backdrop-blur-md">
+                        {React.createElement((PILLAR_ICONS[selectedPillarReport.id] || { icon: Coins }).icon, { className: "h-6 w-6" })}
+                      </div>
+                      <DialogTitle className="text-2xl font-black tracking-tighter uppercase">{selectedPillarReport.label}</DialogTitle>
+                    </div>
+                    <DialogDescription className="text-white/80 text-[10px] font-black uppercase tracking-widest leading-none">Exclusive Strategic Performance Report</DialogDescription>
+                  </DialogHeader>
+                </div>
+                
+                <div className="grid grid-cols-3 gap-4 mt-8 relative z-10">
+                   <div className="bg-white/10 p-3 rounded-2xl backdrop-blur-sm border border-white/10">
+                      <p className="text-[8px] font-black uppercase tracking-widest opacity-70">Strategic Target</p>
+                      <p className="text-lg font-black tracking-tighter">₹{Math.round(selectedPillarReport.target).toLocaleString()}</p>
+                   </div>
+                   <div className="bg-white/10 p-3 rounded-2xl backdrop-blur-sm border border-white/10">
+                      <p className="text-[8px] font-black uppercase tracking-widest opacity-70">Total Utilized</p>
+                      <p className="text-lg font-black tracking-tighter">₹{Math.round(selectedPillarReport.spent).toLocaleString()}</p>
+                   </div>
+                   <div className="bg-white/10 p-3 rounded-2xl backdrop-blur-sm border border-white/10">
+                      <p className="text-[8px] font-black uppercase tracking-widest opacity-70">Vault Status</p>
+                      <p className={cn("text-lg font-black tracking-tighter", selectedPillarReport.remaining >= 0 ? "text-white" : "text-red-200")}>
+                        {selectedPillarReport.remaining >= 0 ? `₹${Math.round(selectedPillarReport.remaining).toLocaleString()}` : "EXCEEDED"}
+                      </p>
+                   </div>
+                </div>
+              </div>
+
+              <ScrollArea className="flex-1 bg-background">
+                <div className="p-6 space-y-8">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between px-1">
+                      <h4 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 text-primary" />
+                        Daily Utilization Pulse
+                      </h4>
+                      <Badge variant="outline" className="text-[8px] font-black uppercase px-2">{format(now, 'MMMM yyyy')}</Badge>
+                    </div>
+                    <div className="h-[200px] w-full bg-muted/5 rounded-3xl border border-dashed p-4">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={selectedPillarGraphData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                          <XAxis 
+                            dataKey="name" 
+                            fontSize={8} 
+                            fontWeight="bold" 
+                            tickLine={false} 
+                            axisLine={false} 
+                            interval="preserveStartEnd"
+                            minTickGap={10}
+                          />
+                          <YAxis 
+                            fontSize={8} 
+                            fontWeight="bold" 
+                            tickLine={false} 
+                            axisLine={false} 
+                            tickFormatter={(v) => `₹${v}`}
+                          />
+                          <Tooltip 
+                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', fontSize: '10px', fontWeight: 'bold' }}
+                            labelStyle={{ color: 'hsl(var(--primary))' }}
+                            formatter={(v: number) => [`₹${v.toLocaleString()}`, 'Spent']}
+                            labelFormatter={(label, payload) => payload[0]?.payload.fullDate}
+                          />
+                          <Bar 
+                            dataKey="spent" 
+                            radius={[4, 4, 0, 0]}
+                            animationDuration={1000}
+                          >
+                            {selectedPillarGraphData.map((entry, index) => (
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={entry.spent > (selectedPillarReport.target / 30) ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.3)'} 
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 pb-4">
+                     <div className="flex items-center justify-between px-1">
+                        <h4 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
+                          <History className="h-4 w-4 text-primary" />
+                          Recent Pillar Activity
+                        </h4>
+                        <span className="text-[9px] font-bold text-muted-foreground uppercase">{selectedPillarRecentExpenses.length} Records</span>
+                     </div>
+                     
+                     <div className="grid gap-2">
+                        {selectedPillarRecentExpenses.length > 0 ? selectedPillarRecentExpenses.map((exp) => (
+                          <div key={exp.id} className="flex items-center justify-between p-4 rounded-2xl bg-muted/20 border group hover:bg-muted/30 transition-all">
+                             <div className="flex items-center gap-3">
+                                <div className="h-9 w-9 rounded-xl bg-background flex items-center justify-center border shadow-sm shrink-0">
+                                   <ReceiptText className="h-4 w-4 text-muted-foreground opacity-50" />
+                                </div>
+                                <div className="min-w-0">
+                                   <p className="text-xs font-black uppercase tracking-tight truncate max-w-[160px] md:max-w-[240px]">{exp.description}</p>
+                                   <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{format(new Date(exp.date), 'dd MMM yyyy')}</p>
+                                </div>
+                             </div>
+                             <div className="text-right">
+                                <p className="text-sm font-black tracking-tighter">₹{exp.amount.toLocaleString()}</p>
+                                <div className="flex items-center gap-1 justify-end">
+                                   <Badge variant="outline" className="text-[6px] font-black uppercase px-1 py-0 h-3 leading-none opacity-60">Verified</Badge>
+                                </div>
+                             </div>
+                          </div>
+                        )) : (
+                          <div className="py-12 flex flex-col items-center justify-center opacity-30 grayscale space-y-2 border-2 border-dashed rounded-3xl">
+                             <ReceiptText className="h-8 w-8" />
+                             <p className="text-[10px] font-black uppercase tracking-widest">No recent transactions found</p>
+                          </div>
+                        )}
+                     </div>
+                  </div>
+                </div>
+              </ScrollArea>
+
+              <div className="p-4 border-t bg-muted/5 flex items-center justify-between shrink-0">
+                <Button variant="ghost" onClick={() => setSelectedPillarReport(null)} className="rounded-xl font-black text-[10px] uppercase tracking-widest h-10 px-6">
+                  Dismiss Report
+                </Button>
+                <Button asChild className="rounded-xl font-black text-[10px] uppercase tracking-widest h-10 px-6 shadow-lg shadow-primary/20">
+                  <Link href="/reports">
+                    Full Analytics <ArrowRight className="ml-2 h-3 w-3" />
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }
