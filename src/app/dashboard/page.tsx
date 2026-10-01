@@ -32,7 +32,8 @@ import {
   History,
   ReceiptText,
   ChevronRight,
-  ArrowRight
+  ArrowRight,
+  ArrowUpRight
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -509,38 +510,45 @@ export default function Dashboard() {
                       <div 
                         key={pillar.id} 
                         onClick={() => setSelectedPillarReport(pillar)}
-                        className="min-w-[160px] md:min-w-[200px] flex-shrink-0 snap-center space-y-3 p-3 md:p-4 rounded-2xl border bg-muted/5 transition-all hover:bg-muted/10 hover:ring-2 hover:ring-primary/20 cursor-pointer group shadow-sm"
+                        className="min-w-[150px] md:min-w-[190px] flex-shrink-0 snap-center p-4 rounded-3xl border bg-card hover:border-primary/40 hover:shadow-lg transition-all cursor-pointer group relative overflow-hidden ring-1 ring-border shadow-sm"
                       >
-                        <div className="flex items-center justify-between">
-                          <Badge variant={isOverspent ? "destructive" : "secondary"} className="text-[7px] md:text-[9px] font-black uppercase px-1 md:px-2">
-                            {Math.round(pillar.utilization)}%
-                          </Badge>
-                          <div className={cn("p-1.5 rounded-lg text-white shadow-md transition-transform group-hover:scale-110", Config.bg)}>
-                            <Icon className="h-3 w-3" />
+                        <div className={cn("absolute top-0 right-0 p-3 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity", Config.color)}>
+                           <Icon className="h-12 w-12 rotate-12" />
+                        </div>
+                        
+                        <div className="space-y-4 relative z-10">
+                          <div className="flex items-center gap-2.5">
+                             <div className={cn("p-1.5 rounded-xl text-white shadow-sm transition-transform group-hover:scale-110", Config.bg)}>
+                                <Icon className="h-3 w-3" />
+                             </div>
+                             <span className="text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground truncate">{pillar.label}</span>
+                          </div>
+
+                          <div className="space-y-0.5">
+                             <div className="flex items-baseline gap-1">
+                                <span className="text-xl md:text-2xl font-black tracking-tighter">₹{Math.round(pillar.spent).toLocaleString()}</span>
+                             </div>
+                             <div className="flex justify-between items-center text-[7px] font-bold uppercase tracking-tight text-muted-foreground/60">
+                                <span>Cap: ₹{Math.round(pillar.target).toLocaleString()}</span>
+                             </div>
+                          </div>
+
+                          <div className="space-y-1.5 pt-1">
+                             <div className="flex justify-between items-center">
+                                <span className={cn(
+                                  "text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md", 
+                                  isOverspent ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"
+                                )}>
+                                   {isOverspent ? "Limit Exceeded" : "Healthy Load"}
+                                </span>
+                                <span className="text-[10px] font-black tracking-tighter">{Math.round(pillar.utilization)}%</span>
+                             </div>
+                             <Progress value={Math.min(100, pillar.utilization)} className={cn("h-1.5", isOverspent ? "bg-destructive/20" : "bg-primary/10")} />
                           </div>
                         </div>
                         
-                        <div className="space-y-0.5">
-                          <div className="flex items-center justify-between">
-                            <p className="text-[7px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground truncate">{pillar.label}</p>
-                            <ChevronRight className="h-3 w-3 text-muted-foreground/30 group-hover:text-primary transition-colors" />
-                          </div>
-                          <div className="flex flex-col md:flex-row md:items-baseline gap-0 md:gap-1">
-                            <span className="text-[10px] md:text-lg font-black tracking-tighter">₹{Math.round(pillar.spent).toLocaleString()}</span>
-                            <span className="text-[6px] md:text-[8px] font-bold text-muted-foreground opacity-60">/ ₹{Math.round(pillar.target).toLocaleString()}</span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <Progress value={Math.min(100, pillar.utilization)} className={cn("h-1", isOverspent ? "bg-destructive/20" : "bg-muted")} />
-                          <div className="flex justify-between items-center text-[6px] md:text-[8px] font-black uppercase tracking-tighter">
-                            <span className={cn(isOverspent ? "text-destructive" : "text-muted-foreground")}>
-                              {isOverspent ? "Over" : "Free"}
-                            </span>
-                            <span className={cn(pillar.remaining >= 0 ? "text-primary" : "text-destructive")}>
-                              ₹{Math.abs(Math.round(pillar.remaining)).toLocaleString()}
-                            </span>
-                          </div>
+                        <div className="absolute bottom-2 right-3 opacity-0 group-hover:opacity-100 transition-opacity translate-x-2 group-hover:translate-x-0">
+                           <ArrowUpRight className="h-3 w-3 text-primary" />
                         </div>
                       </div>
                     );
@@ -557,7 +565,8 @@ export default function Dashboard() {
               value={`${cravingToday.cals} kcal`} 
               subtext={`₹${cravingToday.money} Saved | ${cravingStats?.currentStreak || 0}d Streak`} 
               icon={<Flame className="w-4 h-4" />} 
-              variant="primary" 
+              variant="default" 
+              accentColor="orange"
               loading={isDecrypting}
               info="Tracks the nutritional and financial impact of resisted cravings. Streaks represent consecutive days of logging resistance."
             />
@@ -568,6 +577,7 @@ export default function Dashboard() {
               subtext={`${visionStats.achieved} Achievements`} 
               icon={<Mountain className="w-4 h-4" />} 
               variant="default"
+              accentColor="indigo"
               info="A private board for your long-term aspirations. Items are end-to-end encrypted to ensure your dreams remain confidential."
             />
             <DashboardCard 
@@ -577,6 +587,7 @@ export default function Dashboard() {
               subtext="Receivable total" 
               icon={<HandCoins className="w-4 h-4" />} 
               variant="default" 
+              accentColor="green"
               loading={isDecrypting}
               info="Manages shared expense rooms and personal debts. Tracks net balances across collaborative groups."
             />
@@ -587,6 +598,7 @@ export default function Dashboard() {
               subtext="Completion rate" 
               icon={<BookOpen className="w-4 h-4" />} 
               progress={goalsProgress}
+              accentColor="blue"
               info="Tracks your progress across active skill goals. Completion rate represents the ratio of met daily targets."
             />
             <DashboardCard 
@@ -595,7 +607,8 @@ export default function Dashboard() {
               value={todayDiary ? "Logged" : "Pending"} 
               subtext={todayDiary ? "Well done!" : "Record thoughts"} 
               icon={todayDiary ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />} 
-              variant={todayDiary ? "secondary" : "default"} 
+              variant={todayDiary ? "default" : "default"} 
+              accentColor={todayDiary ? "emerald" : "slate"}
               info="Your private E2EE reflection vault. Securely record achievements, learnings, and plans for tomorrow."
             />
           </div>
@@ -604,7 +617,7 @@ export default function Dashboard() {
 
       {/* Pillar Report Exclusive Dialog */}
       <Dialog open={!!selectedPillarReport} onOpenChange={(open) => !open && setSelectedPillarReport(null)}>
-        <DialogContent className="max-w-[95vw] md:max-w-3xl rounded-[2rem] p-0 overflow-hidden border-none shadow-2xl">
+        <DialogContent className="max-w-[95vw] md:max-w-3xl rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl">
           {selectedPillarReport && (
             <div className="flex flex-col h-[85vh] md:h-auto max-h-[90vh]">
               <div className={cn("p-6 text-white relative shrink-0", (PILLAR_ICONS[selectedPillarReport.id] || { bg: 'bg-primary' }).bg)}>
@@ -761,28 +774,44 @@ interface DashboardCardProps {
   progress?: number;
   loading?: boolean;
   info?: string;
+  accentColor?: string;
 }
 
-function DashboardCard({ href, title, value, subtext, icon, variant = 'default', progress, loading, info }: DashboardCardProps) {
+function DashboardCard({ href, title, value, subtext, icon, variant = 'default', progress, loading, info, accentColor }: DashboardCardProps) {
+  const colorMap: Record<string, string> = {
+    orange: "text-orange-500 bg-orange-500/10",
+    indigo: "text-indigo-500 bg-indigo-500/10",
+    green: "text-green-500 bg-green-500/10",
+    blue: "text-blue-500 bg-blue-500/10",
+    emerald: "text-emerald-500 bg-emerald-500/10",
+    slate: "text-slate-500 bg-slate-500/10"
+  };
+
+  const activeColor = accentColor ? colorMap[accentColor] || "text-primary bg-primary/10" : "text-primary bg-primary/10";
+
   return (
     <div className="relative group">
-      <Link href={href} className="block transition-transform hover:scale-[1.02] active:scale-[0.98] h-full">
+      <Link href={href} className="block transition-all duration-300 hover:translate-y-[-2px] active:scale-[0.98] h-full">
         <Card className={cn(
-          "shadow-md h-full transition-all duration-300 border-none ring-1 ring-border relative overflow-hidden rounded-2xl",
-          variant === 'primary' && "bg-primary text-primary-foreground ring-primary/20",
-          variant === 'secondary' && "bg-secondary text-secondary-foreground ring-secondary/20",
-          variant === 'destructive' && "bg-destructive text-destructive-foreground ring-destructive/20 animate-pulse",
+          "shadow-sm h-full transition-all duration-300 border-none ring-1 ring-border relative overflow-hidden rounded-[2rem] bg-card hover:shadow-xl hover:ring-primary/20",
           loading && "opacity-50 grayscale"
         )}>
-          <CardHeader className="flex flex-row items-center justify-between pb-1 space-y-0 pt-3 md:pt-4 px-3 md:px-4">
-            <CardTitle className={cn("text-[8px] md:text-[10px] font-black uppercase tracking-widest leading-tight", variant === 'default' ? "text-muted-foreground" : "text-inherit opacity-80")}>{title}</CardTitle>
-            <div className={cn("p-1 rounded-lg shrink-0", variant === 'default' ? "bg-muted text-primary" : "bg-white/10")}>{icon}</div>
+          <CardHeader className="flex flex-row items-center justify-between pb-1 space-y-0 pt-4 md:pt-5 px-4 md:px-5">
+            <CardTitle className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground/60">{title}</CardTitle>
+            <div className={cn("p-2 rounded-xl shrink-0 transition-transform group-hover:scale-110", activeColor)}>
+              {React.cloneElement(icon as React.ReactElement, { className: "h-4 w-4" })}
+            </div>
           </CardHeader>
-          <CardContent className="pb-3 md:pb-4 px-3 md:px-4">
-            <div className="text-sm md:text-xl font-black tracking-tighter truncate">{value}</div>
-            <p className={cn("text-[7px] md:text-[9px] font-bold uppercase mt-0.5 truncate", variant === 'default' ? "text-muted-foreground" : "text-inherit opacity-70")}>{subtext}</p>
-            {progress !== undefined && <Progress value={progress} className="h-0.5 md:h-1 mt-2 md:mt-2.5 bg-muted/20" />}
+          <CardContent className="pb-4 md:pb-6 px-4 md:px-5 mt-2">
+            <div className="text-base md:text-xl font-black tracking-tighter truncate leading-none mb-1.5">{value}</div>
+            <p className="text-[8px] md:text-[9px] font-bold uppercase tracking-tight text-muted-foreground/80 truncate">{subtext}</p>
+            {progress !== undefined && (
+              <div className="mt-4">
+                <Progress value={progress} className="h-1.5 bg-muted/40" />
+              </div>
+            )}
           </CardContent>
+          <div className="absolute bottom-0 left-0 w-full h-1 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
         </Card>
       </Link>
       {info && (
@@ -791,17 +820,14 @@ function DashboardCard({ href, title, value, subtext, icon, variant = 'default',
             <PopoverTrigger asChild>
               <button 
                 onClick={(e) => e.preventDefault()}
-                className={cn(
-                  "p-1 rounded-full bg-background/80 backdrop-blur-sm shadow-sm ring-1 ring-border",
-                  variant !== 'default' && "bg-white/20 border-white/20 text-white"
-                )}
+                className="p-1.5 rounded-full bg-background/80 backdrop-blur-sm shadow-md ring-1 ring-border text-muted-foreground/40 hover:text-primary transition-all"
               >
-                <Info className="h-2.5 w-2.5" />
+                <Info className="h-3 w-3" />
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-56 p-3 rounded-xl shadow-xl border-none ring-1 ring-border">
-              <p className="text-[9px] font-black uppercase tracking-widest text-primary mb-1">{title} Module</p>
-              <p className="text-[10px] text-muted-foreground leading-relaxed">{info}</p>
+            <PopoverContent className="w-56 p-3 rounded-2xl shadow-2xl border-none ring-1 ring-border">
+              <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">{title} Node</p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed font-medium">{info}</p>
             </PopoverContent>
           </Popover>
         </div>
@@ -809,3 +835,4 @@ function DashboardCard({ href, title, value, subtext, icon, variant = 'default',
     </div>
   );
 }
+
