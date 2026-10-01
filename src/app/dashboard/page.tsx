@@ -33,7 +33,11 @@ import {
   ReceiptText,
   ChevronRight,
   ArrowRight,
-  ArrowUpRight
+  ArrowUpRight,
+  Activity,
+  Calendar,
+  Layers,
+  ArrowRightLeft
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -835,4 +839,3 @@ function DashboardCard({ href, title, value, subtext, icon, variant = 'default',
     </div>
   );
 }
-
