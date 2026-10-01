@@ -741,7 +741,7 @@ export default function Dashboard() {
                         <p className="text-[10px] md:text-xs font-black">₹{Math.round(selectedPillarReport.spent).toLocaleString()}</p>
                      </div>
                      <div className="w-px h-6 bg-white/20" />
-                     <div className={cn("px-3 py-1.5 rounded-xl backdrop-blur-md border flex flex-col items-center shadow-lg", selectedPillarReport.remaining >= 0 ? "bg-white/20 border-white/20" : "bg-red-500/40 border-red-500/20")}>
+                     <div className={cn("px-3 py-1.5 rounded-xl backdrop-blur-md border flex flex-col items-center shadow-lg", selectedPillarReport.remaining >= 0 ? "bg-white/20 border-white/20" : "bg-red-50/40 border-red-50/20")}>
                         <p className="text-[6px] font-black uppercase tracking-widest opacity-60">Balance</p>
                         <p className="text-[10px] md:text-xs font-black">
                           {selectedPillarReport.remaining >= 0 ? `₹${Math.round(selectedPillarReport.remaining).toLocaleString()}` : "EXCEEDED"}
@@ -853,11 +853,13 @@ export default function Dashboard() {
                 </div>
               </ScrollArea>
 
-              <div className="p-3 md:p-4 border-t bg-card shrink-0 flex items-center justify-end shadow-sm relative z-20">
-                <Button asChild className="rounded-xl font-black text-[9px] md:text-[10px] uppercase tracking-widest h-9 md:h-10 px-5 md:px-6 shadow-lg shadow-primary/20">
-                  <Link href="/reports">
-                    Full Vault Analytics <ArrowRight className="ml-2 h-3 w-3" />
-                  </Link>
+              <div className="p-3 md:p-4 border-t bg-muted/20 shrink-0 flex items-center justify-start shadow-sm relative z-20 px-4 md:px-6">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setSelectedPillarReport(null)}
+                  className="rounded-xl font-black text-[9px] md:text-[10px] uppercase tracking-widest h-9 md:h-10 px-5 gap-2 bg-background shadow-sm hover:bg-primary/5"
+                >
+                  <ArrowLeft className="h-4 w-4" /> Back to Dashboard
                 </Button>
               </div>
             </>
