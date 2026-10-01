@@ -5,7 +5,18 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
+import { 
+  format, 
+  startOfMonth, 
+  endOfMonth, 
+  eachDayOfInterval, 
+  startOfWeek,
+  endOfWeek,
+  eachWeekOfInterval,
+  startOfYear,
+  endOfYear,
+  eachMonthOfInterval
+} from 'date-fns';
 import { collection, doc } from 'firebase/firestore';
 import { 
   TrendingUp, 
@@ -70,6 +81,7 @@ import {
 } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const PILLAR_ICONS: Record<string, any> = {
   expense: { icon: Wallet, color: 'text-blue-500', bg: 'bg-blue-500' },
@@ -84,6 +96,7 @@ export default function Dashboard() {
   const firestore = useFirestore();
   const [mounted, setMounted] = useState(false);
   const [selectedPillarReport, setSelectedPillarReport] = useState<any | null>(null);
+  const [pillarReportViewType, setPillarReportViewType] = useState<'weekly' | 'monthly' | 'annual'>('monthly');
   
   const [decryptedBudget, setDecryptedBudget] = useState<any>(null);
   const [decryptedFixed, setDecryptedFixed] = useState<any[]>([]);
@@ -91,6 +104,7 @@ export default function Dashboard() {
   const [decryptedDebts, setDecryptedDebts] = useState<any[]>([]);
   const [decryptedCravingLogs, setDecryptedCravingLogs] = useState<any[]>([]);
   const [decryptedSalaryProfile, setDecryptedSalaryProfile] = useState<any>(null);
+  const [decryptedAllBudgets, setDecryptedAllBudgets] = useState<any[]>([]);
   const [isDecrypting, setIsDecrypting] = useState(false);
 
   useEffect(() => {
@@ -161,6 +175,12 @@ export default function Dashboard() {
   }, [firestore, user]);
   const { data: rawSalaryProfile } = useDoc(salaryProfileRef);
 
+  const allBudgetsQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, 'users', user.uid, 'monthlyBudgets');
+  }, [firestore, user]);
+  const { data: rawAllBudgets } = useCollection(allBudgetsQuery);
+
   useEffect(() => {
     const decryptAll = async () => {
       if (!user || !mounted) return;
@@ -225,10 +245,20 @@ export default function Dashboard() {
         });
       }
 
+      if (rawAllBudgets) {
+        const budgets = await Promise.all(rawAllBudgets.map(async b => ({
+          ...b,
+          actualSpent: b.isEncrypted ? await decryptNumber(b.actualSpent, user.uid) : (b.actualSpent || 0),
+          actualFixedSpent: b.isEncrypted ? await decryptNumber(b.actualFixedSpent, user.uid) : (b.actualFixedSpent || 0),
+          totalBudgetAmount: b.isEncrypted ? await decryptNumber(b.totalBudgetAmount, user.uid) : (b.totalBudgetAmount || 0),
+        })));
+        setDecryptedAllBudgets(budgets);
+      }
+
       setIsDecrypting(false);
     };
     decryptAll();
-  }, [rawBudget, rawFixed, rawExpenses, rawDebts, rawCravingLogs, rawSalaryProfile, user, mounted]);
+  }, [rawBudget, rawFixed, rawExpenses, rawDebts, rawCravingLogs, rawSalaryProfile, rawAllBudgets, user, mounted]);
 
   const budgetReport = useMemo(() => {
     if (!decryptedBudget || !mounted) return null;
@@ -319,6 +349,60 @@ export default function Dashboard() {
   const selectedPillarGraphData = useMemo(() => {
     if (!selectedPillarReport || !decryptedExpenses) return [];
     
+    if (pillarReportViewType === 'weekly') {
+      const monthStart = startOfMonth(now);
+      const monthEnd = endOfMonth(now);
+      const weeks = eachWeekOfInterval({ start: monthStart, end: monthEnd });
+      
+      return weeks.map((weekStart, idx) => {
+        const weekEnd = endOfWeek(weekStart);
+        const spent = (decryptedExpenses || [])
+          .filter(e => {
+            const d = new Date(e.date);
+            return d >= weekStart && d <= weekEnd && (e.allocationBucket || 'expense') === selectedPillarReport.id;
+          })
+          .reduce((s, e) => s + e.amount, 0);
+        return {
+          name: `W${idx + 1}`,
+          spent,
+          fullDate: `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`
+        };
+      });
+    }
+
+    if (pillarReportViewType === 'annual') {
+      const yearStart = startOfYear(now);
+      const months = eachMonthOfInterval({ start: yearStart, end: now });
+      
+      return months.map(m => {
+        const mKey = format(m, 'yyyyMM');
+        const isCurrentMonth = mKey === monthId;
+        let spent = 0;
+        
+        if (isCurrentMonth) {
+          spent = (decryptedExpenses || [])
+            .filter(e => (e.allocationBucket || 'expense') === selectedPillarReport.id)
+            .reduce((s, e) => s + e.amount, 0);
+            
+          const fixedSpent = (decryptedFixed || [])
+            .filter(f => f.allocationBucket === selectedPillarReport.id)
+            .reduce((s, f) => s + f.amount, 0);
+          spent += fixedSpent;
+        } else if (selectedPillarReport.id === 'expense') {
+          const historical = decryptedAllBudgets?.find(b => b.id === mKey);
+          if (historical) {
+            spent = (historical.actualSpent || 0) + (historical.actualFixedSpent || 0);
+          }
+        }
+        
+        return {
+          name: format(m, 'MMM'),
+          spent,
+          fullDate: format(m, 'MMMM yyyy')
+        };
+      });
+    }
+    
     const monthStart = startOfMonth(now);
     const monthEnd = endOfMonth(now);
     const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
@@ -331,10 +415,10 @@ export default function Dashboard() {
       return {
         name: format(day, 'd'),
         spent,
-        fullDate: format(day, 'dd MMM')
+        fullDate: format(day, 'dd MMM yyyy')
       };
     });
-  }, [selectedPillarReport, decryptedExpenses, now]);
+  }, [selectedPillarReport, decryptedExpenses, decryptedFixed, pillarReportViewType, now, monthId, decryptedAllBudgets]);
 
   const selectedPillarRecentExpenses = useMemo(() => {
     if (!selectedPillarReport || !decryptedExpenses) return [];
@@ -663,14 +747,20 @@ export default function Dashboard() {
               <ScrollArea className="flex-1 bg-background">
                 <div className="p-6 space-y-8">
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between px-1">
+                    <div className="flex flex-col sm:flex-row items-center justify-between px-1 gap-4">
                       <h4 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
                         <TrendingUp className="h-4 w-4 text-primary" />
-                        Daily Utilization Pulse
+                        Utilization Pulse
                       </h4>
-                      <Badge variant="outline" className="text-[8px] font-black uppercase px-2">{format(now, 'MMMM yyyy')}</Badge>
+                      <Tabs value={pillarReportViewType} onValueChange={(v: any) => setPillarReportViewType(v)} className="w-full sm:w-auto">
+                        <TabsList className="grid w-full grid-cols-3 sm:w-[240px] h-8 p-1 bg-muted/50 rounded-xl border">
+                          <TabsTrigger value="weekly" className="text-[8px] font-black uppercase">Weekly</TabsTrigger>
+                          <TabsTrigger value="monthly" className="text-[8px] font-black uppercase">Monthly</TabsTrigger>
+                          <TabsTrigger value="annual" className="text-[8px] font-black uppercase">Yearly</TabsTrigger>
+                        </TabsList>
+                      </Tabs>
                     </div>
-                    <div className="h-[200px] w-full bg-muted/5 rounded-3xl border border-dashed p-4">
+                    <div className="h-[220px] w-full bg-muted/5 rounded-3xl border border-dashed p-4">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={selectedPillarGraphData}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
@@ -680,8 +770,8 @@ export default function Dashboard() {
                             fontWeight="bold" 
                             tickLine={false} 
                             axisLine={false} 
-                            interval="preserveStartEnd"
-                            minTickGap={10}
+                            interval={pillarReportViewType === 'monthly' ? "preserveStartEnd" : 0}
+                            minTickGap={pillarReportViewType === 'monthly' ? 10 : 0}
                           />
                           <YAxis 
                             fontSize={8} 
@@ -704,7 +794,7 @@ export default function Dashboard() {
                             {selectedPillarGraphData.map((entry, index) => (
                               <Cell 
                                 key={`cell-${index}`} 
-                                fill={entry.spent > (selectedPillarReport.target / 30) ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.3)'} 
+                                fill={entry.spent > (selectedPillarReport.target / (pillarReportViewType === 'monthly' ? 30 : pillarReportViewType === 'weekly' ? 4 : 1)) ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.3)'} 
                               />
                             ))}
                           </Bar>
