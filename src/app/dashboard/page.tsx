@@ -47,7 +47,9 @@ import {
   Activity,
   Calendar,
   Layers,
-  ArrowRightLeft
+  ArrowRightLeft,
+  ArrowLeft,
+  ChevronRight as ChevronRightIcon
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -714,7 +716,7 @@ export default function Dashboard() {
                 </div>
                 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
-                  <DialogHeader className="text-left space-y-0.5">
+                  <DialogHeader className="text-left space-y-0.5 min-w-fit">
                     <div className="flex items-center gap-2">
                       <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-md">
                         {React.createElement((PILLAR_ICONS[selectedPillarReport.id] || { icon: Coins }).icon, { className: "h-4 w-4" })}
@@ -724,18 +726,18 @@ export default function Dashboard() {
                     <DialogDescription className="text-white/70 text-[8px] font-black uppercase tracking-widest leading-none">Performance Report</DialogDescription>
                   </DialogHeader>
 
-                  <div className="flex items-center gap-3">
-                     <div className="bg-white/10 px-3 py-1.5 rounded-xl backdrop-blur-md border border-white/10 flex flex-col items-end">
-                        <p className="text-[6px] font-black uppercase tracking-widest opacity-70">Target</p>
-                        <p className="text-xs font-black">₹{Math.round(selectedPillarReport.target).toLocaleString()}</p>
+                  <div className="flex flex-1 items-center justify-end gap-4 sm:gap-6 md:gap-8">
+                     <div className="bg-white/10 px-4 py-2 rounded-2xl backdrop-blur-md border border-white/10 flex flex-col items-center min-w-[80px] shadow-inner">
+                        <p className="text-[7px] font-black uppercase tracking-widest opacity-60">Target</p>
+                        <p className="text-sm font-black">₹{Math.round(selectedPillarReport.target).toLocaleString()}</p>
                      </div>
-                     <div className="bg-white/10 px-3 py-1.5 rounded-xl backdrop-blur-md border border-white/10 flex flex-col items-end">
-                        <p className="text-[6px] font-black uppercase tracking-widest opacity-70">Spent</p>
-                        <p className="text-xs font-black">₹{Math.round(selectedPillarReport.spent).toLocaleString()}</p>
+                     <div className="bg-white/10 px-4 py-2 rounded-2xl backdrop-blur-md border border-white/10 flex flex-col items-center min-w-[80px] shadow-inner">
+                        <p className="text-[7px] font-black uppercase tracking-widest opacity-60">Spent</p>
+                        <p className="text-sm font-black">₹{Math.round(selectedPillarReport.spent).toLocaleString()}</p>
                      </div>
-                     <div className={cn("px-3 py-1.5 rounded-xl backdrop-blur-md border flex flex-col items-end shadow-sm", selectedPillarReport.remaining >= 0 ? "bg-white/20 border-white/20" : "bg-red-500/40 border-red-500/20")}>
-                        <p className="text-[6px] font-black uppercase tracking-widest opacity-70">Balance</p>
-                        <p className="text-xs font-black">
+                     <div className={cn("px-4 py-2 rounded-2xl backdrop-blur-md border flex flex-col items-center min-w-[80px] shadow-lg", selectedPillarReport.remaining >= 0 ? "bg-white/20 border-white/20" : "bg-red-500/40 border-red-500/20")}>
+                        <p className="text-[7px] font-black uppercase tracking-widest opacity-60">Balance</p>
+                        <p className="text-sm font-black">
                           {selectedPillarReport.remaining >= 0 ? `₹${Math.round(selectedPillarReport.remaining).toLocaleString()}` : "EXCEEDED"}
                         </p>
                      </div>
@@ -895,7 +897,7 @@ function DashboardCard({ href, title, value, subtext, icon, variant = 'default',
             </div>
           </CardHeader>
           <CardContent className="pb-4 md:pb-6 px-4 md:px-5 mt-2">
-            <div className="text-base md:text-xl font-black tracking-tighter truncate leading-none mb-1.5">{value}</div>
+            <div className="text-base md:text-xl font-black tracking-tighter truncate leading-none mb-1.5">₹{value}</div>
             <p className="text-[8px] md:text-[9px] font-bold uppercase tracking-tight text-muted-foreground/80 truncate">{subtext}</p>
             {progress !== undefined && (
               <div className="mt-4">
