@@ -15,7 +15,8 @@ import {
   eachWeekOfInterval,
   startOfYear,
   endOfYear,
-  eachMonthOfInterval
+  eachMonthOfInterval,
+  subMonths
 } from 'date-fns';
 import { collection, doc } from 'firebase/firestore';
 import { 
@@ -50,7 +51,8 @@ import {
   Layers,
   ArrowRightLeft,
   ArrowLeft,
-  ChevronRight as ChevronRightIcon
+  ChevronRight as ChevronRightIcon,
+  CheckSquare
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -192,9 +194,6 @@ export default function Dashboard() {
         setDecryptedBudget({
           ...rawBudget,
           totalBudgetAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.totalBudgetAmount, user.uid) : (rawBudget.totalBudgetAmount || 0),
-          saturdayExtraAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.saturdayExtraAmount, user.uid) : (rawBudget.saturdayExtraAmount || 0),
-          sundayExtraAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.sundayExtraAmount, user.uid) : (rawBudget.sundayExtraAmount || 0),
-          isWeekendExtraBudgetEnabled: rawBudget.isWeekendExtraBudgetEnabled ?? false,
         });
       }
 
@@ -282,10 +281,10 @@ export default function Dashboard() {
         amount: f.amount,
         included: f.includeInBudget && (f.allocationBucket || 'expense') === 'expense'
       })),
-      saturdayExtra: decryptedBudget.saturdayExtraAmount || 0,
-      sundayExtra: decryptedBudget.sundayExtraAmount || 0,
+      saturdayExtra: 0,
+      sundayExtra: 0,
       holidayExtra: 0,
-      isWeekendEnabled: decryptedBudget.isWeekendExtraBudgetEnabled || false,
+      isWeekendEnabled: false,
       isHolidayEnabled: false
     };
 
@@ -305,8 +304,8 @@ export default function Dashboard() {
     };
   }, [decryptedCravingLogs, todayStr]);
 
-  const goalsProgress = learningGoals?.length ? Math.round((learningGoals.filter(g => (g.completedCount || 0) >= (g.target || 0)).length / learningGoals.length) * 100) : 0;
   const totalOwed = useMemo(() => decryptedDebts?.filter(d => !d.isPaid).reduce((sum, d) => sum + d.amount, 0) || 0, [decryptedDebts]);
+  const goalsProgress = learningGoals?.length ? Math.round((learningGoals.filter(g => (g.completedCount || 0) >= (g.target || 0)).length / learningGoals.length) * 100) : 0;
   const hasActiveGoals = !!(learningGoals && learningGoals.length > 0);
 
   const visionStats = useMemo(() => {
@@ -710,6 +709,11 @@ export default function Dashboard() {
         <DialogContent className="max-w-[95vw] md:max-w-4xl rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl h-[95vh] md:h-auto max-h-[95vh] flex flex-col">
           {selectedPillarReport && (
             <>
+              <DialogHeader className="sr-only">
+                <DialogTitle>{selectedPillarReport.label} Performance Report</DialogTitle>
+                <DialogDescription>Detailed analytics and transaction history for the {selectedPillarReport.label} strategic node.</DialogDescription>
+              </DialogHeader>
+
               <div className={cn("px-4 py-3 md:px-6 md:py-4 text-white relative shrink-0 overflow-hidden", (PILLAR_ICONS[selectedPillarReport.id] || { bg: 'bg-primary' }).bg)}>
                 <div className="absolute -top-4 -right-4 opacity-10 rotate-12">
                    {React.createElement((PILLAR_ICONS[selectedPillarReport.id] || { icon: Coins }).icon, { className: "h-16 w-16" })}
