@@ -624,37 +624,39 @@ export default function Dashboard() {
         <DialogContent className="max-w-[95vw] md:max-w-3xl rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl">
           {selectedPillarReport && (
             <div className="flex flex-col h-[85vh] md:h-auto max-h-[90vh]">
-              <div className={cn("p-6 text-white relative shrink-0", (PILLAR_ICONS[selectedPillarReport.id] || { bg: 'bg-primary' }).bg)}>
-                <div className="absolute top-6 right-6 opacity-20 rotate-12">
-                   {React.createElement((PILLAR_ICONS[selectedPillarReport.id] || { icon: Coins }).icon, { className: "h-24 w-24" })}
-                </div>
-                <div className="space-y-1 relative z-10">
-                  <DialogHeader className="text-left">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="p-2 bg-white/20 rounded-xl backdrop-blur-md">
-                        {React.createElement((PILLAR_ICONS[selectedPillarReport.id] || { icon: Coins }).icon, { className: "h-6 w-6" })}
-                      </div>
-                      <DialogTitle className="text-2xl font-black tracking-tighter uppercase">{selectedPillarReport.label}</DialogTitle>
-                    </div>
-                    <DialogDescription className="text-white/80 text-[10px] font-black uppercase tracking-widest leading-none">Exclusive Strategic Performance Report</DialogDescription>
-                  </DialogHeader>
+              <div className={cn("p-4 md:p-6 text-white relative shrink-0 overflow-hidden", (PILLAR_ICONS[selectedPillarReport.id] || { bg: 'bg-primary' }).bg)}>
+                {/* Smaller background icon */}
+                <div className="absolute -top-4 -right-4 opacity-10 rotate-12">
+                   {React.createElement((PILLAR_ICONS[selectedPillarReport.id] || { icon: Coins }).icon, { className: "h-20 w-20" })}
                 </div>
                 
-                <div className="grid grid-cols-3 gap-4 mt-8 relative z-10">
-                   <div className="bg-white/10 p-3 rounded-2xl backdrop-blur-sm border border-white/10">
-                      <p className="text-[8px] font-black uppercase tracking-widest opacity-70">Strategic Target</p>
-                      <p className="text-lg font-black tracking-tighter">₹{Math.round(selectedPillarReport.target).toLocaleString()}</p>
-                   </div>
-                   <div className="bg-white/10 p-3 rounded-2xl backdrop-blur-sm border border-white/10">
-                      <p className="text-[8px] font-black uppercase tracking-widest opacity-70">Total Utilized</p>
-                      <p className="text-lg font-black tracking-tighter">₹{Math.round(selectedPillarReport.spent).toLocaleString()}</p>
-                   </div>
-                   <div className="bg-white/10 p-3 rounded-2xl backdrop-blur-sm border border-white/10">
-                      <p className="text-[8px] font-black uppercase tracking-widest opacity-70">Vault Status</p>
-                      <p className={cn("text-lg font-black tracking-tighter", selectedPillarReport.remaining >= 0 ? "text-white" : "text-red-200")}>
-                        {selectedPillarReport.remaining >= 0 ? `₹${Math.round(selectedPillarReport.remaining).toLocaleString()}` : "EXCEEDED"}
-                      </p>
-                   </div>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+                  <DialogHeader className="text-left space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-md">
+                        {React.createElement((PILLAR_ICONS[selectedPillarReport.id] || { icon: Coins }).icon, { className: "h-4 w-4" })}
+                      </div>
+                      <DialogTitle className="text-lg md:text-xl font-black tracking-tighter uppercase">{selectedPillarReport.label}</DialogTitle>
+                    </div>
+                    <DialogDescription className="text-white/70 text-[8px] font-black uppercase tracking-widest leading-none">Performance Report</DialogDescription>
+                  </DialogHeader>
+
+                  <div className="flex items-center gap-3">
+                     <div className="bg-white/10 px-3 py-1.5 rounded-xl backdrop-blur-md border border-white/10 flex flex-col items-end">
+                        <p className="text-[6px] font-black uppercase tracking-widest opacity-70">Target</p>
+                        <p className="text-xs font-black">₹{Math.round(selectedPillarReport.target).toLocaleString()}</p>
+                     </div>
+                     <div className="bg-white/10 px-3 py-1.5 rounded-xl backdrop-blur-md border border-white/10 flex flex-col items-end">
+                        <p className="text-[6px] font-black uppercase tracking-widest opacity-70">Spent</p>
+                        <p className="text-xs font-black">₹{Math.round(selectedPillarReport.spent).toLocaleString()}</p>
+                     </div>
+                     <div className={cn("px-3 py-1.5 rounded-xl backdrop-blur-md border flex flex-col items-end shadow-sm", selectedPillarReport.remaining >= 0 ? "bg-white/20 border-white/20" : "bg-red-500/40 border-red-500/20")}>
+                        <p className="text-[6px] font-black uppercase tracking-widest opacity-70">Balance</p>
+                        <p className="text-xs font-black">
+                          {selectedPillarReport.remaining >= 0 ? `₹${Math.round(selectedPillarReport.remaining).toLocaleString()}` : "EXCEEDED"}
+                        </p>
+                     </div>
+                  </div>
                 </div>
               </div>
 
