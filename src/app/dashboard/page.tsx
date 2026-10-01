@@ -26,7 +26,8 @@ import {
   HeartPulse,
   Smile,
   Coins,
-  Wallet
+  Wallet,
+  Info
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +36,11 @@ import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { decryptNumber, decryptData } from '@/lib/encryption';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const PILLAR_ICONS: Record<string, any> = {
   expense: { icon: Wallet, color: 'text-blue-500', bg: 'bg-blue-500' },
@@ -287,9 +293,9 @@ export default function Dashboard() {
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-4 md:space-y-6">
           <div className="grid gap-4 md:gap-6 lg:grid-cols-12">
             <div className={cn("space-y-4 md:space-y-6", hasActiveGoals ? "lg:col-span-7" : "lg:col-span-12")}>
-              <Link href="/reports" className="block group">
-                <Card className="shadow-lg overflow-hidden border-none ring-1 ring-border group-hover:ring-primary/30 transition-all duration-300 rounded-2xl">
-                  <CardHeader className="bg-muted/30 border-b py-3 md:py-4 px-4 md:px-6">
+              <Card className="shadow-lg overflow-hidden border-none ring-1 ring-border rounded-2xl relative group">
+                <CardHeader className="bg-muted/30 border-b py-3 md:py-4 px-4 md:px-6 flex flex-row items-center justify-between">
+                  <Link href="/reports" className="flex-1">
                     <CardTitle className="text-sm md:text-base font-black flex items-center gap-2">
                       <TrendingUp className="w-4 h-4 text-primary" />
                       Budget Insight
@@ -297,8 +303,25 @@ export default function Dashboard() {
                     <CardDescription className="text-[9px] md:text-[10px] font-medium uppercase tracking-tight">
                       {isDecrypting ? "Syncing metrics..." : "Real-time performance metrics"}
                     </CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-4 md:p-6 space-y-4 md:space-y-6">
+                  </Link>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full hover:bg-primary/10">
+                        <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">Budget Analysis</p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          This section tracks your variable spending velocity. 'Base Remaining' shows your current daily allowance status, while 'Spent Today' aggregates all logged expenses for the current date.
+                        </p>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </CardHeader>
+                <CardContent className="p-4 md:p-6 space-y-4 md:space-y-6">
+                  <Link href="/reports">
                     <div className={cn(
                       "p-4 md:p-5 rounded-2xl border transition-all grid grid-cols-2 gap-4",
                       isDecrypting ? "opacity-50 grayscale" : (
@@ -329,19 +352,36 @@ export default function Dashboard() {
                         <p className="text-xl md:text-2xl font-black tracking-tighter">₹{spentToday.toFixed(0)}</p>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              </Link>
+                  </Link>
+                </CardContent>
+              </Card>
             </div>
             {hasActiveGoals && (
               <div className="lg:col-span-5">
-                <Link href="/learning" className="block group h-full">
-                  <Card className="shadow-lg h-full border-none ring-1 ring-border group-hover:ring-primary/30 transition-all duration-300 rounded-2xl">
-                    <CardHeader className="bg-muted/30 border-b py-3 md:py-4 px-4 md:px-6">
+                <Card className="shadow-lg h-full border-none ring-1 ring-border rounded-2xl relative">
+                  <CardHeader className="bg-muted/30 border-b py-3 md:py-4 px-4 md:px-6 flex flex-row items-center justify-between">
+                    <Link href="/learning" className="flex-1">
                       <CardTitle className="text-sm md:text-base font-black">Active Skills</CardTitle>
                       <CardDescription className="text-[9px] md:text-[10px] font-medium uppercase tracking-tight">Daily Progress tracker</CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-4 md:p-6 space-y-3 md:space-y-4">
+                    </Link>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full hover:bg-primary/10">
+                          <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-72 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-primary">Skill Progress</p>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            Monitor your daily learning targets. This shows a summary of your most active skills and your current completion percentage for the day.
+                          </p>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </CardHeader>
+                  <CardContent className="p-4 md:p-6 space-y-3 md:space-y-4">
+                    <Link href="/learning" className="space-y-3 md:space-y-4 block">
                       {learningGoals!.slice(0, 4).map((goal) => {
                         const p = Math.min(100, Math.round(((goal.completedCount || 0) / (goal.target || 1)) * 100));
                         return (
@@ -354,9 +394,9 @@ export default function Dashboard() {
                           </div>
                         );
                       })}
-                    </CardContent>
-                  </Card>
-                </Link>
+                    </Link>
+                  </CardContent>
+                </Card>
               </div>
             )}
           </div>
@@ -371,9 +411,26 @@ export default function Dashboard() {
                 </CardTitle>
                 <CardDescription className="text-[10px] font-black uppercase tracking-tight opacity-70">Wealth strategy utilization for {format(now, 'MMMM')}</CardDescription>
               </div>
-              <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-black text-[9px] uppercase px-3 py-1">
-                Strategic Health
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-black text-[9px] uppercase px-3 py-1">
+                  Strategic Health
+                </Badge>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-primary/10">
+                      <Info className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-primary">Strategic Allocation Logic</p>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        This row visualizes your current spending against the pillars defined in your Salary Strategy. The bars indicate how much of your planned monthly budget for each pillar has been consumed.
+                      </p>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
             </CardHeader>
             <CardContent className="p-4 md:p-6">
               {!allocationReport ? (
@@ -403,7 +460,27 @@ export default function Dashboard() {
                         </div>
                         
                         <div className="space-y-0.5">
-                          <p className="text-[7px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground truncate">{pillar.label}</p>
+                          <div className="flex items-center justify-between">
+                            <p className="text-[7px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground truncate">{pillar.label}</p>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <button className="text-muted-foreground/30 hover:text-primary transition-colors focus:outline-none">
+                                  <Info className="h-3 w-3" />
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-64 p-3 rounded-xl shadow-xl border-none ring-1 ring-border">
+                                <p className="text-[9px] font-black uppercase tracking-widest text-primary mb-1">{pillar.label} Utilization</p>
+                                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                                  {pillar.id === 'expense' ? 'Tracks daily variable costs and recurring fixed bills against your expense budget.' : 
+                                   pillar.id === 'savings' ? 'Emergency funds and short-term savings growth tracking.' :
+                                   pillar.id === 'investment' ? 'Capital deployed into long-term assets vs strategy target.' :
+                                   pillar.id === 'health' ? 'Spending on physical wellness and insurance vs monthly plan.' :
+                                   pillar.id === 'personal' ? 'Guilt-free spending and lifestyle maintenance budget.' :
+                                   `Utilization of the ${pillar.label} strategic pillar.`}
+                                </p>
+                              </PopoverContent>
+                            </Popover>
+                          </div>
                           <div className="flex flex-col md:flex-row md:items-baseline gap-0 md:gap-1">
                             <span className="text-[10px] md:text-lg font-black tracking-tighter">₹{Math.round(pillar.spent).toLocaleString()}</span>
                             <span className="text-[6px] md:text-[8px] font-bold text-muted-foreground opacity-60">/ ₹{Math.round(pillar.target).toLocaleString()}</span>
@@ -437,7 +514,8 @@ export default function Dashboard() {
               subtext={`₹${cravingToday.money} Saved | ${cravingStats?.currentStreak || 0}d Streak`} 
               icon={<Flame className="w-4 h-4" />} 
               variant="primary" 
-              loading={isDecrypting} 
+              loading={isDecrypting}
+              info="Tracks the nutritional and financial impact of resisted cravings. Streaks represent consecutive days of logging resistance."
             />
             <DashboardCard 
               href="/future-vision" 
@@ -445,11 +523,37 @@ export default function Dashboard() {
               value={`${visionStats.active} Visions`} 
               subtext={`${visionStats.achieved} Achievements`} 
               icon={<Mountain className="w-4 h-4" />} 
-              variant="default" 
+              variant="default"
+              info="A private board for your long-term aspirations. Items are end-to-end encrypted to ensure your dreams remain confidential."
             />
-            <DashboardCard href="/split-pay" title="Split & Debt" value={`₹${totalOwed.toFixed(0)}`} subtext="Receivable total" icon={<HandCoins className="w-4 h-4" />} variant="default" loading={isDecrypting} />
-            <DashboardCard href="/learning" title="Skill Mastery" value={`${goalsProgress}%`} subtext="Completion rate" icon={<BookOpen className="w-4 h-4" />} progress={goalsProgress} />
-            <DashboardCard href="/diary" title="Daily Reflection" value={todayDiary ? "Logged" : "Pending"} subtext={todayDiary ? "Well done!" : "Record thoughts"} icon={todayDiary ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />} variant={todayDiary ? "secondary" : "default"} />
+            <DashboardCard 
+              href="/split-pay" 
+              title="Split & Debt" 
+              value={`₹{totalOwed.toFixed(0)}`} 
+              subtext="Receivable total" 
+              icon={<HandCoins className="w-4 h-4" />} 
+              variant="default" 
+              loading={isDecrypting}
+              info="Manages shared expense rooms and personal debts. Tracks net balances across collaborative groups."
+            />
+            <DashboardCard 
+              href="/learning" 
+              title="Skill Mastery" 
+              value={`${goalsProgress}%`} 
+              subtext="Completion rate" 
+              icon={<BookOpen className="w-4 h-4" />} 
+              progress={goalsProgress}
+              info="Tracks your progress across active skill goals. Completion rate represents the ratio of met daily targets."
+            />
+            <DashboardCard 
+              href="/diary" 
+              title="Daily Reflection" 
+              value={todayDiary ? "Logged" : "Pending"} 
+              subtext={todayDiary ? "Well done!" : "Record thoughts"} 
+              icon={todayDiary ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />} 
+              variant={todayDiary ? "secondary" : "default"} 
+              info="Your private E2EE reflection vault. Securely record achievements, learnings, and plans for tomorrow."
+            />
           </div>
         </div>
       )}
@@ -466,28 +570,52 @@ interface DashboardCardProps {
   variant?: 'primary' | 'secondary' | 'destructive' | 'default';
   progress?: number;
   loading?: boolean;
+  info?: string;
 }
 
-function DashboardCard({ href, title, value, subtext, icon, variant = 'default', progress, loading }: DashboardCardProps) {
+function DashboardCard({ href, title, value, subtext, icon, variant = 'default', progress, loading, info }: DashboardCardProps) {
   return (
-    <Link href={href} className="block transition-transform hover:scale-[1.02] active:scale-[0.98]">
-      <Card className={cn(
-        "shadow-md h-full transition-all duration-300 border-none ring-1 ring-border relative overflow-hidden rounded-2xl",
-        variant === 'primary' && "bg-primary text-primary-foreground ring-primary/20",
-        variant === 'secondary' && "bg-secondary text-secondary-foreground ring-secondary/20",
-        variant === 'destructive' && "bg-destructive text-destructive-foreground ring-destructive/20 animate-pulse",
-        loading && "opacity-50 grayscale"
-      )}>
-        <CardHeader className="flex flex-row items-center justify-between pb-1 space-y-0 pt-3 md:pt-4 px-3 md:px-4">
-          <CardTitle className={cn("text-[8px] md:text-[10px] font-black uppercase tracking-widest leading-tight", variant === 'default' ? "text-muted-foreground" : "text-inherit opacity-80")}>{title}</CardTitle>
-          <div className={cn("p-1 rounded-lg shrink-0", variant === 'default' ? "bg-muted text-primary" : "bg-white/10")}>{icon}</div>
-        </CardHeader>
-        <CardContent className="pb-3 md:pb-4 px-3 md:px-4">
-          <div className="text-sm md:text-xl font-black tracking-tighter truncate">{value}</div>
-          <p className={cn("text-[7px] md:text-[9px] font-bold uppercase mt-0.5 truncate", variant === 'default' ? "text-muted-foreground" : "text-inherit opacity-70")}>{subtext}</p>
-          {progress !== undefined && <Progress value={progress} className="h-0.5 md:h-1 mt-2 md:mt-2.5 bg-muted/20" />}
-        </CardContent>
-      </Card>
-    </Link>
+    <div className="relative group">
+      <Link href={href} className="block transition-transform hover:scale-[1.02] active:scale-[0.98] h-full">
+        <Card className={cn(
+          "shadow-md h-full transition-all duration-300 border-none ring-1 ring-border relative overflow-hidden rounded-2xl",
+          variant === 'primary' && "bg-primary text-primary-foreground ring-primary/20",
+          variant === 'secondary' && "bg-secondary text-secondary-foreground ring-secondary/20",
+          variant === 'destructive' && "bg-destructive text-destructive-foreground ring-destructive/20 animate-pulse",
+          loading && "opacity-50 grayscale"
+        )}>
+          <CardHeader className="flex flex-row items-center justify-between pb-1 space-y-0 pt-3 md:pt-4 px-3 md:px-4">
+            <CardTitle className={cn("text-[8px] md:text-[10px] font-black uppercase tracking-widest leading-tight", variant === 'default' ? "text-muted-foreground" : "text-inherit opacity-80")}>{title}</CardTitle>
+            <div className={cn("p-1 rounded-lg shrink-0", variant === 'default' ? "bg-muted text-primary" : "bg-white/10")}>{icon}</div>
+          </CardHeader>
+          <CardContent className="pb-3 md:pb-4 px-3 md:px-4">
+            <div className="text-sm md:text-xl font-black tracking-tighter truncate">{value}</div>
+            <p className={cn("text-[7px] md:text-[9px] font-bold uppercase mt-0.5 truncate", variant === 'default' ? "text-muted-foreground" : "text-inherit opacity-70")}>{subtext}</p>
+            {progress !== undefined && <Progress value={progress} className="h-0.5 md:h-1 mt-2 md:mt-2.5 bg-muted/20" />}
+          </CardContent>
+        </Card>
+      </Link>
+      {info && (
+        <div className="absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Popover>
+            <PopoverTrigger asChild>
+              <button 
+                onClick={(e) => e.preventDefault()}
+                className={cn(
+                  "p-1 rounded-full bg-background/80 backdrop-blur-sm shadow-sm ring-1 ring-border",
+                  variant !== 'default' && "bg-white/20 border-white/20 text-white"
+                )}
+              >
+                <Info className="h-2.5 w-2.5" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-3 rounded-xl shadow-xl border-none ring-1 ring-border">
+              <p className="text-[9px] font-black uppercase tracking-widest text-primary mb-1">{title} Module</p>
+              <p className="text-[10px] text-muted-foreground leading-relaxed">{info}</p>
+            </PopoverContent>
+          </Popover>
+        </div>
+      )}
+    </div>
   );
 }
