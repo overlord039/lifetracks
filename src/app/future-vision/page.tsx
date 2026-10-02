@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -265,18 +264,6 @@ export default function FutureVisionPage() {
                   <ShieldCheck className="h-3 w-3 text-primary" />
                   <span className="text-[8px] font-black uppercase tracking-[0.2em] text-primary">Private AES-GCM Encryption Active</span>
                 </CardFooter>
-              </Card>
-
-              <Card className="rounded-3xl border-dashed border-2 bg-muted/5 opacity-60 overflow-hidden">
-                <CardContent className="p-8 text-center space-y-4">
-                  <Mountain className="h-12 w-12 text-muted-foreground mx-auto" />
-                  <div className="space-y-1">
-                    <h4 className="font-black text-sm uppercase">Long-Term Thinking</h4>
-                    <p className="text-[10px] text-muted-foreground font-medium px-4">
-                      Visible goals are achieved 42% more often. Your private vision board serves as a mental anchor for your daily decisions.
-                    </p>
-                  </div>
-                </CardContent>
               </Card>
             </div>
 
