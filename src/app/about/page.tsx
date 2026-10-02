@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -112,8 +111,8 @@ export default function AboutPage() {
             />
             <FeatureCard 
               icon={Mountain} 
-              title="Future Vision" 
-              desc="E2EE bucket list and aspirations."
+              title="To do List" 
+              desc="E2EE task list and aspirations."
               color="text-indigo-500"
               bg="bg-indigo-50/80 dark:bg-indigo-900/10"
             />
@@ -202,53 +201,6 @@ export default function AboutPage() {
               We believe your data belongs to you. LifeTrack uses end-to-end encryption. 
               Your sensitive info is scrambled on your device before it touches our servers. 
               We cannot read your entries or see your budget.
-            </CardContent>
-          </Card>
-        </div>
-
-        <Separator className="opacity-50" />
-
-        <div className="space-y-4 md:space-y-6">
-          <div className="flex items-center gap-2 md:gap-3 px-1 md:px-2">
-            <div className="p-1.5 md:p-2 bg-primary/10 rounded-xl text-primary shadow-sm">
-              <Lock className="h-5 w-5 md:h-6 md:w-6" />
-            </div>
-            <div>
-              <h3 className="text-base md:text-xl font-black text-primary uppercase">Security Stack</h3>
-              <p className="text-[8px] md:text-[10px] text-muted-foreground font-black uppercase tracking-widest">Technical Zero-Knowledge</p>
-            </div>
-          </div>
-
-          <Card className="bg-primary/[0.03] border-dashed border-2 border-primary/20 rounded-[2rem] overflow-hidden">
-            <CardContent className="p-4 md:p-10 space-y-6 md:space-y-10">
-              <div className="grid gap-6 md:gap-10 md:grid-cols-3">
-                <TechSection 
-                  icon={EyeOff} 
-                  title="Zero-Knowledge" 
-                  text="Client-side architecture. Your Master Key stays on your device."
-                />
-                <TechSection 
-                  icon={KeyRound} 
-                  title="AES-GCM 256" 
-                  text="Sensitive fields encrypted using Web Crypto API gold standard."
-                />
-                <TechSection 
-                  icon={ServerCrash} 
-                  title="Cloud Resilience" 
-                  text="Attackers would only find useless, encrypted strings of characters."
-                />
-              </div>
-              
-              <div className="p-4 md:p-6 bg-primary/10 rounded-[1.5rem] md:rounded-[2rem] border border-primary/20 shadow-inner">
-                <div className="flex items-center gap-2 mb-1.5 md:mb-2">
-                   <AlertTriangle className="h-3 w-3 md:h-4 md:w-4 text-primary" />
-                   <p className="text-[8px] md:text-[10px] font-black uppercase text-primary tracking-widest">Critical Note</p>
-                </div>
-                <p className="text-[10px] md:text-sm text-primary/80 leading-relaxed font-medium">
-                  We <strong>cannot recover your data</strong> if you lose your credentials. 
-                  Store them in a trusted password manager.
-                </p>
-              </div>
             </CardContent>
           </Card>
         </div>

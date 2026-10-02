@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -446,7 +445,7 @@ export default function Dashboard() {
   const selectedPillarRecentExpenses = useMemo(() => {
     if (!selectedPillarReport || !decryptedExpenses) return [];
     return decryptedExpenses
-      .filter(e => (e.allocationBucket || 'expense') === selectedPillarReport.id)
+      .filter(e => (e.allocationBucket || 'expense') === 'expense')
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, 15);
   }, [selectedPillarReport, decryptedExpenses]);
@@ -696,13 +695,13 @@ export default function Dashboard() {
             />
             <DashboardCard 
               href="/future-vision" 
-              title="Future Vision" 
-              value={`${visionStats.active} Visions`} 
-              subtext={`${visionStats.achieved} Achievements`} 
+              title="To do List" 
+              value={`${visionStats.active} Tasks`} 
+              subtext={`${visionStats.achieved} Completed`} 
               icon={<Mountain className="w-4 h-4" />} 
               variant="default"
               accentColor="indigo"
-              info="A private board for your long-term aspirations. Items are end-to-end encrypted to ensure your dreams remain confidential."
+              info="A private E2EE task list for your long-term aspirations and duties."
             />
             <DashboardCard 
               href="/split-pay" 
@@ -944,7 +943,7 @@ function DashboardCard({ href, title, value, subtext, icon, variant = 'default',
             </div>
           </CardHeader>
           <CardContent className="pb-4 md:pb-6 px-4 md:px-5 mt-2">
-            <div className="text-base md:text-xl font-black tracking-tighter truncate leading-none mb-1.5">₹{value}</div>
+            <div className="text-base md:text-xl font-black tracking-tighter truncate leading-none mb-1.5">{value}</div>
             <p className="text-[8px] md:text-[9px] font-bold uppercase tracking-tight text-muted-foreground/80 truncate">{subtext}</p>
             {progress !== undefined && (
               <div className="mt-4">

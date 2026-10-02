@@ -114,13 +114,13 @@ export default function FutureVisionPage() {
 
     if (editingId) {
       updateDocumentNonBlocking(doc(visionRef, editingId), payload);
-      toast({ title: "Vision Refined", description: "Your aspiration has been updated in the vault." });
+      toast({ title: "Task Updated", description: "Your record has been refined in the vault." });
     } else {
       addDocumentNonBlocking(visionRef, {
         ...payload,
         createdAt: new Date().toISOString()
       });
-      toast({ title: "Vision Seeded", description: "Your aspiration is secured in the vault." });
+      toast({ title: "Task Added", description: "Your item is secured in the vault." });
     }
     
     resetForm();
@@ -151,15 +151,15 @@ export default function FutureVisionPage() {
       updatedAt: new Date().toISOString()
     });
     toast({ 
-      title: !current ? "Achievement Unlocked!" : "Status Updated", 
-      description: !current ? "Congratulations on reaching your goal!" : "Item returned to active vision." 
+      title: !current ? "Task Completed!" : "Status Updated", 
+      description: !current ? "Congratulations on completing this task!" : "Item returned to active list." 
     });
   };
 
   const deleteItem = (id: string) => {
     if (!visionRef) return;
     deleteDocumentNonBlocking(doc(visionRef, id));
-    toast({ title: "Vision Removed" });
+    toast({ title: "Item Removed" });
     if (editingId === id) resetForm();
   };
 
@@ -171,7 +171,7 @@ export default function FutureVisionPage() {
       {!mounted ? (
         <div className="flex h-[60vh] w-full items-center justify-center flex-col gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Opening Future Vision...</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Opening To do List...</p>
         </div>
       ) : (
         <div className="max-w-6xl mx-auto space-y-8 pb-12">
@@ -181,13 +181,13 @@ export default function FutureVisionPage() {
                 <Mountain className="w-7 h-7" />
               </div>
               <div>
-                <h2 className="text-3xl font-black tracking-tighter">Future Vision</h2>
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">End-to-end encrypted bucket list & aspirations</p>
+                <h2 className="text-3xl font-black tracking-tighter">To do List</h2>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">End-to-end encrypted tasks & aspirations</p>
               </div>
             </div>
             <div className="bg-primary text-primary-foreground px-6 py-2 rounded-2xl shadow-lg flex items-center gap-2">
               <Trophy className="h-4 w-4 fill-current" />
-              <span className="font-black text-sm uppercase tracking-widest">{achievedVision.length} Achieved</span>
+              <span className="font-black text-sm uppercase tracking-widest">{achievedVision.length} Completed</span>
             </div>
           </header>
 
@@ -197,7 +197,7 @@ export default function FutureVisionPage() {
                 <CardHeader className="bg-muted/30 border-b pb-4 flex flex-row items-center justify-between">
                   <CardTitle className="text-base font-black flex items-center gap-2">
                     {editingId ? <Pencil className="h-4 w-4 text-primary" /> : <Plus className="h-4 w-4 text-primary" />}
-                    {editingId ? "Refine Your Vision" : "Seed a New Vision"}
+                    {editingId ? "Refine Your Task" : "Add a New Task"}
                   </CardTitle>
                   {editingId && (
                     <Button variant="ghost" size="icon" onClick={resetForm} className="h-8 w-8 rounded-full">
@@ -207,7 +207,7 @@ export default function FutureVisionPage() {
                 </CardHeader>
                 <CardContent className="pt-6 space-y-5 px-4 md:px-6">
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">What do you want to achieve?</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">What needs to be done?</Label>
                     <Input 
                       placeholder="e.g. Visit Kyoto, Own a house, Run a marathon..." 
                       value={title} 
@@ -219,7 +219,7 @@ export default function FutureVisionPage() {
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Details (Private)</Label>
                     <Input 
-                      placeholder="Additional context or 'Why'..." 
+                      placeholder="Additional context or notes..." 
                       value={description} 
                       onChange={e => setDescription(e.target.value)} 
                       className="h-11 rounded-xl"
@@ -257,7 +257,7 @@ export default function FutureVisionPage() {
                     className="w-full h-14 rounded-2xl font-black shadow-lg gap-2 text-base"
                   >
                     {loading ? <Loader2 className="animate-spin h-5 w-5" /> : (editingId ? <CheckCircle2 className="h-5 w-5" /> : <Sparkles className="h-5 w-5" />)}
-                    {editingId ? "Update Vision Item" : "Lock Into Vision Board"}
+                    {editingId ? "Update Task Entry" : "Secure in To do List"}
                   </Button>
                 </CardContent>
                 <CardFooter className="bg-primary/5 py-3 flex items-center justify-center gap-2 border-t">
@@ -271,20 +271,20 @@ export default function FutureVisionPage() {
               {isDecrypting ? (
                 <div className="flex flex-col items-center justify-center py-20 space-y-4">
                   <Loader2 className="h-8 w-8 animate-spin text-primary opacity-50" />
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Decrypting Dreams...</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Decrypting List...</p>
                 </div>
               ) : (
                 <div className="space-y-8">
                   <div className="space-y-4">
                     <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2 px-2">
                       <Circle className="h-3 w-3 text-primary" />
-                      Active Vision
+                      Active Tasks
                     </h3>
                     <div className="grid gap-4">
                       {activeVision.length === 0 ? (
                         <div className="p-12 border-2 border-dashed rounded-3xl text-center space-y-3 opacity-40 grayscale">
                           <Map className="h-10 w-10 mx-auto" />
-                          <p className="text-xs font-black uppercase tracking-widest">No active visions seeded</p>
+                          <p className="text-xs font-black uppercase tracking-widest">No active tasks found</p>
                         </div>
                       ) : (
                         activeVision.sort((a,b) => b.createdAt.localeCompare(a.createdAt)).map(item => (
@@ -298,7 +298,7 @@ export default function FutureVisionPage() {
                     <div className="space-y-4">
                       <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2 px-2 text-green-600">
                         <CheckCircle2 className="h-3 w-3" />
-                        Achievement Chronicle
+                        Completed Tasks
                       </h3>
                       <div className="grid gap-4">
                         {achievedVision.sort((a,b) => b.updatedAt?.localeCompare(a.updatedAt)).map(item => (

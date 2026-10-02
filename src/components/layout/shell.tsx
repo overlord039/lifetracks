@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -69,7 +68,7 @@ const navItems = [
   { id: 'learning', title: 'Learning', url: '/learning', icon: GraduationCap },
   { id: 'diary', title: 'Diary', url: '/diary', icon: BookText },
   { id: 'reports', title: 'Reports', url: '/reports', icon: BarChart3 },
-  { id: 'future-vision', title: 'Vision', url: '/future-vision', icon: Mountain },
+  { id: 'future-vision', title: 'To-do', url: '/future-vision', icon: Mountain },
   { id: 'salary-planner', title: 'Planner', url: '/salary-planner', icon: Calculator },
 ];
 
