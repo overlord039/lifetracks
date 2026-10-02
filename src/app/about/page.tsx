@@ -28,7 +28,8 @@ import {
   Flame,
   Mountain,
   Users,
-  Coins
+  Coins,
+  AlertTriangle
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
@@ -47,7 +48,7 @@ export default function AboutPage() {
               <Info className="h-5 w-5 md:h-6 md:w-6" />
             </div>
             <div>
-              <h2 className="text-lg md:text-3xl font-black tracking-tighter text-primary leading-tight">About LifeTrack</h2>
+              <h2 className="text-lg md:text-3xl font-black tracking-tighter text-primary leading-tight uppercase">About LifeTrack</h2>
               <p className="text-[8px] md:text-xs font-black uppercase tracking-widest text-muted-foreground">The Secure OS for your Life</p>
             </div>
           </div>
@@ -133,6 +134,49 @@ export default function AboutPage() {
           </div>
         </div>
 
+        {/* Installation Guide Card */}
+        <Card className="shadow-2xl border-none ring-1 ring-primary/20 overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-primary/10 via-background to-background">
+          <CardHeader className="bg-primary/10 border-b py-6 md:py-10 text-center px-4">
+            <div className="mx-auto bg-primary text-white p-3 md:p-5 rounded-2xl md:rounded-[2rem] w-fit shadow-xl mb-4 md:mb-6 animate-bounce">
+              <Smartphone className="h-8 w-8 md:h-12 md:w-12" />
+            </div>
+            <CardTitle className="text-2xl md:text-4xl font-black tracking-tight text-primary">Install LifeTrack</CardTitle>
+            <CardDescription className="text-[9px] md:text-xs uppercase font-black tracking-[0.2em] text-primary/60 mt-1">Transform this workspace into a native app</CardDescription>
+          </CardHeader>
+          <CardContent className="p-6 md:p-14">
+            <div className="grid gap-8 md:gap-16 md:grid-cols-2">
+              <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <Badge className="bg-blue-500 h-8 w-8 md:h-10 md:w-10 rounded-xl md:rounded-2xl flex items-center justify-center p-0 text-xs md:text-base font-black shadow-lg">1</Badge>
+                  <h4 className="font-black text-xs md:text-lg uppercase tracking-wider text-primary">iOS / Apple Safari</h4>
+                </div>
+                <ul className="space-y-4 md:space-y-6 pl-1 md:pl-2">
+                  <InstallStep icon={Share} text="Tap the Share button at the bottom of Safari." />
+                  <InstallStep icon={PlusSquare} text="Scroll down and select 'Add to Home Screen'." />
+                  <InstallStep icon={Smartphone} text="Launch LifeTrack from your home screen icons." />
+                </ul>
+              </div>
+              <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <Badge className="bg-green-500 h-8 w-8 md:h-10 md:w-10 rounded-xl md:rounded-2xl flex items-center justify-center p-0 text-xs md:text-base font-black shadow-lg">2</Badge>
+                  <h4 className="font-black text-xs md:text-lg uppercase tracking-wider text-primary">Android / Chrome</h4>
+                </div>
+                <ul className="space-y-4 md:space-y-6 pl-1 md:pl-2">
+                  <InstallStep icon={MoreVertical} text="Tap the three dots (menu) in the top right." />
+                  <InstallStep icon={Download} text="Tap 'Install app' or 'Add to Home screen'." />
+                  <InstallStep icon={ShieldCheck} text="Access your secure vault instantly." />
+                </ul>
+              </div>
+            </div>
+            
+            <div className="mt-12 p-4 md:p-6 bg-primary/5 rounded-3xl border border-dashed border-primary/20 text-center">
+              <p className="text-[10px] md:text-xs font-medium text-muted-foreground leading-relaxed">
+                LifeTrack is a Progressive Web App (PWA). It provides a full-screen, native-like experience without the need for an App Store download.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="grid gap-4 md:grid-cols-2">
           <Card className="shadow-lg border-t-4 border-t-primary rounded-[2rem] overflow-hidden bg-primary/[0.02]">
             <CardHeader className="bg-primary/5 border-b border-primary/10 py-3 md:py-4 px-4 md:px-6">
@@ -162,42 +206,6 @@ export default function AboutPage() {
           </Card>
         </div>
 
-        <Card className="shadow-xl border-none ring-1 ring-primary/20 overflow-hidden rounded-[2rem] bg-primary/5">
-          <CardHeader className="bg-primary/10 border-b py-4 md:py-8 text-center px-4">
-            <div className="mx-auto bg-primary text-white p-2 md:p-4 rounded-[1rem] md:rounded-[2rem] w-fit shadow-lg mb-2 md:mb-4">
-              <Smartphone className="h-6 w-6 md:h-10 md:w-10" />
-            </div>
-            <CardTitle className="text-xl md:text-3xl font-black tracking-tight text-primary">Install LifeTrack</CardTitle>
-            <CardDescription className="text-[8px] md:text-xs uppercase font-black tracking-widest text-primary/70">Transform this site into a native app</CardDescription>
-          </CardHeader>
-          <CardContent className="p-4 md:p-12">
-            <div className="grid gap-6 md:gap-12 md:grid-cols-2">
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-blue-500 h-6 w-6 md:h-8 md:w-8 rounded-lg md:rounded-2xl flex items-center justify-center p-0 text-[10px] md:text-sm font-black shadow-md">1</Badge>
-                  <h4 className="font-black text-[10px] md:text-sm uppercase tracking-wider text-primary">iOS / Apple Safari</h4>
-                </div>
-                <ul className="space-y-3 md:space-y-4 pl-8 md:pl-11">
-                  <InstallStep icon={Share} text="Tap the Share button at the bottom." />
-                  <InstallStep icon={PlusSquare} text="Select 'Add to Home Screen'." />
-                  <InstallStep icon={Smartphone} text="Launch from your home icons." />
-                </ul>
-              </div>
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-green-500 h-6 w-6 md:h-8 md:w-8 rounded-lg md:rounded-2xl flex items-center justify-center p-0 text-[10px] md:text-sm font-black shadow-md">2</Badge>
-                  <h4 className="font-black text-[10px] md:text-sm uppercase tracking-wider text-primary">Android / Chrome</h4>
-                </div>
-                <ul className="space-y-3 md:space-y-4 pl-8 md:pl-11">
-                  <InstallStep icon={MoreVertical} text="Tap the three dots in the top right." />
-                  <InstallStep icon={Download} text="Tap 'Install app' or 'Add to Home'." />
-                  <InstallStep icon={ShieldCheck} text="Access your secure vault instantly." />
-                </ul>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         <Separator className="opacity-50" />
 
         <div className="space-y-4 md:space-y-6">
@@ -206,7 +214,7 @@ export default function AboutPage() {
               <Lock className="h-5 w-5 md:h-6 md:w-6" />
             </div>
             <div>
-              <h3 className="text-base md:text-xl font-black text-primary">Security Stack</h3>
+              <h3 className="text-base md:text-xl font-black text-primary uppercase">Security Stack</h3>
               <p className="text-[8px] md:text-[10px] text-muted-foreground font-black uppercase tracking-widest">Technical Zero-Knowledge</p>
             </div>
           </div>
@@ -269,11 +277,11 @@ function FeatureCard({ icon: Icon, title, desc, color, bg }: any) {
 
 function InstallStep({ icon: Icon, text }: any) {
   return (
-    <li className="flex items-start gap-2 md:gap-4 text-[9px] md:text-xs font-bold text-muted-foreground">
-      <div className="p-1 md:p-1.5 bg-background rounded-md md:rounded-lg shadow-sm border border-primary/10">
-        <Icon className="h-3 w-3 md:h-4 md:w-4 shrink-0 text-primary" />
+    <li className="flex items-start gap-3 md:gap-5 text-[10px] md:text-base font-bold text-muted-foreground group">
+      <div className="p-1.5 md:p-2.5 bg-background rounded-xl md:rounded-2xl shadow-md border border-primary/10 group-hover:scale-110 transition-transform">
+        <Icon className="h-4 w-4 md:h-6 md:w-6 shrink-0 text-primary" />
       </div>
-      <span className="pt-0.5 md:pt-1">{text}</span>
+      <span className="pt-1.5 md:pt-2.5 leading-tight">{text}</span>
     </li>
   );
 }
@@ -291,26 +299,5 @@ function TechSection({ icon: Icon, title, text }: any) {
         {text}
       </p>
     </div>
-  );
-}
-
-function AlertTriangle(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-      <path d="M12 9v4" />
-      <path d="M12 17h.01" />
-    </svg>
   );
 }

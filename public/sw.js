@@ -1,7 +1,7 @@
 
 /**
- * LifeTrack Service Worker
- * Minimum viable service worker for PWA installation criteria.
+ * @fileOverview Minimal Service Worker for LifeTrack PWA.
+ * Satisfies the installation criteria for standalone mode on mobile devices.
  */
 
 self.addEventListener('install', (event) => {
@@ -13,7 +13,6 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Pass-through for network requests. 
-  // Required for PWA "Installable" status in modern browsers.
+  // Simple pass-through fetch logic to satisfy PWA requirements
   event.respondWith(fetch(event.request));
 });
