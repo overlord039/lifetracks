@@ -52,7 +52,8 @@ import {
   ArrowRightLeft,
   ArrowLeft,
   ChevronRight as ChevronRightIcon,
-  CheckSquare
+  CheckSquare,
+  BellRing
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -61,6 +62,7 @@ import { calculateRollingBudget, MonthlyConfig } from '@/lib/budget-logic';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { decryptNumber, decryptData } from '@/lib/encryption';
+import { sendLocalNotification } from '@/lib/notifications';
 import {
   Popover,
   PopoverContent,
@@ -347,6 +349,26 @@ export default function Dashboard() {
     });
   }, [decryptedSalaryProfile, decryptedFixed, decryptedExpenses]);
 
+  // Expenditure Reminder Logic
+  useEffect(() => {
+    if (mounted && !isDecrypting && decryptedExpenses.length >= 0) {
+      const remindersActive = localStorage.getItem('lifetrack_daily_reminders') === 'true';
+      const hasLoggedToday = decryptedExpenses.some(e => e.date === todayStr);
+      
+      if (remindersActive && !hasLoggedToday) {
+        const lastReminded = localStorage.getItem('lifetrack_last_reminded');
+        if (lastReminded !== todayStr) {
+          sendLocalNotification('Expenditure Entry Required', {
+            body: "The ledger is empty for today. Record your transactions to stay on target!",
+            tag: 'daily-reminder',
+            requireInteraction: true
+          });
+          localStorage.setItem('lifetrack_last_reminded', todayStr);
+        }
+      }
+    }
+  }, [mounted, isDecrypting, decryptedExpenses, todayStr]);
+
   const selectedPillarGraphData = useMemo(() => {
     if (!selectedPillarReport || !decryptedExpenses) return [];
     
@@ -382,14 +404,14 @@ export default function Dashboard() {
         
         if (isCurrentMonth) {
           spent = (decryptedExpenses || [])
-            .filter(e => (e.allocationBucket || 'expense') === selectedPillarReport.id)
+            .filter(e => (e.allocationBucket || 'expense') === 'expense')
             .reduce((s, e) => s + e.amount, 0);
             
           const fixedSpent = (decryptedFixed || [])
-            .filter(f => f.allocationBucket === selectedPillarReport.id)
+            .filter(f => f.allocationBucket === 'expense')
             .reduce((s, f) => s + f.amount, 0);
           spent += fixedSpent;
-        } else if (selectedPillarReport.id === 'expense') {
+        } else {
           const historical = decryptedAllBudgets?.find(b => b.id === mKey);
           if (historical) {
             spent = (historical.actualSpent || 0) + (historical.actualFixedSpent || 0);
@@ -399,7 +421,7 @@ export default function Dashboard() {
         return {
           name: format(m, 'MMM'),
           spent,
-          fullDate: format(m, 'MMMM yyyy')
+          fullLabel: format(m, 'MMMM yyyy')
         };
       });
     }
@@ -429,6 +451,10 @@ export default function Dashboard() {
       .slice(0, 15);
   }, [selectedPillarReport, decryptedExpenses]);
 
+  const hasLoggedToday = useMemo(() => {
+     return decryptedExpenses.some(e => e.date === todayStr);
+  }, [decryptedExpenses, todayStr]);
+
   return (
     <AppShell>
       {!mounted ? (
@@ -440,7 +466,10 @@ export default function Dashboard() {
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-4 md:space-y-6">
           <div className="grid gap-4 md:gap-6 lg:grid-cols-12">
             <div className={cn("space-y-4 md:space-y-6", hasActiveGoals ? "lg:col-span-7" : "lg:col-span-12")}>
-              <Card className="shadow-lg overflow-hidden border-none ring-1 ring-border rounded-2xl relative group">
+              <Card className={cn(
+                "shadow-lg overflow-hidden border-none ring-1 rounded-2xl relative group transition-all duration-500",
+                (!hasLoggedToday && localStorage.getItem('lifetrack_daily_reminders') === 'true') ? "ring-primary/40 bg-primary/[0.02]" : "ring-border"
+              )}>
                 <CardHeader className="bg-muted/30 border-b py-3 md:py-4 px-4 md:px-6 flex flex-row items-center justify-between">
                   <Link href="/reports" className="flex-1">
                     <CardTitle className="text-sm md:text-base font-black flex items-center gap-2">
@@ -468,6 +497,12 @@ export default function Dashboard() {
                   </Popover>
                 </CardHeader>
                 <CardContent className="p-4 md:p-6 space-y-4 md:space-y-6">
+                  {!hasLoggedToday && localStorage.getItem('lifetrack_daily_reminders') === 'true' && (
+                    <div className="flex items-center gap-3 p-3 bg-primary/10 rounded-xl border border-primary/20 animate-pulse mb-2">
+                      <BellRing className="h-4 w-4 text-primary" />
+                      <p className="text-[10px] font-black uppercase tracking-tight text-primary">Entry Required: Ledger is empty for today</p>
+                    </div>
+                  )}
                   <Link href="/reports">
                     <div className={cn(
                       "p-4 md:p-5 rounded-2xl border transition-all grid grid-cols-2 gap-4",
@@ -793,7 +828,7 @@ export default function Dashboard() {
                             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', fontSize: '9px', fontWeight: 'bold' }}
                             labelStyle={{ color: 'hsl(var(--primary))' }}
                             formatter={(v: number) => [`₹${v.toLocaleString()}`, 'Spent']}
-                            labelFormatter={(label, payload) => payload[0]?.payload.fullDate}
+                            labelFormatter={(label, payload) => payload[0]?.payload.fullDate || payload[0]?.payload.fullLabel}
                           />
                           <Bar 
                             dataKey="spent" 

@@ -24,7 +24,9 @@ import {
   TreePine,
   Sunrise,
   Palette,
-  ShieldAlert
+  ShieldAlert,
+  BellRing,
+  BellOff
 } from 'lucide-react';
 import { 
   Sidebar, 
@@ -57,6 +59,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useTheme } from "next-themes";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { requestNotificationPermission } from '@/lib/notifications';
 
 const navItems = [
   { id: 'dashboard', title: 'Home', url: '/dashboard', icon: LayoutDashboard },
@@ -77,16 +80,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const [visibleSections, setVisibleSections] = useState<Record<string, boolean>>({});
+  const [remindersEnabled, setRemindersEnabled] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('lifetrack_nav_visibility');
-    if (saved) {
-      setVisibleSections(JSON.parse(saved));
+    const savedNav = localStorage.getItem('lifetrack_nav_visibility');
+    if (savedNav) {
+      setVisibleSections(JSON.parse(savedNav));
     } else {
       const defaults = navItems.reduce((acc, item) => ({ ...acc, [item.id]: true }), {});
       setVisibleSections(defaults);
     }
+
+    const savedReminders = localStorage.getItem('lifetrack_daily_reminders') === 'true';
+    setRemindersEnabled(savedReminders);
+    
     setMounted(true);
   }, []);
 
@@ -94,6 +102,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const next = { ...visibleSections, [id]: !visibleSections[id] };
     setVisibleSections(next);
     localStorage.setItem('lifetrack_nav_visibility', JSON.stringify(next));
+  };
+
+  const handleToggleReminders = async (checked: boolean) => {
+    if (checked) {
+      const permission = await requestNotificationPermission();
+      if (permission === 'granted') {
+        setRemindersEnabled(true);
+        localStorage.setItem('lifetrack_daily_reminders', 'true');
+      } else {
+        setRemindersEnabled(false);
+        localStorage.setItem('lifetrack_daily_reminders', 'false');
+      }
+    } else {
+      setRemindersEnabled(false);
+      localStorage.setItem('lifetrack_daily_reminders', 'false');
+    }
   };
 
   const handleLogout = async () => {
@@ -216,6 +240,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     </div>
                     
                     <Separator className="border-dashed" />
+
+                    <div className="space-y-3">
+                      <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Daily Pulse Reminders</p>
+                      <div className="flex items-center justify-between p-3 rounded-2xl bg-muted/20 border border-dashed transition-all">
+                        <div className="flex items-center gap-3">
+                          <div className={cn("p-1.5 rounded-lg", remindersEnabled ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground")}>
+                            {remindersEnabled ? <BellRing className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+                          </div>
+                          <div>
+                            <p className="text-[9px] font-black uppercase text-foreground">Expenditure Alert</p>
+                            <p className="text-[7px] font-bold text-muted-foreground uppercase leading-none mt-0.5">Prompt if ledger is empty</p>
+                          </div>
+                        </div>
+                        <Switch checked={remindersEnabled} onCheckedChange={handleToggleReminders} className="scale-75" />
+                      </div>
+                    </div>
+                    
+                    <Separator className="border-dashed" />
                     
                     <div className="space-y-2">
                       <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Application Info</p>
@@ -240,7 +282,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                               visibleSections[item.id] === false ? "bg-muted/10 opacity-60" : "bg-card shadow-sm"
                             )}
                           >
-                            <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex items-center gap-2 min-0">
                               <item.icon className={cn("h-3.5 w-3.5 shrink-0", visibleSections[item.id] !== false ? "text-primary" : "text-muted-foreground")} />
                               <span className="font-black text-[8px] uppercase tracking-tighter truncate">{item.title}</span>
                             </div>
