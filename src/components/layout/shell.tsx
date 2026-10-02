@@ -59,7 +59,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 
 const navItems = [
-  { id: 'dashboard', title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
+  { id: 'dashboard', title: 'Home', url: '/dashboard', icon: LayoutDashboard },
   { id: 'budget', title: 'Budget', url: '/budget', icon: Wallet },
   { id: 'split-pay', title: 'Split', url: '/split-pay', icon: Users },
   { id: 'craving-meter', title: 'Willpower', url: '/craving-meter', icon: Flame },
@@ -158,7 +158,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </Sidebar>
 
         <SidebarInset className="flex flex-col w-full min-w-0">
-          <header className="sticky top-0 z-30 flex h-14 md:h-16 items-center gap-3 border-b bg-background/80 backdrop-blur-md px-3 md:px-6">
+          <header className="sticky top-0 z-30 flex h-14 md:h-16 items-center gap-3 border-b bg-background/80 backdrop-blur-md px-3 md:px-6 pt-[env(safe-area-inset-top)] h-[calc(3.5rem+env(safe-area-inset-top))]">
             <div className="flex-1 flex items-center gap-3 overflow-hidden">
               <Link href="/profile" className="flex items-center gap-2 group/header-user shrink-0 md:hidden">
                 <Avatar className="h-8 w-8 border-2 border-primary/10 group-hover:header-user:border-primary/30 transition-all">
@@ -283,15 +283,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <main className={cn(
             "flex-1 overflow-x-hidden overflow-y-auto p-3 md:p-6 lg:p-8 w-full",
-            "pb-20 md:pb-6"
+            "pb-24 md:pb-6"
           )}>
             {children}
           </main>
 
-          {/* Mobile Bottom Navigation */}
-          <div className="fixed bottom-0 left-0 right-0 z-50 h-16 bg-background/95 backdrop-blur-lg border-t md:hidden flex items-center">
+          {/* Mobile Bottom Navigation - PWA Styled */}
+          <div className="fixed bottom-0 left-0 right-0 z-50 h-[calc(4rem+env(safe-area-inset-bottom))] bg-background/95 backdrop-blur-xl border-t md:hidden flex items-start pt-2 px-1">
             <ScrollArea className="w-full">
-              <div className="flex items-center justify-start h-full px-4 gap-4 min-w-max pb-2">
+              <div className="flex items-center justify-start h-full px-4 gap-4 min-w-max pb-4">
                 {filteredNavItems.map((item) => {
                   const isActive = pathname === item.url;
                   return (
@@ -299,13 +299,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       key={item.id} 
                       href={item.url} 
                       className={cn(
-                        "flex flex-col items-center justify-center gap-1 min-w-[56px] transition-all duration-300",
-                        isActive ? "text-primary scale-110" : "text-muted-foreground opacity-60"
+                        "flex flex-col items-center justify-center gap-1.5 min-w-[64px] transition-all duration-300 active:scale-90",
+                        isActive ? "text-primary" : "text-muted-foreground opacity-60"
                       )}
                     >
                       <div className={cn(
-                        "p-1.5 rounded-xl transition-all",
-                        isActive ? "bg-primary/10 shadow-sm" : "bg-transparent"
+                        "p-2 rounded-2xl transition-all duration-300",
+                        isActive ? "bg-primary/10 shadow-sm ring-1 ring-primary/20 scale-110" : "bg-transparent"
                       )}>
                         <item.icon className="h-5 w-5" />
                       </div>
