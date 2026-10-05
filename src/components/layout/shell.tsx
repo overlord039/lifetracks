@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -25,7 +26,8 @@ import {
   Palette,
   ShieldAlert,
   BellRing,
-  BellOff
+  BellOff,
+  Utensils
 } from 'lucide-react';
 import { 
   Sidebar, 
@@ -64,7 +66,7 @@ const navItems = [
   { id: 'dashboard', title: 'Home', url: '/dashboard', icon: LayoutDashboard },
   { id: 'budget', title: 'Budget', url: '/budget', icon: Wallet },
   { id: 'split-pay', title: 'Split', url: '/split-pay', icon: Users },
-  { id: 'craving-meter', title: 'Willpower', url: '/craving-meter', icon: Flame },
+  { id: 'craving-meter', title: 'Calories', url: '/craving-meter', icon: Utensils },
   { id: 'learning', title: 'Learning', url: '/learning', icon: GraduationCap },
   { id: 'diary', title: 'Diary', url: '/diary', icon: BookText },
   { id: 'reports', title: 'Reports', url: '/reports', icon: BarChart3 },

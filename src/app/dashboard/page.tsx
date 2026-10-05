@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -41,7 +42,8 @@ import {
   ArrowUpRight,
   Activity,
   ArrowLeft,
-  BellRing
+  BellRing,
+  Utensils
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -221,8 +223,8 @@ export default function Dashboard() {
       if (rawCravingLogs) {
         const logs = await Promise.all(rawCravingLogs.map(async l => ({
           ...l,
-          caloriesAvoided: l.isEncrypted ? await decryptNumber(l.caloriesAvoided, user.uid) : (l.caloriesAvoided || 0),
-          moneySaved: l.isEncrypted ? await decryptNumber(l.moneySaved, user.uid) : (l.moneySaved || 0),
+          calories: l.isEncrypted ? await decryptNumber(l.caloriesAvoided, user.uid) : (l.caloriesAvoided || 0),
+          cost: l.isEncrypted ? await decryptNumber(l.moneySaved, user.uid) : (l.moneySaved || 0),
           date: l.date || ''
         })));
         setDecryptedCravingLogs(logs);
@@ -298,8 +300,8 @@ export default function Dashboard() {
   const cravingToday = useMemo(() => {
     const today = decryptedCravingLogs.filter(l => l.date === todayStr);
     return {
-      cals: today.reduce((s, l) => s + l.caloriesAvoided, 0),
-      money: today.reduce((s, l) => s + l.moneySaved, 0)
+      cals: today.reduce((s, l) => s + l.calories, 0),
+      cost: today.reduce((s, l) => s + l.cost, 0)
     };
   }, [decryptedCravingLogs, todayStr]);
 
@@ -470,7 +472,7 @@ export default function Dashboard() {
                   <Link href="/reports" className="flex-1">
                     <CardTitle className="text-sm md:text-base font-black flex items-center gap-2">
                       <TrendingUp className="w-4 h-4 text-primary" />
-                      Budget Insight
+                      Budget Status
                     </CardTitle>
                     <CardDescription className="text-[9px] md:text-[10px] font-medium uppercase tracking-tight">
                       {isDecrypting ? "Syncing metrics..." : "Real-time performance metrics"}
@@ -681,14 +683,14 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-5">
             <DashboardCard 
               href="/craving-meter" 
-              title="Willpower" 
+              title="Calories" 
               value={`${cravingToday.cals} kcal`} 
-              subtext={`₹${cravingToday.money} Saved | ${cravingStats?.currentStreak || 0}d Streak`} 
-              icon={<Flame className="w-4 h-4" />} 
+              subtext={`₹${cravingToday.cost} Spent | ${cravingStats?.currentStreak || 0}d Streak`} 
+              icon={<Utensils className="w-4 h-4" />} 
               variant="default" 
               accentColor="orange"
               loading={isDecrypting}
-              info="Tracks the nutritional and financial impact of resisted cravings. Streaks represent consecutive days of logging resistance."
+              info="Tracks nutritional intake and food spending with E2EE privacy."
             />
             <DashboardCard 
               href="/future-vision" 
