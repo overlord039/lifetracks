@@ -15,7 +15,6 @@ import {
   startOfYear,
   endOfYear,
   eachMonthOfInterval,
-  subMonths
 } from 'date-fns';
 import { collection, doc } from 'firebase/firestore';
 import { 
@@ -23,15 +22,12 @@ import {
   CheckCircle2, 
   AlertCircle, 
   BookOpen,
-  DollarSign,
   TrendingDown,
   Loader2,
   ShieldCheck,
   HandCoins,
-  Users,
   Flame,
   Zap,
-  Scale,
   Mountain,
   Target,
   PiggyBank,
@@ -42,16 +38,9 @@ import {
   Info,
   History,
   ReceiptText,
-  ChevronRight,
-  ArrowRight,
   ArrowUpRight,
   Activity,
-  Calendar,
-  Layers,
-  ArrowRightLeft,
   ArrowLeft,
-  ChevronRight as ChevronRightIcon,
-  CheckSquare,
   BellRing
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
@@ -85,8 +74,8 @@ import {
   Cell
 } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 
 const PILLAR_ICONS: Record<string, any> = {
   expense: { icon: Wallet, color: 'text-blue-500', bg: 'bg-blue-500' },
@@ -110,6 +99,7 @@ export default function Dashboard() {
   const [decryptedCravingLogs, setDecryptedCravingLogs] = useState<any[]>([]);
   const [decryptedSalaryProfile, setDecryptedSalaryProfile] = useState<any>(null);
   const [decryptedAllBudgets, setDecryptedAllBudgets] = useState<any[]>([]);
+  const [decryptedGoals, setDecryptedGoals] = useState<any[]>([]);
   const [isDecrypting, setIsDecrypting] = useState(false);
 
   useEffect(() => {
@@ -142,7 +132,7 @@ export default function Dashboard() {
     if (!firestore || !user) return null;
     return collection(firestore, 'users', user.uid, 'learningGoals');
   }, [firestore, user]);
-  const { data: learningGoals } = useCollection(goalsQuery);
+  const { data: rawGoals } = useCollection(goalsQuery);
 
   const diaryRef = useMemoFirebase(() => {
     if (!firestore || !user || !todayStr) return null;
@@ -172,7 +162,7 @@ export default function Dashboard() {
     if (!firestore || !user) return null;
     return collection(firestore, 'users', user.uid, 'visionBoard');
   }, [firestore, user]);
-  const { data: visionItems } = useCollection(visionRef);
+  const { data: rawVisionItems } = useCollection(visionRef);
 
   const salaryProfileRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -257,10 +247,18 @@ export default function Dashboard() {
         setDecryptedAllBudgets(budgets);
       }
 
+      if (rawGoals) {
+        const goals = await Promise.all(rawGoals.map(async g => ({
+          ...g,
+          skill: g.isEncrypted ? await decryptData(g.skill, user.uid) : (g.skill || ''),
+        })));
+        setDecryptedGoals(goals);
+      }
+
       setIsDecrypting(false);
     };
     decryptAll();
-  }, [rawBudget, rawFixed, rawExpenses, rawDebts, rawCravingLogs, rawSalaryProfile, rawAllBudgets, user, mounted]);
+  }, [rawBudget, rawFixed, rawExpenses, rawDebts, rawCravingLogs, rawSalaryProfile, rawAllBudgets, rawGoals, user, mounted]);
 
   const budgetReport = useMemo(() => {
     if (!decryptedBudget || !mounted) return null;
@@ -306,16 +304,16 @@ export default function Dashboard() {
   }, [decryptedCravingLogs, todayStr]);
 
   const totalOwed = useMemo(() => decryptedDebts?.filter(d => !d.isPaid).reduce((sum, d) => sum + d.amount, 0) || 0, [decryptedDebts]);
-  const goalsProgress = learningGoals?.length ? Math.round((learningGoals.filter(g => (g.completedCount || 0) >= (g.target || 0)).length / learningGoals.length) * 100) : 0;
-  const hasActiveGoals = !!(learningGoals && learningGoals.length > 0);
+  const goalsProgress = decryptedGoals?.length ? Math.round((decryptedGoals.filter(g => (g.completedCount || 0) >= (g.target || 0)).length / decryptedGoals.length) * 100) : 0;
+  const hasActiveGoals = !!(decryptedGoals && decryptedGoals.length > 0);
 
   const visionStats = useMemo(() => {
-    if (!visionItems) return { active: 0, achieved: 0 };
+    if (!rawVisionItems) return { active: 0, achieved: 0 };
     return {
-      active: visionItems.filter(v => !v.isAchieved).length,
-      achieved: visionItems.filter(v => v.isAchieved).length
+      active: rawVisionItems.filter(v => !v.isAchieved).length,
+      achieved: rawVisionItems.filter(v => v.isAchieved).length
     };
-  }, [visionItems]);
+  }, [rawVisionItems]);
 
   const allocationReport = useMemo(() => {
     if (!decryptedSalaryProfile || !decryptedFixed || !decryptedExpenses) return null;
@@ -348,7 +346,6 @@ export default function Dashboard() {
     });
   }, [decryptedSalaryProfile, decryptedFixed, decryptedExpenses]);
 
-  // Expenditure Reminder Logic
   useEffect(() => {
     if (mounted && !isDecrypting && decryptedExpenses.length >= 0) {
       const remindersActive = localStorage.getItem('lifetrack_daily_reminders') === 'true';
@@ -563,7 +560,7 @@ export default function Dashboard() {
                   </CardHeader>
                   <CardContent className="p-4 md:p-6 space-y-3 md:space-y-4">
                     <Link href="/learning" className="space-y-3 md:space-y-4 block">
-                      {learningGoals!.slice(0, 4).map((goal) => {
+                      {decryptedGoals.slice(0, 4).map((goal) => {
                         const p = Math.min(100, Math.round(((goal.completedCount || 0) / (goal.target || 1)) * 100));
                         return (
                           <div key={goal.id} className="space-y-1.5">
@@ -791,7 +788,7 @@ export default function Dashboard() {
                   <div className="space-y-4">
                     <div className="flex flex-col sm:flex-row items-center justify-between px-1 gap-4">
                       <h4 className="text-[10px] md:text-xs font-black uppercase tracking-widest flex items-center gap-2">
-                        <TrendingUp className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
+                        <Activity className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
                         Utilization Pulse
                       </h4>
                       <Tabs value={pillarReportViewType} onValueChange={(v: any) => setPillarReportViewType(v)} className="w-full sm:w-auto">

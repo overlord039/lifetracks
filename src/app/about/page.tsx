@@ -30,7 +30,6 @@ import {
   Coins,
   AlertTriangle
 } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -63,7 +62,42 @@ export default function AboutPage() {
           <p className="text-muted-foreground text-[10px] md:text-lg font-medium">A unified, private system for growth.</p>
         </div>
 
-        {/* Feature Grid Expansion - Optimized for 2-column mobile */}
+        {/* Privacy First Section - Highlighting Encryption */}
+        <Card className="shadow-2xl border-none ring-2 ring-primary/20 overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-primary/5 via-background to-background mb-8">
+          <CardHeader className="bg-primary/10 border-b py-6 md:py-8 text-center">
+            <div className="mx-auto bg-primary text-white p-3 rounded-2xl w-fit shadow-lg mb-4">
+              <ShieldCheck className="h-6 w-6 md:h-8 md:w-8" />
+            </div>
+            <CardTitle className="text-xl md:text-3xl font-black tracking-tight text-primary">Military-Grade Privacy</CardTitle>
+            <CardDescription className="text-[9px] md:text-xs uppercase font-black tracking-[0.2em] text-primary/60">Your data is yours alone</CardDescription>
+          </CardHeader>
+          <CardContent className="p-6 md:p-10 space-y-6">
+            <div className="grid gap-6 md:grid-cols-3">
+              <TechFeature 
+                icon={Lock} 
+                title="AES-GCM 256" 
+                desc="All budget items, memoirs, and goals are encrypted using advanced AES-GCM 256-bit encryption before leaving your device."
+              />
+              <TechFeature 
+                icon={KeyRound} 
+                title="Local Key" 
+                desc="Your unique encryption key is derived locally from your UID. It never touches our servers, ensuring 'Zero-Knowledge' storage."
+              />
+              <TechFeature 
+                icon={EyeOff} 
+                title="Admin Isolation" 
+                desc="System administrators can see that you have data, but they cannot read your expenses, diary entries, or financial targets."
+              />
+            </div>
+            <div className="mt-6 p-4 bg-muted/30 rounded-2xl border border-dashed text-center">
+              <p className="text-[10px] md:text-xs font-medium text-muted-foreground leading-relaxed">
+                LifeTrack is built on the principle of data sovereignty. We believe you should not have to sacrifice privacy for organization.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Feature Grid Expansion */}
         <div className="space-y-4">
           <div className="flex items-center justify-between px-1 md:px-2">
             <h3 className="text-base md:text-xl font-black flex items-center gap-2">
@@ -134,7 +168,7 @@ export default function AboutPage() {
         </div>
 
         {/* Installation Guide Card */}
-        <Card className="shadow-2xl border-none ring-1 ring-primary/20 overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-primary/10 via-background to-background">
+        <Card className="shadow-2xl border-none ring-1 ring-primary/20 overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-primary/10 via-background to-background mt-8">
           <CardHeader className="bg-primary/10 border-b py-6 md:py-10 text-center px-4">
             <div className="mx-auto bg-primary text-white p-3 md:p-5 rounded-2xl md:rounded-[2rem] w-fit shadow-xl mb-4 md:mb-6 animate-bounce">
               <Smartphone className="h-8 w-8 md:h-12 md:w-12" />
@@ -176,40 +210,23 @@ export default function AboutPage() {
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card className="shadow-lg border-t-4 border-t-primary rounded-[2rem] overflow-hidden bg-primary/[0.02]">
-            <CardHeader className="bg-primary/5 border-b border-primary/10 py-3 md:py-4 px-4 md:px-6">
-              <CardTitle className="flex items-center gap-2 text-sm md:text-base text-primary uppercase font-black tracking-tight">
-                <Coins className="h-4 w-4" />
-                The Mission
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-[11px] md:text-sm leading-relaxed text-muted-foreground pt-4 md:pt-6">
-              LifeTrack was built to provide a singular, private dashboard that helps you manage the most important aspects of your life. 
-              We enable you to see the "big picture" of your personal growth without sacrificing privacy.
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-lg border-t-4 border-t-secondary rounded-[2rem] overflow-hidden bg-secondary/[0.02]">
-            <CardHeader className="bg-secondary/10 border-b border-secondary/10 py-3 md:py-4 px-4 md:px-6">
-              <CardTitle className="flex items-center gap-2 text-sm md:text-base text-secondary-foreground uppercase font-black tracking-tight">
-                <ShieldCheck className="h-4 w-4" />
-                Privacy First
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-[11px] md:text-sm leading-relaxed text-muted-foreground pt-4 md:pt-6">
-              We believe your data belongs to you. LifeTrack uses end-to-end encryption. 
-              Your sensitive info is scrambled on your device before it touches our servers. 
-              We cannot read your entries or see your budget.
-            </CardContent>
-          </Card>
-        </div>
-
         <footer className="pt-8 md:pt-12 text-center pb-6">
           <p className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground opacity-50">LifeTrack v1.0 • E2EE Personal Workspace</p>
         </footer>
       </div>
     </AppShell>
+  );
+}
+
+function TechFeature({ icon: Icon, title, desc }: any) {
+  return (
+    <div className="space-y-2 text-center">
+      <div className="p-2 bg-primary/5 rounded-xl w-fit mx-auto mb-2">
+        <Icon className="h-5 w-5 text-primary" />
+      </div>
+      <h4 className="font-black text-[10px] md:text-xs uppercase tracking-widest">{title}</h4>
+      <p className="text-[9px] md:text-[11px] text-muted-foreground leading-relaxed font-medium">{desc}</p>
+    </div>
   );
 }
 
@@ -235,21 +252,5 @@ function InstallStep({ icon: Icon, text }: any) {
       </div>
       <span className="pt-1.5 md:pt-2.5 leading-tight">{text}</span>
     </li>
-  );
-}
-
-function TechSection({ icon: Icon, title, text }: any) {
-  return (
-    <div className="space-y-1.5 md:space-y-3">
-      <div className="flex items-center gap-2 md:gap-3 text-foreground font-black text-[9px] md:text-xs uppercase tracking-widest">
-        <div className="p-1 md:p-1.5 bg-background rounded-md md:rounded-lg shadow-sm border border-primary/10">
-          <Icon className="h-3 w-3 md:h-4 md:w-4 text-primary" />
-        </div>
-        {title}
-      </div>
-      <p className="text-[9px] md:text-xs text-muted-foreground leading-relaxed font-medium opacity-80">
-        {text}
-      </p>
-    </div>
   );
 }
