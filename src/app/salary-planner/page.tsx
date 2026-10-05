@@ -901,16 +901,6 @@ export default function SalaryPlannerPage() {
                         </div>
                       )}
                     </CardContent>
-                    <CardFooter className="bg-primary/5 py-3 border-t flex flex-col gap-3">
-                       <div className="flex items-center justify-center gap-2">
-                          <ShieldCheck className="h-3 w-3 text-primary" />
-                          <span className="text-[8px] font-black uppercase tracking-widest text-primary">Private Biological Encryption Active</span>
-                       </div>
-                       <Button onClick={handleSaveHealthStrategy} disabled={!hWeight || !hHeight || isHealthSaving} className="w-full h-12 rounded-xl font-black shadow-lg bg-primary text-white gap-2 text-xs">
-                        {isHealthSaving ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4" />}
-                        SECURE HEALTH STRATEGY
-                      </Button>
-                    </CardFooter>
                   </Card>
                 </div>
 
@@ -976,6 +966,17 @@ export default function SalaryPlannerPage() {
                                 <p className="text-xs font-medium text-muted-foreground leading-relaxed">
                                   Based on your BMI of <strong>{healthStats.bmi}</strong> ({getBMICategory(healthStats.bmi).label}), the system recommends <strong>{hGoal === 'lose' ? 'Weight Loss' : hGoal === 'gain' ? 'Weight Gain' : 'Maintenance'}</strong>. Consuming <strong>{healthStats.target} kcal/day</strong> will result in a projected {hGoal === 'maintain' ? 'maintenance' : `${hGoal === 'lose' ? 'reduction' : 'increase'} of approx ${hIntensity === 'low' ? '0.25kg' : hIntensity === 'aggressive' ? '0.75kg' : '0.5kg'} per week`}.
                                 </p>
+                              </div>
+                           </div>
+
+                           <div className="mt-8 space-y-4">
+                              <Button onClick={handleSaveHealthStrategy} disabled={!hWeight || !hHeight || isHealthSaving} className="w-full h-14 rounded-2xl font-black shadow-xl bg-primary hover:bg-primary/90 text-white gap-3 text-base">
+                                {isHealthSaving ? <Loader2 className="animate-spin h-6 w-6" /> : <Save className="h-6 w-6" />}
+                                SECURE HEALTH STRATEGY
+                              </Button>
+                              <div className="flex items-center justify-center gap-2">
+                                <ShieldCheck className="h-3 w-3 text-primary opacity-60" />
+                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-primary opacity-60">Private Biological Encryption Active</span>
                               </div>
                            </div>
 
