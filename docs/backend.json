@@ -50,6 +50,23 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       }
     },
+    "HealthProfile": {
+      "title": "HealthProfile",
+      "type": "object",
+      "description": "User's health and nutritional strategy.",
+      "properties": {
+        "userId": { "type": "string" },
+        "weight": { "type": "string", "description": "Encrypted weight in kg" },
+        "height": { "type": "string", "description": "Encrypted height in cm" },
+        "gender": { "type": "string", "enum": ["male", "female"] },
+        "activityLevel": { "type": "string", "enum": ["sedentary", "light", "moderate", "active", "very_active"] },
+        "goalType": { "type": "string", "enum": ["maintain", "lose", "gain"] },
+        "goalIntensity": { "type": "string", "enum": ["low", "moderate", "aggressive"] },
+        "dailyCalorieTarget": { "type": "string", "description": "Encrypted target" },
+        "isEncrypted": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
     "MonthlyBudget": {
       "title": "MonthlyBudget",
       "type": "object",
@@ -227,6 +244,7 @@
       { "path": "/users/{userId}", "definition": { "entityName": "User", "description": "User profile." } },
       { "path": "/users/{userId}/expenseCategories/{catId}", "definition": { "entityName": "ExpenseCategory", "description": "Personal labels." } },
       { "path": "/users/{userId}/salaryProfiles/{profileId}", "definition": { "entityName": "SalaryProfile", "description": "Planner data." } },
+      { "path": "/users/{userId}/healthProfile/current", "definition": { "entityName": "HealthProfile", "description": "Health strategy." } },
       { "path": "/users/{userId}/monthlyBudgets/{monthId}", "definition": { "entityName": "MonthlyBudget", "description": "Monthly targets." } },
       { "path": "/users/{userId}/monthlyBudgets/{monthId}/fixedExpenses/{id}", "definition": { "entityName": "FixedExpense", "description": "Recurring month costs." } },
       { "path": "/users/{userId}/monthlyBudgets/{monthId}/expenses/{expenseId}", "definition": { "entityName": "RoomExpense", "description": "Personal expenses." } },

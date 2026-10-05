@@ -83,7 +83,8 @@ import {
 
 const CHART_COLORS = ['#64B5F6', '#81C784', '#FFB74D', '#BA68C8', '#F06292', '#4DB6AC', '#FF8A65'];
 
-const DAILY_CALORIE_GOAL = 2100;
+// Default if no strategy is planned
+const DEFAULT_CALORIE_GOAL = 2100;
 
 const CATEGORIES: Record<string, string> = {
   breakfast: "Breakfast",
@@ -131,6 +132,7 @@ export default function CalorieTrackerPage() {
   const [notes, setNotes] = useState('');
 
   const [decryptedLogs, setDecryptedLogs] = useState<any[]>([]);
+  const [plannedGoal, setPlannedGoal] = useState<number>(DEFAULT_CALORIE_GOAL);
   const [isDecrypting, setIsDecrypting] = useState(false);
 
   useEffect(() => {
@@ -156,31 +158,43 @@ export default function CalorieTrackerPage() {
     return doc(db, 'users', user.uid, 'cravingStats', 'summary');
   }, [db, user]);
 
+  const healthProfileRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, 'users', user.uid, 'healthProfile', 'current');
+  }, [db, user]);
+
   const { data: rawLogs } = useCollection(logsRef);
   const { data: stats } = useDoc(statsRef);
+  const { data: rawHealthProfile } = useDoc(healthProfileRef);
 
   useEffect(() => {
     const decryptAll = async () => {
-      if (!rawLogs || !user || !mounted) {
-        setDecryptedLogs(rawLogs || []);
-        return;
-      }
+      if (!user || !mounted) return;
       setIsDecrypting(true);
       try {
-        const logs = await Promise.all(rawLogs.map(async l => ({
-          ...l,
-          foodName: l.isEncrypted ? await decryptData(l.foodName, user.uid) : (l.foodName || ''),
-          calories: l.isEncrypted ? await decryptNumber(l.caloriesAvoided, user.uid) : (l.caloriesAvoided || 0),
-          cost: l.isEncrypted ? await decryptNumber(l.moneySaved, user.uid) : (l.moneySaved || 0),
-          notes: l.isEncrypted ? await decryptData(l.notes, user.uid) : (l.notes || ''),
-        })));
-        setDecryptedLogs(logs);
+        if (rawLogs) {
+          const logs = await Promise.all(rawLogs.map(async l => ({
+            ...l,
+            foodName: l.isEncrypted ? await decryptData(l.foodName, user.uid) : (l.foodName || ''),
+            calories: l.isEncrypted ? await decryptNumber(l.caloriesAvoided, user.uid) : (l.caloriesAvoided || 0),
+            cost: l.isEncrypted ? await decryptNumber(l.moneySaved, user.uid) : (l.moneySaved || 0),
+            notes: l.isEncrypted ? await decryptData(l.notes, user.uid) : (l.notes || ''),
+          })));
+          setDecryptedLogs(logs);
+        }
+
+        if (rawHealthProfile) {
+          const target = rawHealthProfile.isEncrypted 
+            ? await decryptNumber(rawHealthProfile.dailyCalorieTarget, user.uid)
+            : (parseFloat(rawHealthProfile.dailyCalorieTarget) || DEFAULT_CALORIE_GOAL);
+          setPlannedGoal(target > 0 ? target : DEFAULT_CALORIE_GOAL);
+        }
       } finally {
         setIsDecrypting(false);
       }
     };
     decryptAll();
-  }, [rawLogs, user, mounted]);
+  }, [rawLogs, rawHealthProfile, user, mounted]);
 
   const predictiveSuggestions = useMemo(() => {
     if (!description.trim() || description.length < 2) return [];
@@ -243,8 +257,8 @@ export default function CalorieTrackerPage() {
       userId: user.uid,
       date: todayStr,
       foodName: await encryptData(description.trim().toUpperCase(), user.uid),
-      caloriesAvoided: await encryptData(calories, user.uid), // mapped to legacy schema
-      moneySaved: await encryptData(price || '0', user.uid),   // mapped to legacy schema
+      caloriesAvoided: await encryptData(calories, user.uid),
+      moneySaved: await encryptData(price || '0', user.uid),
       category,
       notes: await encryptData(notes, user.uid),
       isEncrypted: true,
@@ -277,7 +291,7 @@ export default function CalorieTrackerPage() {
     setPrice('');
     setNotes('');
     setLoading(false);
-    toast({ title: "Meal Tracked", description: "Fuel intake synchronized to vault." });
+    toast({ title: "Meal Tracked" });
   };
 
   const insights = useMemo(() => {
@@ -308,7 +322,7 @@ export default function CalorieTrackerPage() {
     return { todayCals, todayCost, totalCost, pieData, dailyData, totalEntries: decryptedLogs.length };
   }, [decryptedLogs, todayStr]);
 
-  const intakePercent = Math.min(100, Math.round(((insights?.todayCals || 0) / DAILY_CALORIE_GOAL) * 100));
+  const intakePercent = Math.min(100, Math.round(((insights?.todayCals || 0) / plannedGoal) * 100));
 
   return (
     <AppShell>
@@ -500,7 +514,7 @@ export default function CalorieTrackerPage() {
                       </div>
                       <Separator orientation="vertical" className="h-10 border-dashed" />
                       <div className="text-left">
-                        <p className="text-3xl font-black tracking-tighter text-muted-foreground">{DAILY_CALORIE_GOAL}</p>
+                        <p className="text-3xl font-black tracking-tighter text-muted-foreground">{plannedGoal}</p>
                         <p className="text-[8px] font-bold uppercase text-muted-foreground">Target</p>
                       </div>
                     </div>
@@ -508,8 +522,8 @@ export default function CalorieTrackerPage() {
                   </div>
                   <div className="bg-background/50 p-3 rounded-xl border border-dashed text-center">
                     <p className="text-[10px] font-black uppercase tracking-widest text-primary">
-                      {DAILY_CALORIE_GOAL - (insights?.todayCals || 0) > 0 
-                        ? `${(DAILY_CALORIE_GOAL - (insights?.todayCals || 0)).toLocaleString()} kcal remaining` 
+                      {plannedGoal - (insights?.todayCals || 0) > 0 
+                        ? `${(plannedGoal - (insights?.todayCals || 0)).toLocaleString()} kcal remaining` 
                         : "Daily target reached"}
                     </p>
                   </div>

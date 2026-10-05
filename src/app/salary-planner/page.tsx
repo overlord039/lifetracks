@@ -34,7 +34,12 @@ import {
   Sparkles,
   PencilLine,
   X,
-  History
+  History,
+  Scale,
+  Activity,
+  Flame,
+  Zap,
+  Utensils
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -63,6 +68,8 @@ import {
 } from "@/components/ui/popover";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const CHART_COLORS = ['#64B5F6', '#81C784', '#FFB74D', '#BA68C8', '#F06292', '#4DB6AC', '#FF8A65'];
 
@@ -95,12 +102,23 @@ export default function SalaryPlannerPage() {
   const [activeStrategyId, setActiveStrategyId] = useState<string | null>(null);
   const [isStartingNew, setIsStartingNew] = useState(false);
   
+  // Wealth Strategy State
   const [salary, setSalary] = useState<string>('');
   const [age, setAge] = useState<string>('');
   const [percents, setPercents] = useState<Record<string, number>>(DEFAULT_RATIOS);
   const [pillars, setPillars] = useState<any[]>(STANDARD_PILLARS);
   const [showResults, setShowResults] = useState(false);
   const [isEditingMetrics, setIsEditingMetrics] = useState(false);
+
+  // Health Strategy State
+  const [hWeight, setHWeight] = useState<string>('');
+  const [hHeight, setHHeight] = useState<string>('');
+  const [hAge, setHAge] = useState<string>('');
+  const [hGender, setHGender] = useState<'male' | 'female'>('male');
+  const [hActivity, setHActivity] = useState<string>('moderate');
+  const [hGoal, setHGoal] = useState<string>('maintain');
+  const [hIntensity, setHIntensity] = useState<string>('moderate');
+  const [isHealthSaving, setIsHealthSaving] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -111,6 +129,11 @@ export default function SalaryPlannerPage() {
   const salaryProfilesRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return collection(db, 'users', user.uid, 'salaryProfiles');
+  }, [db, user]);
+
+  const healthProfileRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, 'users', user.uid, 'healthProfile', 'current');
   }, [db, user]);
 
   const fixedExpensesRef = useMemoFirebase(() => {
@@ -126,6 +149,7 @@ export default function SalaryPlannerPage() {
   const { data: rawProfiles } = useCollection(salaryProfilesRef);
   const { data: rawFixed } = useCollection(fixedExpensesRef);
   const { data: rawExpenses } = useCollection(monthExpensesRef);
+  const { data: rawHealthProfile } = useDoc(healthProfileRef);
   
   const [decryptedProfiles, setDecryptedProfiles] = useState<any[]>([]);
   const [decryptedFixed, setDecryptedFixed] = useState<any[]>([]);
@@ -147,6 +171,21 @@ export default function SalaryPlannerPage() {
     };
     decryptProfiles();
   }, [rawProfiles, user, mounted]);
+
+  useEffect(() => {
+    const decryptHealth = async () => {
+      if (rawHealthProfile && user && mounted) {
+        setHWeight(rawHealthProfile.isEncrypted ? await decryptData(rawHealthProfile.weight, user.uid) : (rawHealthProfile.weight || ''));
+        setHHeight(rawHealthProfile.isEncrypted ? await decryptData(rawHealthProfile.height, user.uid) : (rawHealthProfile.height || ''));
+        setHAge(rawHealthProfile.isEncrypted ? await decryptData(rawHealthProfile.age, user.uid) : (rawHealthProfile.age || ''));
+        setHGender(rawHealthProfile.gender || 'male');
+        setHActivity(rawHealthProfile.activityLevel || 'moderate');
+        setHGoal(rawHealthProfile.goalType || 'maintain');
+        setHIntensity(rawHealthProfile.goalIntensity || 'moderate');
+      }
+    };
+    decryptHealth();
+  }, [rawHealthProfile, user, mounted]);
 
   useEffect(() => {
     const decryptFixedData = async () => {
@@ -324,6 +363,40 @@ export default function SalaryPlannerPage() {
     };
   }, [numAge, amounts]);
 
+  // Health Logic
+  const healthStats = useMemo(() => {
+    const w = parseFloat(hWeight) || 0;
+    const h = parseFloat(hHeight) || 0;
+    const a = parseInt(hAge) || numAge || 25;
+    if (!w || !h) return null;
+
+    // Mifflin-St Jeor Equation
+    let bmr = (10 * w) + (6.25 * h) - (5 * a);
+    bmr = hGender === 'male' ? bmr + 5 : bmr - 161;
+
+    const activityMultipliers: Record<string, number> = {
+      sedentary: 1.2,
+      light: 1.375,
+      moderate: 1.55,
+      active: 1.725,
+      very_active: 1.9
+    };
+    const tdee = bmr * (activityMultipliers[hActivity] || 1.55);
+
+    let target = tdee;
+    const intensityMap: Record<string, number> = {
+      low: 250,
+      moderate: 500,
+      aggressive: 750
+    };
+    const offset = intensityMap[hIntensity] || 500;
+
+    if (hGoal === 'lose') target -= offset;
+    if (hGoal === 'gain') target += offset;
+
+    return { bmr, tdee, target: Math.round(target) };
+  }, [hWeight, hHeight, hAge, hGender, hActivity, hGoal, hIntensity, numAge]);
+
   const salaryData = useMemo(() => {
     return pillars.map(p => ({
       name: p.label,
@@ -380,13 +453,7 @@ export default function SalaryPlannerPage() {
 
     if (activeStrategyId) {
       setDocumentNonBlocking(doc(salaryProfilesRef, activeStrategyId), payload, { merge: true });
-      toast({ 
-        title: 'Strategy Updated', 
-        description: `"${strategyName.toUpperCase()}" has been refined.`,
-        action: (
-          <Button variant="outline" size="sm" className="h-8 font-black uppercase text-[10px]" onClick={syncWithBudget}>Sync to Budget</Button>
-        )
-      });
+      toast({ title: 'Strategy Updated' });
     } else {
       addDocumentNonBlocking(salaryProfilesRef, {
         ...payload,
@@ -394,16 +461,37 @@ export default function SalaryPlannerPage() {
       }).then(docRef => {
         if (docRef) setActiveStrategyId(docRef.id);
       });
-      toast({ 
-        title: 'Strategy Vaulted', 
-        description: `"${strategyName.toUpperCase()}" secured in vault.`,
-        action: (
-          <Button variant="outline" size="sm" className="h-8 font-black uppercase text-[10px]" onClick={syncWithBudget}>Sync to Budget</Button>
-        )
-      });
+      toast({ title: 'Strategy Vaulted' });
     }
 
     setIsSaveModalOpen(false);
+  };
+
+  const handleSaveHealthStrategy = async () => {
+    if (!user || !healthProfileRef || !healthStats) return;
+    setIsHealthSaving(true);
+    
+    const payload = {
+      userId: user.uid,
+      weight: await encryptData(hWeight, user.uid),
+      height: await encryptData(hHeight, user.uid),
+      age: await encryptData(hAge || age, user.uid),
+      gender: hGender,
+      activityLevel: hActivity,
+      goalType: hGoal,
+      goalIntensity: hIntensity,
+      dailyCalorieTarget: await encryptData(healthStats.target.toString(), user.uid),
+      isEncrypted: true,
+      updatedAt: new Date().toISOString()
+    };
+
+    setDocumentNonBlocking(healthProfileRef, payload, { merge: true });
+    toast({ 
+      title: "Health Strategy Locked", 
+      description: `Daily target: ${healthStats.target} kcal.`,
+      icon: <Utensils className="h-4 w-4" />
+    });
+    setIsHealthSaving(false);
   };
 
   const loadStrategy = (strat: any) => {
@@ -424,7 +512,7 @@ export default function SalaryPlannerPage() {
     setShowResults(true);
     setIsEditingMetrics(false);
     setIsStartingNew(false);
-    toast({ title: "Strategy Loaded", description: strat.name });
+    toast({ title: "Strategy Loaded" });
   };
 
   const createNewStrategy = () => {
@@ -468,34 +556,8 @@ export default function SalaryPlannerPage() {
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
     return (
-      <text 
-        x={x} 
-        y={y} 
-        fill={fill} 
-        textAnchor={x > cx ? 'start' : 'end'} 
-        dominantBaseline="central"
-        className="font-black text-[7px] md:text-[8px] uppercase tracking-tighter"
-      >
+      <text x={x} y={y} fill={fill} textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="font-black text-[7px] md:text-[8px] uppercase tracking-tighter">
         {name}
-      </text>
-    );
-  };
-
-  const renderInternalPercent = (props: any) => {
-    const { cx, cy, midAngle, innerRadius, outerRadius, value, percent } = props;
-    if (cx === undefined || cy === undefined || midAngle === undefined || innerRadius === undefined || outerRadius === undefined) return null;
-    
-    const RADIAN = Math.PI / 180;
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-    
-    const p = Math.round(percent * 100);
-    if (p < 8) return null;
-
-    return (
-      <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="font-black text-[7px] md:text-[8px]">
-        {`${p}%`}
       </text>
     );
   };
@@ -509,445 +571,387 @@ export default function SalaryPlannerPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-4 md:gap-6 max-w-5xl mx-auto pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-1">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-xl text-primary shadow-sm border border-primary/10">
-                <Calculator className="w-5 h-5 md:w-6 md:h-6" />
+          <Tabs defaultValue="wealth" className="w-full">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-1 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-xl text-primary shadow-sm border border-primary/10">
+                  <Calculator className="w-5 h-5 md:w-6 md:h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl md:text-2xl font-black tracking-tighter uppercase">Life Planner</h2>
+                  <p className="text-[8px] md:text-[9px] font-black text-muted-foreground uppercase tracking-widest">Multi-perspective Strategic Hub</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-xl md:text-2xl font-black tracking-tighter">
-                  {showResults ? (activeStrategyId ? "Strategy Refinement" : "New Strategy Creation") : "Wealth Planner"}
-                </h2>
-                <p className="text-[8px] md:text-[9px] font-black text-muted-foreground uppercase tracking-widest">
-                  {activeStrategyId ? strategyName : "Financial architecture"}
-                </p>
-              </div>
+              <TabsList className="bg-muted/50 rounded-xl h-10 p-1 border">
+                <TabsTrigger value="wealth" className="rounded-lg font-black text-[10px] uppercase gap-2"><Coins className="h-3.5 w-3.5" /> Wealth</TabsTrigger>
+                <TabsTrigger value="health" className="rounded-lg font-black text-[10px] uppercase gap-2"><HeartPulse className="h-3.5 w-3.5" /> Nutrition</TabsTrigger>
+              </TabsList>
             </div>
-            {showResults && (
-              <Button onClick={() => setIsSaveModalOpen(true)} className="shadow-lg h-10 px-6 font-black rounded-xl bg-primary hover:bg-primary/90 text-[10px] md:text-xs gap-2">
-                <Save className="h-4 w-4" /> {activeStrategyId ? "Update strategy" : "Secure strategy"}
-              </Button>
-            )}
-          </div>
 
-          {!showResults || isEditingMetrics ? (
-            <div className="flex items-center justify-center py-6 md:py-12 animate-in zoom-in-95 duration-500 px-1">
-              {(!isStartingNew && !isEditingMetrics && decryptedProfiles.length > 0) ? (
-                <Card className="shadow-xl rounded-[1.5rem] md:rounded-[2rem] border-none ring-1 ring-border max-w-xl w-full overflow-hidden bg-card/50 backdrop-blur-md">
-                   <CardHeader className="bg-primary/5 border-b p-5 md:p-8">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 md:p-2.5 bg-primary/20 rounded-xl text-primary"><History className="h-5 w-5 md:h-6 md:w-6" /></div>
-                        <div>
-                          <CardTitle className="text-lg md:text-xl font-black tracking-tight">Strategic Hub</CardTitle>
-                          <CardDescription className="text-[8px] md:text-[9px] font-bold uppercase tracking-widest text-muted-foreground mt-0.5">Welcome back to your financial center</CardDescription>
-                        </div>
-                      </div>
-                   </CardHeader>
-                   <CardContent className="p-5 md:p-8 space-y-6">
-                      {latestProfile && (
-                        <div className="space-y-3">
-                           <p className="text-[9px] font-black uppercase text-primary tracking-widest ml-1">Continue Latest</p>
-                           <button 
-                             onClick={() => loadStrategy(latestProfile)}
-                             className="w-full p-4 md:p-5 rounded-xl md:rounded-2xl border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all group text-left flex items-center justify-between"
-                           >
-                              <div className="pointer-events-none">
-                                <h4 className="text-base md:text-lg font-black uppercase tracking-tight group-hover:text-primary transition-colors">{latestProfile.name}</h4>
-                                <div className="flex items-center gap-3 mt-1 opacity-70">
-                                   <Badge variant="outline" className="text-[7px] md:text-[8px] font-black bg-background">₹{parseFloat(latestProfile.salary).toLocaleString()}</Badge>
-                                   <span className="text-[7px] md:text-[8px] font-black uppercase tracking-widest">Modified {format(new Date(latestProfile.updatedAt), 'MMM dd')}</span>
-                                </div>
-                              </div>
-                              <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-primary text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform pointer-events-none">
-                                <ChevronRight className="h-4 w-4 md:h-5 md:w-5" />
-                              </div>
-                           </button>
-                        </div>
-                      )}
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                         <div className="space-y-2">
-                            <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest ml-1">New Intent</p>
-                            <Button onClick={() => setIsStartingNew(true)} variant="outline" className="w-full h-12 md:h-14 rounded-xl border-dashed font-black text-[10px] md:text-xs uppercase gap-2 hover:bg-primary/5 hover:border-primary/40">
-                               <Plus className="h-4 w-4" /> Create New
-                            </Button>
-                         </div>
-                         <div className="space-y-2">
-                            <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest ml-1">Vault</p>
-                            <Popover>
-                               <PopoverTrigger asChild>
-                                  <Button variant="outline" className="w-full h-12 md:h-14 rounded-xl font-black text-[10px] md:text-xs uppercase gap-2">
-                                     <Library className="h-4 w-4" /> Choose From Vault
-                                  </Button>
-                               </PopoverTrigger>
-                               <PopoverContent align="center" className="w-72 md:w-80 p-0 rounded-2xl overflow-hidden shadow-2xl border-none ring-1 ring-border">
-                                  <div className="bg-muted/30 p-3 border-b">
-                                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Strategic Profiles</p>
-                                  </div>
-                                  <ScrollArea className="h-64">
-                                     <div className="divide-y divide-dashed">
-                                        {decryptedProfiles.map(p => (
-                                           <div key={p.id} className="w-full hover:bg-primary/5 transition-colors group flex items-center justify-between p-3 md:p-4">
-                                              <button 
-                                                onClick={() => loadStrategy(p)}
-                                                className="flex-1 text-left flex flex-col gap-0.5 focus:outline-none"
-                                              >
-                                                <span className="text-[10px] md:text-[11px] font-black uppercase group-hover:text-primary transition-colors">{p.name}</span>
-                                                <span className="text-[7px] md:text-[8px] font-bold text-muted-foreground uppercase">₹{parseFloat(p.salary).toLocaleString()} • Age {p.age}</span>
-                                              </button>
-                                              <Button variant="ghost" size="icon" onClick={(e) => deleteStrategy(p.id, e)} className="h-7 w-7 text-destructive/40 hover:text-destructive shrink-0 ml-2">
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                              </Button>
-                                           </div>
-                                        ))}
-                                     </div>
-                                  </ScrollArea>
-                               </PopoverContent>
-                            </Popover>
-                         </div>
-                      </div>
-                   </CardContent>
-                </Card>
-              ) : (
-                <Card className="shadow-xl rounded-[1.5rem] md:rounded-[2rem] border-none ring-1 ring-border max-w-md w-full overflow-hidden">
-                  <CardHeader className="bg-muted/30 pb-4 border-b px-5 md:px-6 pt-6">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="text-lg md:text-xl font-black tracking-tight flex items-center gap-2">
-                          <Target className="h-4 w-4 md:h-5 md:w-5 text-primary" />
-                          Initial Metrics
-                        </CardTitle>
-                        <CardDescription className="text-[8px] md:text-[9px] font-bold uppercase tracking-widest text-muted-foreground mt-0.5">Define your financial baseline</CardDescription>
-                      </div>
-                      {(isEditingMetrics || (decryptedProfiles.length > 0 && isStartingNew)) && (
-                        <Button variant="ghost" size="icon" onClick={() => { setIsEditingMetrics(false); setIsStartingNew(false); }} className="h-8 w-8 rounded-full">
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4 pt-6 px-5 md:px-6 pb-8">
-                    <div className="space-y-1.5">
-                      <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Strategy Alias (Optional)</Label>
-                      <Input placeholder="e.g. AGGRESSIVE 2026" value={strategyName} onChange={(e) => setStrategyName(e.target.value)} className="h-10 font-black rounded-lg text-sm uppercase bg-muted/10" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Monthly Salary (₹)</Label>
-                        <Input type="number" placeholder="75000" value={salary} onChange={(e) => setSalary(e.target.value)} className="font-black text-base md:text-lg h-11 md:h-12 bg-muted/20 rounded-xl" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Current Age</Label>
-                        <Input type="number" placeholder="28" value={age} onChange={(e) => setAge(e.target.value)} className="h-11 md:h-12 font-black rounded-xl text-base md:text-lg bg-muted/20" />
-                      </div>
-                    </div>
-                    <Button 
-                      onClick={() => { setShowResults(true); setIsEditingMetrics(false); setIsStartingNew(false); }} 
-                      disabled={!salary || !age}
-                      className="w-full h-12 text-[11px] md:text-sm font-black shadow-lg rounded-xl gap-2 mt-2"
-                    >
-                      Generate Wealth Dashboard <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          ) : (
-            <div className="grid gap-4 md:gap-6 grid-cols-1 animate-in slide-in-from-top-2 duration-500 px-1">
-              {/* Compact Metrics Bar */}
-              <Card className="shadow-lg rounded-xl md:rounded-2xl border-none ring-1 ring-border bg-card/50 backdrop-blur-sm overflow-hidden">
-                <CardContent className="p-3 md:p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-                  <div className="flex items-center gap-4 md:gap-6 flex-wrap justify-center md:justify-start">
-                    <div className="space-y-0.5 text-center md:text-left flex flex-col items-center md:items-start">
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-[7px] font-black uppercase text-muted-foreground tracking-widest">Monthly Income</p>
-                        <Popover>
-                          <PopoverTrigger asChild><button className="hover:text-primary transition-colors"><Info className="h-2.5 w-2.5 text-muted-foreground/50" /></button></PopoverTrigger>
-                          <PopoverContent className="w-56 p-3 text-[9px] font-medium leading-tight">Your total take-home pay after taxes. This serves as the pool for all strategic allocations.</PopoverContent>
-                        </Popover>
-                      </div>
-                      <p className="text-base md:text-lg font-black tracking-tighter">₹{numSalary.toLocaleString()}</p>
-                    </div>
-                    <Separator orientation="vertical" className="h-6 hidden md:block" />
-                    <div className="space-y-0.5 text-center md:text-left flex flex-col items-center md:items-start">
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-[7px] font-black uppercase text-muted-foreground tracking-widest">Age Baseline</p>
-                        <Popover>
-                          <PopoverTrigger asChild><button className="hover:text-primary transition-colors"><Info className="h-2.5 w-2.5 text-muted-foreground/50" /></button></PopoverTrigger>
-                          <PopoverContent className="w-56 p-3 text-[9px] font-medium leading-tight">Your current age is used to calculate high-impact risk profiles for investments (e.g., 100-Age Rule).</PopoverContent>
-                        </Popover>
-                      </div>
-                      <p className="text-base md:text-lg font-black tracking-tighter">{numAge} Years</p>
-                    </div>
-                    <Separator orientation="vertical" className="h-6 hidden md:block" />
-                    <div className="space-y-0.5 text-center md:text-left flex flex-col items-center md:items-start">
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-[7px] font-black uppercase text-muted-foreground tracking-widest">Active Alias</p>
-                        <Popover>
-                          <PopoverTrigger asChild><button className="hover:text-primary transition-colors"><Info className="h-2.5 w-2.5 text-muted-foreground/50" /></button></PopoverTrigger>
-                          <PopoverContent className="w-56 p-3 text-[9px] font-medium leading-tight">The name assigned to this specific strategic profile in your secure vault.</PopoverContent>
-                        </Popover>
-                      </div>
-                      <p className="text-sm md:text-base font-black tracking-tight uppercase text-primary truncate max-w-[100px] md:max-w-[120px]">{strategyName || "Unnamed Strategy"}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 w-full md:w-auto justify-center">
-                    <Button variant="outline" size="sm" onClick={() => setIsEditingMetrics(true)} className="rounded-lg h-8 md:h-9 px-3 font-black uppercase text-[8px] tracking-widest gap-1.5 border-dashed flex-1 md:flex-none">
-                      <PencilLine className="h-3.5 w-3.5" /> Edit Metrics
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={createNewStrategy} className="rounded-lg h-8 md:h-9 px-3 font-black uppercase text-[8px] tracking-widest gap-1.5 border border-dashed flex-1 md:flex-none">
-                      <X className="h-3.5 w-3.5" /> Change Strategy
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Main Allocation Engine */}
-              <Card className="shadow-xl rounded-[1.5rem] md:rounded-[2rem] border-none ring-1 ring-border overflow-hidden">
-                <CardHeader className="bg-muted/30 border-b py-3 px-5 md:px-8">
-                  <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1.5 bg-primary/20 rounded-lg text-primary"><BrainCircuit className="h-4 w-4 animate-pulse" /></div>
-                      <div className="flex items-center gap-2">
-                        <div>
-                          <CardTitle className="text-base md:text-lg font-black tracking-tight">Income Allocation Engine</CardTitle>
-                          <CardDescription className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground">Utilization tracking</CardDescription>
-                        </div>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-primary/10 ml-1">
-                              <Info className="h-3.5 w-3.5 text-muted-foreground" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-72 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
-                             <div className="space-y-3">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-primary">Strategic Logic</p>
-                                <div className="space-y-2">
-                                  {pillars.map(p => (
-                                     <div key={p.id} className="space-y-0.5">
-                                        <div className="flex items-center justify-between">
-                                          <p className="text-[9px] font-black uppercase text-foreground">{p.label}</p>
-                                          {committedCosts[p.id] > 0 && <Badge className="text-[5px] font-black uppercase bg-orange-100 text-orange-600 border-none px-1 h-3">Active</Badge>}
-                                        </div>
-                                        <p className="text-[8px] text-muted-foreground leading-snug font-medium opacity-70">Encrypted node for {p.label} allocation.</p>
-                                     </div>
-                                  ))}
-                                </div>
-                                <Separator className="border-dashed" />
-                                <p className="text-[7px] font-bold text-muted-foreground uppercase leading-relaxed italic opacity-60">Protected by client-side AES-GCM encryption.</p>
-                             </div>
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </div>
-                    <Badge variant={totalPercent === 100 ? "secondary" : "destructive"} className="h-7 px-3 rounded-full text-[8px] font-black uppercase tracking-widest shadow-md">
-                      {totalPercent}% Allocated
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-4 md:gap-6 p-5 md:p-8">
-                  {/* Allocation Chart */}
-                  <div className="flex flex-col items-center justify-center p-3 md:p-4 bg-muted/5 rounded-[1.5rem] md:rounded-[2rem] border border-dashed border-primary/10">
-                    <div className="w-[220px] h-[220px] relative">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie 
-                            data={salaryData} 
-                            innerRadius={65} 
-                            outerRadius={95} 
-                            paddingAngle={5} 
-                            dataKey="value" 
-                            stroke="none"
-                            label={renderLabel}
-                            labelLine={false}
-                            animationDuration={1000}
-                          >
-                            {salaryData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
-                            <LabelList dataKey="percent" position="inside" content={renderInternalPercent} />
-                          </Pie>
-                          <RechartsTooltip contentStyle={chartTooltipStyle} itemStyle={{ color: 'hsl(var(--popover-foreground))' }} formatter={(v: number) => `₹${Math.round(v).toLocaleString()}`} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none drop-shadow-sm">
-                        <span className="text-[7px] font-black uppercase text-muted-foreground tracking-widest opacity-60">Total</span>
-                        <p className="text-[10px] md:text-xs font-black tracking-tighter">₹{numSalary.toLocaleString()}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Pillar Rows */}
-                  <div className="space-y-4 md:space-y-5">
-                    <div className="grid gap-3 md:gap-4">
-                      {pillars.map((item) => {
-                        const committed = committedCosts[item.id] || 0;
-                        const totalAllowed = amounts[item.id] || 0;
-                        const committedPercent = totalAllowed > 0 ? (committed / totalAllowed) * 100 : 0;
-                        const isOverspent = committed > totalAllowed;
-                        const isLocked = lockedPillars.has(item.id);
-                        const Icon = item.icon || Coins;
-                        
-                        return (
-                          <div key={item.id} className="p-3 md:p-4 rounded-2xl border bg-card hover:shadow-md transition-all space-y-4 group relative overflow-hidden">
-                            {isLocked && <div className="absolute top-0 right-0 p-1 bg-orange-100 rounded-bl-xl text-orange-600"><Lock className="h-2.5 w-2.5" /></div>}
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div className={cn("p-2 rounded-xl text-white shadow-sm shrink-0 transition-transform group-hover:scale-110")} style={{ backgroundColor: item.color }}>
-                                  <Icon className="h-4 w-4" />
-                                </div>
-                                <div className="flex flex-col min-w-0">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="font-black text-[10px] md:text-xs uppercase tracking-tight truncate">{item.label}</span>
-                                    <Popover>
-                                      <PopoverTrigger asChild>
-                                        <button className="text-muted-foreground/30 hover:text-primary transition-colors">
-                                          <Info className="h-3 w-3" />
-                                        </button>
-                                      </PopoverTrigger>
-                                      <PopoverContent className="w-64 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
-                                        <div className="space-y-2">
-                                          <p className="text-[10px] font-black uppercase tracking-widest text-primary">{item.label} STRATEGY</p>
-                                          <p className="text-[9px] text-muted-foreground leading-relaxed">
-                                            {item.id === 'expense' ? 'Daily living costs, bills, and monthly essentials. This pillar syncs directly with your Monthly Budget vault.' : 
-                                             item.id === 'savings' ? 'Emergency funds and short-term liquid cash. Building a safety net for unexpected situations.' :
-                                             item.id === 'investment' ? 'Wealth building and long-term asset accumulation. These funds are further split in the Asset Matrix.' :
-                                             item.id === 'health' ? 'Insurance premiums, gym memberships, and medical reserves. Prioritizing physical and mental longevity.' :
-                                             item.id === 'personal' ? 'Lifestyle, guilt-free spending, and self-care. Funds reserved for personal enjoyment and growth.' :
-                                             `Custom strategic node for ${item.label} allocation. Tracking specific financial intent.`}
-                                          </p>
-                                        </div>
-                                      </PopoverContent>
-                                    </Popover>
-                                  </div>
-                                  <span className={cn("text-[8px] font-bold uppercase", isOverspent ? "text-destructive" : "text-muted-foreground")}>
-                                    Used: ₹{committed.toLocaleString()}
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-1 shrink-0">
-                                <button onClick={() => toggleLock(item.id)} className={cn("p-1.5 rounded-lg transition-colors", isLocked ? "bg-orange-100 text-orange-600" : "hover:bg-muted text-muted-foreground")}>
-                                  {isLocked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
-                                </button>
-                                <Button variant="ghost" size="icon" onClick={() => deletePillar(item.id)} className="h-8 w-8 text-destructive/40 hover:text-destructive hover:bg-destructive/10">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className={cn("flex flex-col p-2.5 rounded-xl border bg-muted/10 transition-all", isLocked && "border-orange-200 bg-orange-50/20")}>
-                                <span className="text-[7px] md:text-[8px] font-black uppercase text-muted-foreground mb-1 tracking-widest">Planned Target</span>
-                                <div className="flex items-center gap-1">
-                                  <span className="text-[10px] font-bold opacity-30">₹</span>
-                                  <input 
-                                    type="number" 
-                                    value={Math.round(totalAllowed)} 
-                                    onChange={(e) => updateAmount(item.id, e.target.value)}
-                                    className="w-full bg-transparent font-black text-xs md:text-sm focus:outline-none tracking-tight"
-                                  />
-                                </div>
-                              </div>
-                              <div className={cn("flex flex-col p-2.5 rounded-xl border bg-muted/10 transition-all", isLocked && "border-orange-200 bg-orange-50/20")}>
-                                <span className="text-[7px] md:text-[8px] font-black uppercase text-muted-foreground mb-1 tracking-widest">Scale Ratio</span>
-                                <div className="flex items-center gap-1">
-                                  <input 
-                                    type="number" 
-                                    value={Math.round(percents[item.id] * 10) / 10} 
-                                    onChange={(e) => updatePercent(item.id, parseFloat(e.target.value) || 0)}
-                                    className="w-full bg-transparent font-black text-xs md:text-sm text-right focus:outline-none tracking-tight"
-                                  />
-                                  <span className="text-[10px] font-bold opacity-30">%</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="space-y-1.5 px-0.5">
-                              <Slider value={[percents[item.id] || 0]} max={100} step={0.5} onValueChange={([val]) => updatePercent(item.id, val)} className={cn(isLocked && "opacity-50")} />
-                              <div className="flex justify-between items-center text-[7px] md:text-[8px] font-black uppercase tracking-widest px-0.5">
-                                <span className={cn(isOverspent ? "text-destructive animate-pulse" : "text-muted-foreground")}>
-                                  {isOverspent ? "CAP EXCEEDED" : "ALLOCATION LOAD"}
-                                </span>
-                                <span className={cn(isOverspent ? "text-destructive" : "text-primary")}>
-                                  {Math.round(committedPercent)}% of pillar
-                                </span>
-                              </div>
+            <TabsContent value="wealth" className="mt-0 space-y-6">
+              {!showResults || isEditingMetrics ? (
+                <div className="flex items-center justify-center py-6 md:py-12 animate-in zoom-in-95 duration-500 px-1">
+                  {(!isStartingNew && !isEditingMetrics && decryptedProfiles.length > 0) ? (
+                    <Card className="shadow-xl rounded-[1.5rem] md:rounded-[2rem] border-none ring-1 ring-border max-w-xl w-full overflow-hidden bg-card/50 backdrop-blur-md">
+                       <CardHeader className="bg-primary/5 border-b p-5 md:p-8">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 md:p-2.5 bg-primary/20 rounded-xl text-primary"><History className="h-5 w-5 md:h-6 md:w-6" /></div>
+                            <div>
+                              <CardTitle className="text-lg md:text-xl font-black tracking-tight">Strategic Hub</CardTitle>
+                              <CardDescription className="text-[8px] md:text-[9px] font-bold uppercase tracking-widest text-muted-foreground mt-0.5">Wealth Strategy Vault</CardDescription>
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                    <div className="p-4 md:p-6 rounded-[1.2rem] md:rounded-[1.5rem] bg-primary/5 border border-dashed border-primary/20 flex flex-col sm:flex-row items-center gap-3">
-                      <Input placeholder="ADD CUSTOM PILLAR..." value={newPillarName} onChange={e => setNewPillarName(e.target.value)} className="h-10 md:h-11 text-[9px] md:text-[10px] uppercase font-black tracking-tight rounded-lg bg-background shadow-sm px-4" />
-                      <Button onClick={addPillar} className="h-10 md:h-11 w-full sm:w-auto px-6 shrink-0 rounded-lg shadow-md gap-2 uppercase font-black text-[9px] tracking-widest"><Plus className="h-4 w-4 md:h-5 md:h-5" /> Add Pillar</Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Asset Matrix */}
-              <div className="grid gap-4 md:gap-6 grid-cols-1">
-                {percents['investment'] !== undefined && (
-                  <Card className="shadow-lg rounded-[1.2rem] md:rounded-[2rem] border-none ring-1 ring-orange-500/10 overflow-hidden">
-                    <CardHeader className="py-2.5 md:py-3 border-b bg-muted/10 px-5 md:px-6 flex flex-row items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <CardTitle className="text-[10px] md:text-xs flex items-center gap-2 font-black">
-                          <Target className="h-3.5 w-3.5 text-orange-500" /> Asset Matrix
-                        </CardTitle>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-5 w-5 rounded-full hover:bg-orange-500/10">
-                              <Info className="h-3 w-3 text-muted-foreground" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-64 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
+                       </CardHeader>
+                       <CardContent className="p-5 md:p-8 space-y-6">
+                          {latestProfile && (
                             <div className="space-y-3">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-orange-600">Allocation Logic</p>
-                              <p className="text-[9px] text-muted-foreground font-medium leading-relaxed">
-                                Strategy automatically calculates asset splits based on your age baseline using the 100-Age rule for equity.
-                              </p>
-                              <div className="space-y-1">
-                                <p className="text-[8px] font-black uppercase text-foreground">Equity: Max(100 - Age, 30%)</p>
-                                <p className="text-[8px] font-black uppercase text-foreground">Gold: Fixed 5% Baseline</p>
-                                <p className="text-[8px] font-black uppercase text-foreground">Debt: Balance Allocation</p>
-                              </div>
+                               <p className="text-[9px] font-black uppercase text-primary tracking-widest ml-1">Continue Latest</p>
+                               <button onClick={() => loadStrategy(latestProfile)} className="w-full p-4 md:p-5 rounded-xl md:rounded-2xl border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all group text-left flex items-center justify-between">
+                                  <div className="pointer-events-none">
+                                    <h4 className="text-base md:text-lg font-black uppercase tracking-tight group-hover:text-primary transition-colors">{latestProfile.name}</h4>
+                                    <div className="flex items-center gap-3 mt-1 opacity-70">
+                                       <Badge variant="outline" className="text-[7px] md:text-[8px] font-black bg-background">₹{parseFloat(latestProfile.salary).toLocaleString()}</Badge>
+                                       <span className="text-[7px] md:text-[8px] font-black uppercase tracking-widest">Modified {format(new Date(latestProfile.updatedAt), 'MMM dd')}</span>
+                                    </div>
+                                  </div>
+                                  <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-primary text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform pointer-events-none">
+                                    <ChevronRight className="h-4 w-4 md:h-5 md:w-5" />
+                                  </div>
+                               </button>
                             </div>
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                      <Badge variant="outline" className="text-[7px] font-black uppercase bg-orange-50 text-orange-600 border-orange-200">Age Dynamic</Badge>
-                    </CardHeader>
-                    <CardContent className="pt-4 px-5 md:px-6 pb-5 md:pb-6 space-y-4">
-                      <div className="h-[120px] md:h-[150px] w-full relative">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie data={invData} innerRadius={35} outerRadius={55} paddingAngle={4} dataKey="value" stroke="none">
-                              {invData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
-                            </Pie>
-                            <RechartsTooltip contentStyle={chartTooltipStyle} />
-                          </PieChart>
-                        </ResponsiveContainer>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                           <span className="text-[7px] font-black uppercase text-muted-foreground opacity-60">Total</span>
-                           <p className="text-[10px] md:text-xs font-black tracking-tighter">₹{Math.round(amounts['investment'] || 0).toLocaleString()}</p>
+                          )}
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                             <div className="space-y-2">
+                                <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest ml-1">New Intent</p>
+                                <Button onClick={() => setIsStartingNew(true)} variant="outline" className="w-full h-12 md:h-14 rounded-xl border-dashed font-black text-[10px] md:text-xs uppercase gap-2 hover:bg-primary/5 hover:border-primary/40"><Plus className="h-4 w-4" /> Create New</Button>
+                             </div>
+                             <div className="space-y-2">
+                                <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest ml-1">Vault</p>
+                                <Popover>
+                                   <PopoverTrigger asChild>
+                                      <Button variant="outline" className="w-full h-12 md:h-14 rounded-xl font-black text-[10px] md:text-xs uppercase gap-2"><Library className="h-4 w-4" /> Choose From Vault</Button>
+                                   </PopoverTrigger>
+                                   <PopoverContent align="center" className="w-72 md:w-80 p-0 rounded-2xl overflow-hidden shadow-2xl border-none ring-1 ring-border">
+                                      <div className="bg-muted/30 p-3 border-b"><p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Strategic Profiles</p></div>
+                                      <ScrollArea className="h-64">
+                                         <div className="divide-y divide-dashed">
+                                            {decryptedProfiles.map(p => (
+                                               <div key={p.id} className="w-full hover:bg-primary/5 transition-colors group flex items-center justify-between p-3 md:p-4">
+                                                  <button onClick={() => loadStrategy(p)} className="flex-1 text-left flex flex-col gap-0.5 focus:outline-none">
+                                                    <span className="text-[10px] md:text-[11px] font-black uppercase group-hover:text-primary transition-colors">{p.name}</span>
+                                                    <span className="text-[7px] md:text-[8px] font-bold text-muted-foreground uppercase">₹{parseFloat(p.salary).toLocaleString()} • Age {p.age}</span>
+                                                  </button>
+                                                  <Button variant="ghost" size="icon" onClick={(e) => deleteStrategy(p.id, e)} className="h-7 w-7 text-destructive/40 hover:text-destructive shrink-0 ml-2"><Trash2 className="h-3.5 w-3.5" /></Button>
+                                               </div>
+                                            ))}
+                                         </div>
+                                      </ScrollArea>
+                                   </PopoverContent>
+                                </Popover>
+                             </div>
+                          </div>
+                       </CardContent>
+                    </Card>
+                  ) : (
+                    <Card className="shadow-xl rounded-[1.5rem] md:rounded-[2rem] border-none ring-1 ring-border max-w-md w-full overflow-hidden">
+                      <CardHeader className="bg-muted/30 pb-4 border-b px-5 md:px-6 pt-6">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <CardTitle className="text-lg md:text-xl font-black tracking-tight flex items-center gap-2"><Target className="h-4 w-4 md:h-5 md:w-5 text-primary" /> Wealth Baseline</CardTitle>
+                            <CardDescription className="text-[8px] md:text-[9px] font-bold uppercase tracking-widest text-muted-foreground mt-0.5">Define your income baseline</CardDescription>
+                          </div>
+                          {(isEditingMetrics || (decryptedProfiles.length > 0 && isStartingNew)) && (
+                            <Button variant="ghost" size="icon" onClick={() => { setIsEditingMetrics(false); setIsStartingNew(false); }} className="h-8 w-8 rounded-full"><X className="h-4 w-4" /></Button>
+                          )}
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4 pt-6 px-5 md:px-6 pb-8">
+                        <div className="space-y-1.5">
+                          <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Strategy Alias (Optional)</Label>
+                          <Input placeholder="e.g. AGGRESSIVE 2026" value={strategyName} onChange={(e) => setStrategyName(e.target.value)} className="h-10 font-black rounded-lg text-sm uppercase bg-muted/10" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Monthly Salary (₹)</Label>
+                            <Input type="number" placeholder="75000" value={salary} onChange={(e) => setSalary(e.target.value)} className="font-black text-base md:text-lg h-11 md:h-12 bg-muted/20 rounded-xl" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Current Age</Label>
+                            <Input type="number" placeholder="28" value={age} onChange={(e) => setAge(e.target.value)} className="h-11 md:h-12 font-black rounded-xl text-base md:text-lg bg-muted/20" />
+                          </div>
+                        </div>
+                        <Button onClick={() => { setShowResults(true); setIsEditingMetrics(false); setIsStartingNew(false); }} disabled={!salary || !age} className="w-full h-12 text-[11px] md:text-sm font-black shadow-lg rounded-xl gap-2 mt-2">Generate Wealth Matrix <ChevronRight className="h-4 w-4" /></Button>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              ) : (
+                <div className="grid gap-4 md:gap-6 grid-cols-1 animate-in slide-in-from-top-2 duration-500 px-1">
+                  <Card className="shadow-lg rounded-xl md:rounded-2xl border-none ring-1 ring-border bg-card/50 backdrop-blur-sm overflow-hidden">
+                    <CardContent className="p-3 md:p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                      <div className="flex items-center gap-4 md:gap-6 flex-wrap justify-center md:justify-start">
+                        <div className="space-y-0.5 text-center md:text-left flex flex-col items-center md:items-start">
+                          <p className="text-[7px] font-black uppercase text-muted-foreground tracking-widest">Monthly Income</p>
+                          <p className="text-base md:text-lg font-black tracking-tighter">₹{numSalary.toLocaleString()}</p>
+                        </div>
+                        <Separator orientation="vertical" className="h-6 hidden md:block" />
+                        <div className="space-y-0.5 text-center md:text-left flex flex-col items-center md:items-start">
+                          <p className="text-[7px] font-black uppercase text-muted-foreground tracking-widest">Age Baseline</p>
+                          <p className="text-base md:text-lg font-black tracking-tighter">{numAge} Years</p>
                         </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {[
-                          { label: 'Equity', p: invAllocation.equityP, color: 'text-purple-500', bg: 'bg-purple-50' }, 
-                          { label: 'Debt', p: invAllocation.debtP, color: 'text-blue-500', bg: 'bg-blue-50' }, 
-                          { label: 'Gold', p: invAllocation.goldP, color: 'text-yellow-600', bg: 'bg-yellow-50' }
-                        ].map(item => (
-                          <div key={item.label} className={cn("p-2 rounded-xl border border-dashed text-center space-y-1 transition-colors hover:bg-muted/10", item.bg)}>
-                            <p className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">{item.label}</p>
-                            <span className={cn("text-xs font-black tracking-tight", item.color)}>{item.p}%</span>
-                          </div>
-                        ))}
+                      <div className="flex items-center gap-2 w-full md:w-auto justify-center">
+                        <Button variant="outline" size="sm" onClick={() => setIsEditingMetrics(true)} className="rounded-lg h-8 md:h-9 px-3 font-black uppercase text-[8px] tracking-widest gap-1.5 border-dashed flex-1 md:flex-none">Edit Metrics</Button>
+                        <Button variant="outline" size="sm" onClick={() => setIsSaveModalOpen(true)} className="rounded-lg h-8 md:h-9 px-3 font-black uppercase text-[8px] tracking-widest gap-1.5 bg-primary text-white flex-1 md:flex-none">Save Strategy</Button>
                       </div>
                     </CardContent>
                   </Card>
-                )}
+
+                  <Card className="shadow-xl rounded-[1.5rem] md:rounded-[2rem] border-none ring-1 ring-border overflow-hidden">
+                    <CardHeader className="bg-muted/30 border-b py-3 px-5 md:px-8">
+                      <div className="flex justify-between items-center">
+                        <CardTitle className="text-base md:text-lg font-black tracking-tight flex items-center gap-2"><BrainCircuit className="h-4 w-4 text-primary animate-pulse" /> Income Allocation Engine</CardTitle>
+                        <Badge variant={totalPercent === 100 ? "secondary" : "destructive"} className="h-7 px-3 rounded-full text-[8px] font-black uppercase tracking-widest">{totalPercent}% Allocated</Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-4 md:gap-6 p-5 md:p-8">
+                      <div className="flex flex-col items-center justify-center p-3 md:p-4 bg-muted/5 rounded-[1.5rem] md:rounded-3xl border border-dashed border-primary/10">
+                        <div className="w-[220px] h-[220px] relative">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie data={salaryData} innerRadius={65} outerRadius={95} paddingAngle={5} dataKey="value" stroke="none" label={renderLabel} labelLine={false} animationDuration={1000}>
+                                {salaryData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
+                              </Pie>
+                              <RechartsTooltip contentStyle={chartTooltipStyle} formatter={(v: number) => `₹${Math.round(v).toLocaleString()}`} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none drop-shadow-sm">
+                            <span className="text-[7px] font-black uppercase text-muted-foreground tracking-widest opacity-60">Total</span>
+                            <p className="text-[10px] md:text-xs font-black tracking-tighter">₹{numSalary.toLocaleString()}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4 md:space-y-5">
+                        {pillars.map((item) => {
+                          const committed = committedCosts[item.id] || 0;
+                          const totalAllowed = amounts[item.id] || 0;
+                          const committedPercent = totalAllowed > 0 ? (committed / totalAllowed) * 100 : 0;
+                          const isOverspent = committed > totalAllowed;
+                          const isLocked = lockedPillars.has(item.id);
+                          const Icon = item.icon || Coins;
+                          
+                          return (
+                            <div key={item.id} className="p-3 md:p-4 rounded-2xl border bg-card hover:shadow-md transition-all space-y-4 group relative overflow-hidden">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className={cn("p-2 rounded-xl text-white shadow-sm shrink-0 transition-transform group-hover:scale-110")} style={{ backgroundColor: item.color }}><Icon className="h-4 w-4" /></div>
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="font-black text-[10px] md:text-xs uppercase tracking-tight truncate">{item.label}</span>
+                                    <span className={cn("text-[8px] font-bold uppercase", isOverspent ? "text-destructive" : "text-muted-foreground")}>Used: ₹{committed.toLocaleString()}</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button onClick={() => toggleLock(item.id)} className={cn("p-1.5 rounded-lg transition-colors", isLocked ? "bg-orange-100 text-orange-600" : "hover:bg-muted text-muted-foreground")}>
+                                    {isLocked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+                                  </button>
+                                  <Button variant="ghost" size="icon" onClick={() => deletePillar(item.id)} className="h-8 w-8 text-destructive/40 hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className={cn("flex flex-col p-2.5 rounded-xl border bg-muted/10 transition-all", isLocked && "border-orange-200 bg-orange-50/20")}>
+                                  <span className="text-[7px] md:text-[8px] font-black uppercase text-muted-foreground mb-1 tracking-widest">Planned Target</span>
+                                  <div className="flex items-center gap-1"><span className="text-[10px] font-bold opacity-30">₹</span><input type="number" value={Math.round(totalAllowed)} onChange={(e) => updateAmount(item.id, e.target.value)} className="w-full bg-transparent font-black text-xs md:text-sm focus:outline-none tracking-tight" /></div>
+                                </div>
+                                <div className={cn("flex flex-col p-2.5 rounded-xl border bg-muted/10 transition-all", isLocked && "border-orange-200 bg-orange-50/20")}>
+                                  <span className="text-[7px] md:text-[8px] font-black uppercase text-muted-foreground mb-1 tracking-widest">Scale Ratio</span>
+                                  <div className="flex items-center gap-1"><input type="number" value={Math.round(percents[item.id] * 10) / 10} onChange={(e) => updatePercent(item.id, parseFloat(e.target.value) || 0)} className="w-full bg-transparent font-black text-xs md:text-sm text-right focus:outline-none tracking-tight" /><span className="text-[10px] font-bold opacity-30">%</span></div>
+                                </div>
+                              </div>
+                              <div className="space-y-1.5 px-0.5"><Slider value={[percents[item.id] || 0]} max={100} step={0.5} onValueChange={([val]) => updatePercent(item.id, val)} className={cn(isLocked && "opacity-50")} /><div className="flex justify-between items-center text-[7px] md:text-[8px] font-black uppercase tracking-widest px-0.5"><span className={cn(isOverspent ? "text-destructive animate-pulse" : "text-muted-foreground")}>{isOverspent ? "CAP EXCEEDED" : "ALLOCATION LOAD"}</span><span className={cn(isOverspent ? "text-destructive" : "text-primary")}>{Math.round(committedPercent)}% of pillar</span></div></div>
+                            </div>
+                          );
+                        })}
+                        <div className="p-4 md:p-6 rounded-[1.2rem] md:rounded-[1.5rem] bg-primary/5 border border-dashed border-primary/20 flex flex-col sm:flex-row items-center gap-3">
+                          <Input placeholder="ADD CUSTOM PILLAR..." value={newPillarName} onChange={e => setNewPillarName(e.target.value)} className="h-10 md:h-11 text-[9px] md:text-[10px] uppercase font-black tracking-tight rounded-lg bg-background shadow-sm px-4" />
+                          <Button onClick={addPillar} className="h-10 md:h-11 w-full sm:w-auto px-6 shrink-0 rounded-lg shadow-md gap-2 uppercase font-black text-[9px] tracking-widest"><Plus className="h-4 w-4" /> Add Pillar</Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="health" className="mt-0 space-y-6">
+              <div className="grid gap-6 lg:grid-cols-12 animate-in slide-in-from-right-2 duration-500 px-1">
+                <div className="lg:col-span-5 space-y-6">
+                  <Card className="shadow-xl rounded-[1.5rem] md:rounded-[2rem] border-none ring-1 ring-border overflow-hidden">
+                    <CardHeader className="bg-muted/30 border-b py-4 px-6">
+                      <CardTitle className="text-lg md:text-xl font-black flex items-center gap-3">
+                        <Activity className="h-5 w-5 text-primary" />
+                        Nutrition Engine
+                      </CardTitle>
+                      <CardDescription className="text-[8px] font-bold uppercase tracking-widest">Physiological Architecture</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-5">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-[9px] font-black uppercase tracking-widest ml-1">Current Weight (kg)</Label>
+                          <Input type="number" placeholder="70" value={hWeight} onChange={e => setHWeight(e.target.value)} className="h-11 rounded-xl font-black text-base md:text-lg bg-muted/20" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[9px] font-black uppercase tracking-widest ml-1">Current Height (cm)</Label>
+                          <Input type="number" placeholder="175" value={hHeight} onChange={e => setHHeight(e.target.value)} className="h-11 rounded-xl font-black text-base md:text-lg bg-muted/20" />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-[9px] font-black uppercase tracking-widest ml-1">Current Age</Label>
+                          <Input type="number" placeholder="25" value={hAge || age} onChange={e => setHAge(e.target.value)} className="h-11 rounded-xl font-black text-base md:text-lg bg-muted/20" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[9px] font-black uppercase tracking-widest ml-1">Gender</Label>
+                          <Select value={hGender} onValueChange={(v: any) => setHGender(v)}>
+                            <SelectTrigger className="h-11 rounded-xl font-black uppercase text-[10px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="male" className="font-black uppercase text-[10px]">Male (BMR +5)</SelectItem>
+                              <SelectItem value="female" className="font-black uppercase text-[10px]">Female (BMR -161)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-[9px] font-black uppercase tracking-widest ml-1">Activity Load</Label>
+                        <Select value={hActivity} onValueChange={setHActivity}>
+                          <SelectTrigger className="h-11 rounded-xl font-black uppercase text-[10px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="sedentary" className="font-black uppercase text-[10px]">Sedentary (No Exercise)</SelectItem>
+                            <SelectItem value="light" className="font-black uppercase text-[10px]">Light (1-3 days/wk)</SelectItem>
+                            <SelectItem value="moderate" className="font-black uppercase text-[10px]">Moderate (3-5 days/wk)</SelectItem>
+                            <SelectItem value="active" className="font-black uppercase text-[10px]">Active (6-7 days/wk)</SelectItem>
+                            <SelectItem value="very_active" className="font-black uppercase text-[10px]">Very Active (Hard labor)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <Separator className="border-dashed" />
+
+                      <div className="space-y-3">
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-primary ml-1">Primary Objective</Label>
+                        <Tabs value={hGoal} onValueChange={setHGoal} className="w-full">
+                          <TabsList className="grid w-full grid-cols-3 h-10 p-1 rounded-xl bg-muted/50 border">
+                            <TabsTrigger value="lose" className="text-[9px] font-black uppercase">Lose</TabsTrigger>
+                            <TabsTrigger value="maintain" className="text-[9px] font-black uppercase">Maintain</TabsTrigger>
+                            <TabsTrigger value="gain" className="text-[9px] font-black uppercase">Gain</TabsTrigger>
+                          </TabsList>
+                        </Tabs>
+                      </div>
+
+                      {hGoal !== 'maintain' && (
+                        <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                          <Label className="text-[9px] font-black uppercase tracking-widest text-primary ml-1">Goal Intensity</Label>
+                          <Tabs value={hIntensity} onValueChange={setHIntensity} className="w-full">
+                            <TabsList className="grid w-full grid-cols-3 h-10 p-1 rounded-xl bg-muted/50 border">
+                              <TabsTrigger value="low" className="text-[9px] font-black uppercase">Low</TabsTrigger>
+                              <TabsTrigger value="moderate" className="text-[9px] font-black uppercase">Standard</TabsTrigger>
+                              <TabsTrigger value="aggressive" className="text-[9px] font-black uppercase text-destructive">Aggressive</TabsTrigger>
+                            </TabsList>
+                          </Tabs>
+                        </div>
+                      )}
+
+                      <Button onClick={handleSaveHealthStrategy} disabled={!hWeight || !hHeight || isHealthSaving} className="w-full h-14 rounded-2xl font-black shadow-xl bg-primary text-white gap-3 text-base">
+                        {isHealthSaving ? <Loader2 className="animate-spin h-6 w-6" /> : <ShieldCheck className="h-6 w-6" />}
+                        SECURE HEALTH STRATEGY
+                      </Button>
+                    </CardContent>
+                    <CardFooter className="bg-primary/5 py-3 border-t flex items-center justify-center gap-2">
+                       <ShieldCheck className="h-3 w-3 text-primary" />
+                       <span className="text-[8px] font-black uppercase tracking-widest text-primary">Private Biological Encryption Active</span>
+                    </CardFooter>
+                  </Card>
+                </div>
+
+                <div className="lg:col-span-7 space-y-6">
+                  {healthStats ? (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+                      <Card className="shadow-xl rounded-[2rem] border-none ring-1 ring-border bg-gradient-to-br from-primary/10 via-background to-background overflow-hidden">
+                        <CardHeader className="text-center pb-2">
+                          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">Strategic Calculation Output</p>
+                          <h3 className="text-5xl md:text-7xl font-black tracking-tighter text-primary drop-shadow-md">{healthStats.target}</h3>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-primary/60">Planned Daily Calorie Target</p>
+                        </CardHeader>
+                        <CardContent className="p-6 pt-2">
+                           <div className="grid grid-cols-3 gap-4 border-t border-dashed border-primary/20 pt-6">
+                             <div className="text-center space-y-1">
+                               <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">BMR</p>
+                               <p className="text-base md:text-xl font-black text-foreground">{Math.round(healthStats.bmr)}</p>
+                             </div>
+                             <div className="text-center space-y-1 border-x border-dashed border-primary/20 px-4">
+                               <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">TDEE</p>
+                               <p className="text-base md:text-xl font-black text-foreground">{Math.round(healthStats.tdee)}</p>
+                             </div>
+                             <div className="text-center space-y-1">
+                               <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Goal Offset</p>
+                               <p className={cn(
+                                 "text-base md:text-xl font-black",
+                                 hGoal === 'lose' ? "text-destructive" : hGoal === 'gain' ? "text-green-600" : "text-primary"
+                               )}>
+                                 {hGoal === 'maintain' ? "0" : (hGoal === 'lose' ? "-" : "+") + (hIntensity === 'low' ? '250' : hIntensity === 'aggressive' ? '750' : '500')}
+                               </p>
+                             </div>
+                           </div>
+
+                           <div className="mt-8 p-5 bg-card/50 rounded-2xl border border-dashed border-primary/20 space-y-3 relative overflow-hidden">
+                              <Zap className="absolute -right-2 -bottom-2 h-16 w-16 text-primary/[0.03] -rotate-12" />
+                              <h4 className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                                <Sparkles className="h-3 w-3" /> Strategy Forecast
+                              </h4>
+                              <p className="text-xs font-medium text-muted-foreground leading-relaxed">
+                                Based on your biological baseline and activity load, consuming <strong>{healthStats.target} kcal/day</strong> will result in a projected {hGoal === 'maintain' ? 'maintenance of current weight' : `${hGoal === 'lose' ? 'reduction' : 'increase'} of approx ${hIntensity === 'low' ? '0.25kg' : hIntensity === 'aggressive' ? '0.75kg' : '0.5kg'} per week`}.
+                              </p>
+                           </div>
+                        </CardContent>
+                      </Card>
+
+                      <div className="grid grid-cols-2 gap-4">
+                         <Card className="rounded-[1.5rem] border-none ring-1 ring-border p-5 space-y-2 bg-card/50">
+                            <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Activity Factor</p>
+                            <div className="flex items-center justify-between">
+                               <span className="text-lg font-black uppercase tracking-tighter text-foreground">{hActivity.replace('_', ' ')}</span>
+                               <Activity className="h-5 w-5 text-primary opacity-30" />
+                            </div>
+                         </Card>
+                         <Card className="rounded-[1.5rem] border-none ring-1 ring-border p-5 space-y-2 bg-card/50">
+                            <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Weight Trajectory</p>
+                            <div className="flex items-center justify-between">
+                               <span className="text-lg font-black uppercase tracking-tighter text-foreground">{hGoal}</span>
+                               <TrendingUp className={cn("h-5 w-5 opacity-30", hGoal === 'lose' ? "text-destructive rotate-180" : "text-primary")} />
+                            </div>
+                         </Card>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-center p-8 space-y-4 opacity-40 grayscale border-2 border-dashed rounded-[2rem]">
+                      <Scale className="h-16 w-16 text-muted-foreground" />
+                      <div className="space-y-1">
+                        <h3 className="text-lg font-black uppercase tracking-tight">Awaiting Biological Inputs</h3>
+                        <p className="text-xs font-medium text-muted-foreground">Complete the form to generate your physiological strategy.</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            </TabsContent>
+          </Tabs>
         </div>
       )}
 
@@ -979,4 +983,3 @@ export default function SalaryPlannerPage() {
     </AppShell>
   );
 }
-
