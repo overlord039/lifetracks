@@ -907,6 +907,23 @@ export default function SalaryPlannerPage() {
                 <div className="lg:col-span-7 space-y-6">
                   {healthStats ? (
                     <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+                      <div className="grid grid-cols-2 gap-4">
+                         <Card className="rounded-[1.5rem] border-none ring-1 ring-border p-5 space-y-2 bg-card/50">
+                            <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Activity Factor</p>
+                            <div className="flex items-center justify-between">
+                               <span className="text-lg font-black uppercase tracking-tighter text-foreground">{hActivity.replace('_', ' ')}</span>
+                               <Activity className="h-5 w-5 text-primary opacity-30" />
+                            </div>
+                         </Card>
+                         <Card className="rounded-[1.5rem] border-none ring-1 ring-border p-5 space-y-2 bg-card/50">
+                            <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Weight Trajectory</p>
+                            <div className="flex items-center justify-between">
+                               <span className="text-lg font-black uppercase tracking-tighter text-foreground">{hGoal}</span>
+                               <TrendingUp className={cn("h-5 w-5 opacity-30", hGoal === 'lose' ? "text-destructive rotate-180" : "text-primary")} />
+                            </div>
+                         </Card>
+                      </div>
+
                       <Card className="shadow-xl rounded-[2rem] border-none ring-1 ring-border bg-gradient-to-br from-primary/10 via-background to-background overflow-hidden">
                         <CardHeader className="text-center pb-2">
                           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">Strategic Calculation Output</p>
@@ -1042,23 +1059,6 @@ export default function SalaryPlannerPage() {
                            )}
                         </CardContent>
                       </Card>
-
-                      <div className="grid grid-cols-2 gap-4">
-                         <Card className="rounded-[1.5rem] border-none ring-1 ring-border p-5 space-y-2 bg-card/50">
-                            <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Activity Factor</p>
-                            <div className="flex items-center justify-between">
-                               <span className="text-lg font-black uppercase tracking-tighter text-foreground">{hActivity.replace('_', ' ')}</span>
-                               <Activity className="h-5 w-5 text-primary opacity-30" />
-                            </div>
-                         </Card>
-                         <Card className="rounded-[1.5rem] border-none ring-1 ring-border p-5 space-y-2 bg-card/50">
-                            <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Weight Trajectory</p>
-                            <div className="flex items-center justify-between">
-                               <span className="text-lg font-black uppercase tracking-tighter text-foreground">{hGoal}</span>
-                               <TrendingUp className={cn("h-5 w-5 opacity-30", hGoal === 'lose' ? "text-destructive rotate-180" : "text-primary")} />
-                            </div>
-                         </Card>
-                      </div>
                     </div>
                   ) : (
                     <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-center p-8 space-y-4 opacity-40 grayscale border-2 border-dashed rounded-[2rem]">
