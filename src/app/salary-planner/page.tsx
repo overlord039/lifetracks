@@ -845,8 +845,8 @@ export default function SalaryPlannerPage() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="male" className="font-black uppercase text-[10px]">Male (BMR +5)</SelectItem>
-                              <SelectItem value="female" className="font-black uppercase text-[10px]">Female (BMR -161)</SelectItem>
+                              <SelectItem value="male" className="font-black uppercase text-[10px]">Male</SelectItem>
+                              <SelectItem value="female" className="font-black uppercase text-[10px]">Female</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -963,7 +963,7 @@ export default function SalaryPlannerPage() {
                               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                 <div className="space-y-1">
                                   <h4 className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                                    <Sparkles className="h-3 w-3" /> Strategy Forecast
+                                    <span className="flex items-center gap-1"><Sparkles className="h-3 w-3" /> Strategy Forecast</span>
                                   </h4>
                                   <p className="text-[10px] font-black uppercase text-muted-foreground">{healthStats.recommendation}</p>
                                 </div>
