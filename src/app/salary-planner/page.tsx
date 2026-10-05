@@ -482,7 +482,6 @@ export default function SalaryPlannerPage() {
       gender: hGender,
       activityLevel: hActivity,
       goalType: hGoal,
-      goalIntensity: hIntensity,
       dailyCalorieTarget: await encryptData(healthStats.target.toString(), user.uid),
       isEncrypted: true,
       updatedAt: new Date().toISOString()
@@ -874,16 +873,24 @@ export default function SalaryPlannerPage() {
                         <div className="flex items-center justify-between px-1">
                           <Label className="text-[9px] font-black uppercase tracking-widest text-primary">Primary Objective</Label>
                           {healthStats && (
-                            <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[7px] font-black uppercase">
-                              Recommendation: {hGoal === 'lose' ? 'Weight Loss' : hGoal === 'gain' ? 'Weight Gain' : 'Maintenance'}
+                            <Badge 
+                              variant="secondary" 
+                              className={cn(
+                                "text-[8px] font-black uppercase px-2 py-0.5 animate-pulse",
+                                healthStats.bmi >= 25 ? "bg-red-100 text-red-700 border-red-200" :
+                                healthStats.bmi < 18.5 ? "bg-blue-100 text-blue-700 border-blue-200" :
+                                "bg-green-100 text-green-700 border-green-200"
+                              )}
+                            >
+                              Recommended: {healthStats.bmi >= 25 ? 'Weight Loss' : healthStats.bmi < 18.5 ? 'Weight Gain' : 'Maintain'}
                             </Badge>
                           )}
                         </div>
                         <Tabs value={hGoal} onValueChange={setHGoal} className="w-full">
                           <TabsList className="grid w-full grid-cols-3 h-10 p-1 rounded-xl bg-muted/50 border">
-                            <TabsTrigger value="lose" className="text-[9px] font-black uppercase">Lose</TabsTrigger>
-                            <TabsTrigger value="maintain" className="text-[9px] font-black uppercase">Maintain</TabsTrigger>
-                            <TabsTrigger value="gain" className="text-[9px] font-black uppercase">Gain</TabsTrigger>
+                            <TabsTrigger value="lose" className={cn("text-[9px] font-black uppercase transition-all", healthStats && healthStats.bmi >= 25 && "ring-2 ring-red-500 ring-offset-2")}>Lose</TabsTrigger>
+                            <TabsTrigger value="maintain" className={cn("text-[9px] font-black uppercase transition-all", healthStats && healthStats.bmi >= 18.5 && healthStats.bmi < 25 && "ring-2 ring-green-500 ring-offset-2")}>Maintain</TabsTrigger>
+                            <TabsTrigger value="gain" className={cn("text-[9px] font-black uppercase transition-all", healthStats && healthStats.bmi < 18.5 && "ring-2 ring-blue-500 ring-offset-2")}>Gain</TabsTrigger>
                           </TabsList>
                         </Tabs>
                       </div>
