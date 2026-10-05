@@ -48,7 +48,8 @@ import {
   Pizza,
   Apple,
   Cookie,
-  Target
+  Target,
+  Plus
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -183,11 +184,11 @@ export default function CalorieTrackerPage() {
 
   const predictiveSuggestions = useMemo(() => {
     if (!description.trim() || description.length < 2) return [];
-    const query = description.toLowerCase();
+    const queryStr = description.toLowerCase();
     
     const historyMap = new Map();
     decryptedLogs.forEach(log => {
-      if (log.foodName.toLowerCase().includes(query)) {
+      if (log.foodName.toLowerCase().includes(queryStr)) {
         historyMap.set(log.foodName.toUpperCase(), {
           name: log.foodName,
           emoji: '🍽️',
@@ -200,7 +201,7 @@ export default function CalorieTrackerPage() {
     });
 
     const templateMatches = QUICK_SUGGESTIONS.filter(s => 
-      s.name.toLowerCase().includes(query) && !historyMap.has(s.name.toUpperCase())
+      s.name.toLowerCase().includes(queryStr) && !historyMap.has(s.name.toUpperCase())
     );
 
     return [...Array.from(historyMap.values()), ...templateMatches].slice(0, 5);
@@ -508,7 +509,7 @@ export default function CalorieTrackerPage() {
                   <div className="bg-background/50 p-3 rounded-xl border border-dashed text-center">
                     <p className="text-[10px] font-black uppercase tracking-widest text-primary">
                       {DAILY_CALORIE_GOAL - (insights?.todayCals || 0) > 0 
-                        ? `₹${(DAILY_CALORIE_GOAL - (insights?.todayCals || 0)).toLocaleString()} kcal remaining` 
+                        ? `${(DAILY_CALORIE_GOAL - (insights?.todayCals || 0)).toLocaleString()} kcal remaining` 
                         : "Daily target reached"}
                     </p>
                   </div>
