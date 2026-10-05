@@ -42,7 +42,8 @@ import {
   Utensils,
   Stethoscope,
   CookingPot,
-  ListChecks
+  ListChecks,
+  AlertTriangle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -402,11 +403,17 @@ export default function SalaryPlannerPage() {
 
     const bmi = w / ((h / 100) * (h / 100));
 
+    // Recommendation logic
+    let recommendation = "Maintain Current Weight";
+    if (bmi < 18.5) recommendation = "Weight Gain Recommended";
+    else if (bmi >= 25) recommendation = "Weight Loss Recommended";
+
     return { 
       bmr, 
       tdee, 
       target: Math.round(target), 
-      bmi: parseFloat(bmi.toFixed(1)) 
+      bmi: parseFloat(bmi.toFixed(1)),
+      recommendation
     };
   }, [hWeight, hHeight, hAge, hGender, hActivity, hGoal, hIntensity, numAge]);
 
@@ -864,7 +871,14 @@ export default function SalaryPlannerPage() {
                       <Separator className="border-dashed" />
 
                       <div className="space-y-3">
-                        <Label className="text-[9px] font-black uppercase tracking-widest text-primary ml-1">Primary Objective</Label>
+                        <div className="flex items-center justify-between px-1">
+                          <Label className="text-[9px] font-black uppercase tracking-widest text-primary">Primary Objective</Label>
+                          {healthStats && (
+                            <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[7px] font-black uppercase">
+                              Recommendation: {hGoal === 'lose' ? 'Weight Loss' : hGoal === 'gain' ? 'Weight Gain' : 'Maintenance'}
+                            </Badge>
+                          )}
+                        </div>
                         <Tabs value={hGoal} onValueChange={setHGoal} className="w-full">
                           <TabsList className="grid w-full grid-cols-3 h-10 p-1 rounded-xl bg-muted/50 border">
                             <TabsTrigger value="lose" className="text-[9px] font-black uppercase">Lose</TabsTrigger>
@@ -886,15 +900,16 @@ export default function SalaryPlannerPage() {
                           </Tabs>
                         </div>
                       )}
-
-                      <Button onClick={handleSaveHealthStrategy} disabled={!hWeight || !hHeight || isHealthSaving} className="w-full h-14 rounded-2xl font-black shadow-xl bg-primary text-white gap-3 text-base">
-                        {isHealthSaving ? <Loader2 className="animate-spin h-6 w-6" /> : <ShieldCheck className="h-6 w-6" />}
+                    </CardContent>
+                    <CardFooter className="bg-primary/5 py-3 border-t flex flex-col gap-3">
+                       <div className="flex items-center justify-center gap-2">
+                          <ShieldCheck className="h-3 w-3 text-primary" />
+                          <span className="text-[8px] font-black uppercase tracking-widest text-primary">Private Biological Encryption Active</span>
+                       </div>
+                       <Button onClick={handleSaveHealthStrategy} disabled={!hWeight || !hHeight || isHealthSaving} className="w-full h-12 rounded-xl font-black shadow-lg bg-primary text-white gap-2 text-xs">
+                        {isHealthSaving ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4" />}
                         SECURE HEALTH STRATEGY
                       </Button>
-                    </CardContent>
-                    <CardFooter className="bg-primary/5 py-3 border-t flex items-center justify-center gap-2">
-                       <ShieldCheck className="h-3 w-3 text-primary" />
-                       <span className="text-[8px] font-black uppercase tracking-widest text-primary">Private Biological Encryption Active</span>
                     </CardFooter>
                   </Card>
                 </div>
@@ -938,24 +953,30 @@ export default function SalaryPlannerPage() {
 
                            <div className="mt-8 p-5 bg-card/50 rounded-2xl border border-dashed border-primary/20 space-y-3 relative overflow-hidden">
                               <Zap className="absolute -right-2 -bottom-2 h-16 w-16 text-primary/[0.03] -rotate-12" />
-                              <div className="flex items-center justify-between">
-                                <h4 className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                                  <Sparkles className="h-3 w-3" /> Strategy Forecast
-                                </h4>
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div className="space-y-1">
+                                  <h4 className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                                    <Sparkles className="h-3 w-3" /> Strategy Forecast
+                                  </h4>
+                                  <p className="text-[10px] font-black uppercase text-muted-foreground">{healthStats.recommendation}</p>
+                                </div>
                                 <Button 
                                   variant="outline" 
                                   size="sm" 
                                   onClick={handleGenerateAiPlan}
                                   disabled={isGeneratingPlan}
-                                  className="h-7 px-3 text-[8px] font-black uppercase tracking-widest rounded-lg bg-primary/5 border-primary/20"
+                                  className="h-8 px-4 text-[8px] font-black uppercase tracking-widest rounded-lg bg-primary/5 border-primary/20 shadow-sm"
                                 >
-                                  {isGeneratingPlan ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <BrainCircuit className="h-3 w-3 mr-1" />}
-                                  {aiPlan ? "Regenerate Plan" : "Generate AI Diet Proposal"}
+                                  {isGeneratingPlan ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <BrainCircuit className="h-3 w-3 mr-2" />}
+                                  {aiPlan ? "Regenerate Proposal" : "Generate AI Diet Plan"}
                                 </Button>
                               </div>
-                              <p className="text-xs font-medium text-muted-foreground leading-relaxed">
-                                Based on your biological baseline and activity load, consuming <strong>{healthStats.target} kcal/day</strong> will result in a projected {hGoal === 'maintain' ? 'maintenance of current weight' : `${hGoal === 'lose' ? 'reduction' : 'increase'} of approx ${hIntensity === 'low' ? '0.25kg' : hIntensity === 'aggressive' ? '0.75kg' : '0.5kg'} per week`}.
-                              </p>
+                              <div className="p-3 bg-muted/20 rounded-xl border border-dashed flex items-start gap-3">
+                                <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                                <p className="text-xs font-medium text-muted-foreground leading-relaxed">
+                                  Based on your BMI of <strong>{healthStats.bmi}</strong> ({getBMICategory(healthStats.bmi).label}), the system recommends <strong>{hGoal === 'lose' ? 'Weight Loss' : hGoal === 'gain' ? 'Weight Gain' : 'Maintenance'}</strong>. Consuming <strong>{healthStats.target} kcal/day</strong> will result in a projected {hGoal === 'maintain' ? 'maintenance' : `${hGoal === 'lose' ? 'reduction' : 'increase'} of approx ${hIntensity === 'low' ? '0.25kg' : hIntensity === 'aggressive' ? '0.75kg' : '0.5kg'} per week`}.
+                                </p>
+                              </div>
                            </div>
 
                            {aiPlan && (
@@ -1043,7 +1064,7 @@ export default function SalaryPlannerPage() {
                       <Scale className="h-16 w-16 text-muted-foreground" />
                       <div className="space-y-1">
                         <h3 className="text-lg font-black uppercase tracking-tight">Awaiting Biological Inputs</h3>
-                        <p className="text-xs font-medium text-muted-foreground">Complete the form to generate your physiological strategy and AI diet proposal.</p>
+                        <p className="text-xs font-medium text-muted-foreground">Complete the form to generate your BMI-based recommendation and AI diet proposal.</p>
                       </div>
                     </div>
                   )}
