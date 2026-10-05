@@ -39,7 +39,10 @@ import {
   Activity,
   Flame,
   Zap,
-  Utensils
+  Utensils,
+  Stethoscope,
+  CookingPot,
+  ListChecks
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -53,6 +56,7 @@ import {
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { encryptData, decryptData, decryptNumber } from '@/lib/encryption';
+import { generateDietPlan, type GenerateDietPlanOutput } from '@/ai/flows/generate-diet-plan';
 import {
   Dialog,
   DialogContent,
@@ -119,6 +123,8 @@ export default function SalaryPlannerPage() {
   const [hGoal, setHGoal] = useState<string>('maintain');
   const [hIntensity, setHIntensity] = useState<string>('moderate');
   const [isHealthSaving, setIsHealthSaving] = useState(false);
+  const [aiPlan, setAiPlan] = useState<GenerateDietPlanOutput | null>(null);
+  const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -394,8 +400,22 @@ export default function SalaryPlannerPage() {
     if (hGoal === 'lose') target -= offset;
     if (hGoal === 'gain') target += offset;
 
-    return { bmr, tdee, target: Math.round(target) };
+    const bmi = w / ((h / 100) * (h / 100));
+
+    return { 
+      bmr, 
+      tdee, 
+      target: Math.round(target), 
+      bmi: parseFloat(bmi.toFixed(1)) 
+    };
   }, [hWeight, hHeight, hAge, hGender, hActivity, hGoal, hIntensity, numAge]);
+
+  const getBMICategory = (bmi: number) => {
+    if (bmi < 18.5) return { label: 'Underweight', color: 'text-blue-500' };
+    if (bmi < 25) return { label: 'Healthy', color: 'text-green-500' };
+    if (bmi < 30) return { label: 'Overweight', color: 'text-orange-500' };
+    return { label: 'Obese', color: 'text-red-500' };
+  };
 
   const salaryData = useMemo(() => {
     return pillars.map(p => ({
@@ -406,31 +426,7 @@ export default function SalaryPlannerPage() {
     })).filter(d => d.value > 0);
   }, [pillars, amounts, percents]);
 
-  const invData = useMemo(() => [
-    { name: 'Equity', value: invAllocation.equityAmt, color: '#BA68C8' },
-    { name: 'Debt', value: invAllocation.debtAmt, color: '#64B5F6' },
-    { name: 'Gold', value: invAllocation.goldAmt, color: '#FFD54F' }
-  ].filter(d => d.value > 0), [invAllocation]);
-
   const totalPercent = useMemo(() => Math.round(Object.values(percents).reduce((a, b) => a + b, 0)), [percents]);
-
-  const syncWithBudget = async () => {
-    if (!user || !db) return;
-    const monthId = format(new Date(), 'yyyyMM');
-    const budgetRef = doc(db, 'users', user.uid, 'monthlyBudgets', monthId);
-    const expenseAmt = amounts['expense'] || 0;
-    setDocumentNonBlocking(budgetRef, {
-      userId: user.uid,
-      month: new Date().getMonth() + 1,
-      year: new Date().getFullYear(),
-      totalBudgetAmount: await encryptData(expenseAmt.toString(), user.uid),
-      baseBudgetAmount: await encryptData(expenseAmt.toString(), user.uid),
-      isEncrypted: true,
-      updatedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString()
-    }, { merge: true });
-    toast({ title: 'Budget Synced', description: `₹${Math.round(expenseAmt).toLocaleString()} set as monthly target.` });
-  };
 
   const handleSaveStrategy = async () => {
     if (!user || !salaryProfilesRef || !strategyName.trim()) {
@@ -492,6 +488,29 @@ export default function SalaryPlannerPage() {
       icon: <Utensils className="h-4 w-4" />
     });
     setIsHealthSaving(false);
+  };
+
+  const handleGenerateAiPlan = async () => {
+    if (!healthStats) return;
+    setIsGeneratingPlan(true);
+    try {
+      const plan = await generateDietPlan({
+        weight: parseFloat(hWeight),
+        height: parseFloat(hHeight),
+        age: parseInt(hAge || age),
+        gender: hGender,
+        activityLevel: hActivity,
+        goal: hGoal,
+        targetCalories: healthStats.target,
+        bmi: healthStats.bmi
+      });
+      setAiPlan(plan);
+      toast({ title: "AI Strategy Proposed" });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Generation failed" });
+    } finally {
+      setIsGeneratingPlan(false);
+    }
   };
 
   const loadStrategy = (strat: any) => {
@@ -890,16 +909,23 @@ export default function SalaryPlannerPage() {
                           <p className="text-[10px] font-black uppercase tracking-widest text-primary/60">Planned Daily Calorie Target</p>
                         </CardHeader>
                         <CardContent className="p-6 pt-2">
-                           <div className="grid grid-cols-3 gap-4 border-t border-dashed border-primary/20 pt-6">
+                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 border-t border-dashed border-primary/20 pt-6">
                              <div className="text-center space-y-1">
                                <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">BMR</p>
                                <p className="text-base md:text-xl font-black text-foreground">{Math.round(healthStats.bmr)}</p>
                              </div>
-                             <div className="text-center space-y-1 border-x border-dashed border-primary/20 px-4">
+                             <div className="text-center space-y-1 border-l md:border-x border-dashed border-primary/20 px-2 md:px-4">
                                <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">TDEE</p>
                                <p className="text-base md:text-xl font-black text-foreground">{Math.round(healthStats.tdee)}</p>
                              </div>
-                             <div className="text-center space-y-1">
+                             <div className="text-center space-y-1 border-l border-dashed border-primary/20 px-2 md:px-4">
+                               <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">BMI</p>
+                               <div className="flex flex-col items-center">
+                                 <p className="text-base md:text-xl font-black text-foreground">{healthStats.bmi}</p>
+                                 <span className={cn("text-[7px] font-black uppercase", getBMICategory(healthStats.bmi).color)}>{getBMICategory(healthStats.bmi).label}</span>
+                               </div>
+                             </div>
+                             <div className="text-center space-y-1 border-l border-dashed border-primary/20">
                                <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Goal Offset</p>
                                <p className={cn(
                                  "text-base md:text-xl font-black",
@@ -912,13 +938,86 @@ export default function SalaryPlannerPage() {
 
                            <div className="mt-8 p-5 bg-card/50 rounded-2xl border border-dashed border-primary/20 space-y-3 relative overflow-hidden">
                               <Zap className="absolute -right-2 -bottom-2 h-16 w-16 text-primary/[0.03] -rotate-12" />
-                              <h4 className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                                <Sparkles className="h-3 w-3" /> Strategy Forecast
-                              </h4>
+                              <div className="flex items-center justify-between">
+                                <h4 className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                                  <Sparkles className="h-3 w-3" /> Strategy Forecast
+                                </h4>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={handleGenerateAiPlan}
+                                  disabled={isGeneratingPlan}
+                                  className="h-7 px-3 text-[8px] font-black uppercase tracking-widest rounded-lg bg-primary/5 border-primary/20"
+                                >
+                                  {isGeneratingPlan ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <BrainCircuit className="h-3 w-3 mr-1" />}
+                                  {aiPlan ? "Regenerate Plan" : "Generate AI Diet Proposal"}
+                                </Button>
+                              </div>
                               <p className="text-xs font-medium text-muted-foreground leading-relaxed">
                                 Based on your biological baseline and activity load, consuming <strong>{healthStats.target} kcal/day</strong> will result in a projected {hGoal === 'maintain' ? 'maintenance of current weight' : `${hGoal === 'lose' ? 'reduction' : 'increase'} of approx ${hIntensity === 'low' ? '0.25kg' : hIntensity === 'aggressive' ? '0.75kg' : '0.5kg'} per week`}.
                               </p>
                            </div>
+
+                           {aiPlan && (
+                             <div className="mt-6 animate-in slide-in-from-top-4 duration-500">
+                               <Card className="rounded-2xl border-none ring-1 ring-primary/20 bg-primary/[0.02] overflow-hidden">
+                                 <CardHeader className="bg-primary/5 py-3 px-4 flex flex-row items-center justify-between">
+                                   <div className="flex items-center gap-2">
+                                      <CookingPot className="h-4 w-4 text-primary" />
+                                      <CardTitle className="text-xs font-black uppercase tracking-tight">{aiPlan.planName}</CardTitle>
+                                   </div>
+                                   <Badge variant="outline" className="bg-background text-primary border-primary/20 text-[7px] font-black uppercase">AI Recommended</Badge>
+                                 </CardHeader>
+                                 <CardContent className="p-4 space-y-4">
+                                   <p className="text-[11px] font-medium text-muted-foreground leading-relaxed italic">"{aiPlan.description}"</p>
+                                   
+                                   <div className="grid grid-cols-3 gap-2">
+                                      <div className="p-2 rounded-xl bg-background border border-dashed flex flex-col items-center">
+                                         <span className="text-[7px] font-black uppercase text-muted-foreground">Protein</span>
+                                         <span className="text-[10px] font-black text-primary">{aiPlan.macros.protein}</span>
+                                      </div>
+                                      <div className="p-2 rounded-xl bg-background border border-dashed flex flex-col items-center">
+                                         <span className="text-[7px] font-black uppercase text-muted-foreground">Carbs</span>
+                                         <span className="text-[10px] font-black text-orange-500">{aiPlan.macros.carbs}</span>
+                                      </div>
+                                      <div className="p-2 rounded-xl bg-background border border-dashed flex flex-col items-center">
+                                         <span className="text-[7px] font-black uppercase text-muted-foreground">Fats</span>
+                                         <span className="text-[10px] font-black text-green-600">{aiPlan.macros.fats}</span>
+                                      </div>
+                                   </div>
+
+                                   <div className="space-y-3">
+                                      <h5 className="text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
+                                        <Utensils className="h-3 w-3 text-primary" /> Meal Architecture
+                                      </h5>
+                                      <div className="grid gap-2">
+                                        {aiPlan.mealSuggestions.map((m, idx) => (
+                                          <div key={idx} className="p-2.5 rounded-xl bg-background border text-[10px]">
+                                            <span className="font-black uppercase text-primary mb-1 block">{m.meal}</span>
+                                            <ul className="space-y-0.5 text-muted-foreground font-medium">
+                                              {m.suggestions.map((s, i) => <li key={i} className="flex items-start gap-1.5"><div className="h-1 w-1 rounded-full bg-primary mt-1.5 shrink-0" /> {s}</li>)}
+                                            </ul>
+                                          </div>
+                                        ))}
+                                      </div>
+                                   </div>
+
+                                   <div className="space-y-2">
+                                      <h5 className="text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
+                                        <ListChecks className="h-3 w-3 text-primary" /> Strategic Tips
+                                      </h5>
+                                      <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                         {aiPlan.tips.map((t, idx) => (
+                                           <li key={idx} className="p-2 rounded-lg bg-primary/5 text-[9px] font-bold text-primary/80 flex items-center gap-2 border border-primary/10">
+                                              <CheckCircle2 className="h-3 w-3 shrink-0" /> {t}
+                                           </li>
+                                         ))}
+                                      </ul>
+                                   </div>
+                                 </CardContent>
+                               </Card>
+                             </div>
+                           )}
                         </CardContent>
                       </Card>
 
@@ -944,7 +1043,7 @@ export default function SalaryPlannerPage() {
                       <Scale className="h-16 w-16 text-muted-foreground" />
                       <div className="space-y-1">
                         <h3 className="text-lg font-black uppercase tracking-tight">Awaiting Biological Inputs</h3>
-                        <p className="text-xs font-medium text-muted-foreground">Complete the form to generate your physiological strategy.</p>
+                        <p className="text-xs font-medium text-muted-foreground">Complete the form to generate your physiological strategy and AI diet proposal.</p>
                       </div>
                     </div>
                   )}

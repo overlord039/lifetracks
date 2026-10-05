@@ -5,3 +5,4 @@ config();
 import '@/ai/flows/summarize-monthly-diary.ts';
 import '@/ai/flows/categorize-expense-flow.ts';
 import '@/ai/flows/estimate-craving-flow.ts';
+import '@/ai/flows/generate-diet-plan.ts';
