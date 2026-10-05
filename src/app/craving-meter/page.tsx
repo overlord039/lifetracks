@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AppShell } from '@/components/layout/shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,7 +41,9 @@ import {
   ArrowRight,
   ShieldCheck,
   Star,
-  Activity
+  Activity,
+  Search,
+  Timer
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -116,6 +119,8 @@ export default function CravingMeterPage() {
   const [loading, setLoading] = useState(false);
   const [isAIThinking, setIsAIThinking] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [showRecommendations, setShowRecommendations] = useState(false);
+  const recommendationRef = useRef<HTMLDivElement>(null);
 
   const [description, setDescription] = useState('');
   const [calories, setCalories] = useState('');
@@ -129,6 +134,15 @@ export default function CravingMeterPage() {
 
   useEffect(() => {
     setMounted(true);
+    
+    // Close recommendations on click outside
+    const handleClickOutside = (event: MouseEvent) => {
+      if (recommendationRef.current && !recommendationRef.current.contains(event.target as Node)) {
+        setShowRecommendations(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const todayStr = mounted ? format(new Date(), 'yyyy-MM-dd') : '';
@@ -170,11 +184,42 @@ export default function CravingMeterPage() {
     decryptAll();
   }, [rawLogs, user, mounted]);
 
+  const predictiveSuggestions = useMemo(() => {
+    if (!description.trim() || description.length < 2) return [];
+    
+    const query = description.toLowerCase();
+    
+    // 1. Get unique items from history
+    const historyMap = new Map();
+    decryptedLogs.forEach(log => {
+      if (log.foodName.toLowerCase().includes(query)) {
+        historyMap.set(log.foodName.toUpperCase(), {
+          name: log.foodName,
+          emoji: '🔄',
+          calories: log.caloriesAvoided,
+          price: log.moneySaved,
+          category: log.category,
+          isHistory: true
+        });
+      }
+    });
+
+    const historyItems = Array.from(historyMap.values());
+    
+    // 2. Get matches from quick suggestions
+    const templateMatches = QUICK_SUGGESTIONS.filter(s => 
+      s.name.toLowerCase().includes(query) && !historyMap.has(s.name.toUpperCase())
+    );
+
+    return [...historyItems, ...templateMatches].slice(0, 5);
+  }, [description, decryptedLogs]);
+
   const handleAIAnalyze = async (customDesc?: string) => {
     const targetDesc = customDesc || description;
     if (!targetDesc.trim()) return;
     
     setIsAIThinking(true);
+    setShowRecommendations(false);
     try {
       const result = await estimateCraving({ description: targetDesc });
       setCalories(result.calories.toString());
@@ -193,7 +238,11 @@ export default function CravingMeterPage() {
     setCalories(item.calories.toString());
     setPrice(item.price.toString());
     setCategory(item.category);
-    toast({ title: "Victory Template Applied", description: `Baseline for ${item.name} loaded.` });
+    setShowRecommendations(false);
+    toast({ 
+      title: item.isHistory ? "Victory Recalled" : "Victory Template Applied", 
+      description: `Baseline for ${item.name} loaded.` 
+    });
   };
 
   const getResistCount = (name: string) => {
@@ -374,13 +423,19 @@ export default function CravingMeterPage() {
                   </div>
 
                   <div className="space-y-4 pt-2">
-                    <div className="space-y-2">
+                    <div className="space-y-2 relative" ref={recommendationRef}>
                       <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">What did you resist?</Label>
                       <div className="flex gap-2">
                         <Input 
                           placeholder="e.g. 2 Slices of Pepperoni Pizza..." 
                           value={description} 
-                          onChange={e => setDescription(e.target.value)} 
+                          onChange={e => {
+                            setDescription(e.target.value);
+                            setShowRecommendations(e.target.value.trim().length > 1);
+                          }}
+                          onFocus={() => {
+                            if (description.trim().length > 1) setShowRecommendations(true);
+                          }}
                           className="h-12 rounded-xl font-black text-sm border-primary/10"
                         />
                         <Button 
@@ -393,6 +448,44 @@ export default function CravingMeterPage() {
                           {isAIThinking ? <Loader2 className="h-5 w-5 animate-spin" /> : <BrainCircuit className="h-5 w-5 text-primary" />}
                         </Button>
                       </div>
+
+                      {/* Predictive Recommendations Dropdown */}
+                      {showRecommendations && predictiveSuggestions.length > 0 && (
+                        <Card className="absolute z-[60] w-full mt-1.5 shadow-2xl border-primary/20 rounded-2xl overflow-hidden bg-background animate-in fade-in slide-in-from-top-2">
+                           <div className="bg-muted/30 px-3 py-1.5 border-b flex items-center justify-between">
+                              <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                                 <Search className="h-2.5 w-2.5" /> Victory Suggestions
+                              </span>
+                              <Badge variant="outline" className="text-[7px] font-black uppercase bg-primary/5 border-primary/10">Dynamic</Badge>
+                           </div>
+                           <div className="divide-y divide-dashed">
+                              {predictiveSuggestions.map((item, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={() => handleSuggestionClick(item)}
+                                  className="w-full px-4 py-3 text-left hover:bg-primary/[0.03] transition-colors flex items-center justify-between group"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="h-8 w-8 rounded-lg bg-muted/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                      <span className="text-base">{item.emoji}</span>
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="text-xs font-black uppercase tracking-tight">{item.name}</span>
+                                      <span className="text-[8px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+                                        {item.isHistory ? <Timer className="h-2 w-2" /> : <Star className="h-2 w-2" />}
+                                        {item.isHistory ? "Logged Before" : "Standard Template"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className="text-[10px] font-black text-primary">₹{item.price}</span>
+                                    <p className="text-[7px] font-bold text-muted-foreground uppercase leading-none">{item.calories} kcal</p>
+                                  </div>
+                                </button>
+                              ))}
+                           </div>
+                        </Card>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -697,4 +790,3 @@ function MiniInsightCard({ title, value, icon, color }: { title: string, value: 
     </Card>
   );
 }
-
