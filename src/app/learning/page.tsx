@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -6,21 +7,23 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
-import { CheckCircle2, GraduationCap, Plus, Flame, Trash2, Loader2, ShieldCheck, Target, Zap, TrendingUp, Info } from 'lucide-react';
+import { CheckCircle2, GraduationCap, Plus, Flame, Trash2, Loader2, ShieldCheck, Target, Zap, TrendingUp, Info, BookOpen, Pencil, Save, ChevronLeft, ChevronRight, Calendar, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { format, subDays, parseISO } from 'date-fns';
+import { format, subDays, parseISO, addDays } from 'date-fns';
 import { encryptData, decryptData } from '@/lib/encryption';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
+import { Switch } from '@/components/ui/switch';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Separator } from '@/components/ui/separator';
 
 export default function LearningPage() {
   const { user } = useUser();
@@ -28,27 +31,54 @@ export default function LearningPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isRuleEnabled, setIsRuleEnabled] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  const todayStr = format(selectedDate, 'yyyy-MM-dd');
   
   const goalsRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return collection(db, 'users', user.uid, 'learningGoals');
   }, [db, user]);
 
-  const diariesRef = useMemoFirebase(() => {
+  const dailyLearningRef = useMemoFirebase(() => {
+    if (!db || !user || !todayStr) return null;
+    return doc(db, 'users', user.uid, 'dailyLearning', todayStr);
+  }, [db, user, todayStr]);
+
+  const allDiariesRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return collection(db, 'users', user.uid, 'dailyDiaries');
   }, [db, user]);
 
   const { data: rawGoals } = useCollection(goalsRef);
-  const { data: diaries } = useCollection(diariesRef);
+  const { data: diaries } = useCollection(allDiariesRef);
+  const { data: dailyLearning } = useDoc(dailyLearningRef);
   
   const [decryptedGoals, setDecryptedGoals] = useState<any[]>([]);
   const [isDecrypting, setIsDecrypting] = useState(false);
   const [newGoal, setNewGoal] = useState({ skill: '', difficulty: 'Easy', target: '2' });
 
+  const [dailyForm, setDailyEntry] = useState({
+    learned: ['', '', ''],
+    practiced: ['', ''],
+    takeaway: '',
+    learnedSkills: ['', '', ''],
+    practicedSkills: ['', ''],
+    takeawaySkill: ''
+  });
+
   useEffect(() => {
     setMounted(true);
+    const saved = localStorage.getItem('lifetrack_321_rule_enabled');
+    if (saved === 'true') setIsRuleEnabled(true);
   }, []);
+
+  useEffect(() => {
+    if (mounted) {
+      localStorage.setItem('lifetrack_321_rule_enabled', isRuleEnabled.toString());
+    }
+  }, [isRuleEnabled, mounted]);
 
   useEffect(() => {
     const decryptAll = async () => {
@@ -70,25 +100,45 @@ export default function LearningPage() {
     decryptAll();
   }, [rawGoals, user, mounted]);
 
+  useEffect(() => {
+    const decryptDaily = async () => {
+      if (dailyLearning && user && mounted) {
+        const d = dailyLearning;
+        const entry = {
+          learned: await Promise.all((d.learned || ['', '', '']).map(v => decryptData(v, user.uid))),
+          practiced: await Promise.all((d.practiced || ['', '']).map(v => decryptData(v, user.uid))),
+          takeaway: await decryptData(d.takeaway || '', user.uid),
+          learnedSkills: d.learnedSkills || ['', '', ''],
+          practicedSkills: d.practicedSkills || ['', ''],
+          takeawaySkill: d.takeawaySkill || ''
+        };
+        setDailyEntry(entry);
+      } else {
+        setDailyEntry({
+          learned: ['', '', ''],
+          practiced: ['', ''],
+          takeaway: '',
+          learnedSkills: ['', '', ''],
+          practicedSkills: ['', ''],
+          takeawaySkill: ''
+        });
+      }
+    };
+    decryptDaily();
+  }, [dailyLearning, user, mounted, todayStr]);
+
   const streak = useMemo(() => {
     if (!diaries || diaries.length === 0) return 0;
-
     const dates = Array.from(new Set(diaries.map(d => d.date))).sort().reverse();
     const today = format(new Date(), 'yyyy-MM-dd');
     const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
-
     if (dates[0] !== today && dates[0] !== yesterday) return 0;
-
     let currentStreak = 1;
     for (let i = 0; i < dates.length - 1; i++) {
       const current = parseISO(dates[i]);
       const expectedPrev = format(subDays(current, 1), 'yyyy-MM-dd');
-      
-      if (dates[i + 1] === expectedPrev) {
-        currentStreak++;
-      } else {
-        break;
-      }
+      if (dates[i + 1] === expectedPrev) currentStreak++;
+      else break;
     }
     return currentStreak;
   }, [diaries]);
@@ -96,10 +146,8 @@ export default function LearningPage() {
   const addGoal = async () => {
     if (!newGoal.skill || !newGoal.target || !goalsRef || !user) return;
     setLoading(true);
-    
     try {
       const encryptedSkill = await encryptData(newGoal.skill.trim().toUpperCase(), user.uid);
-      
       await addDocumentNonBlocking(goalsRef, {
         userId: user?.uid,
         skill: encryptedSkill,
@@ -109,7 +157,6 @@ export default function LearningPage() {
         isEncrypted: true,
         createdAt: new Date().toISOString()
       });
-      
       setNewGoal({ skill: '', difficulty: 'Easy', target: '2' });
       toast({ title: "Goal secured in vault" });
     } finally {
@@ -128,11 +175,52 @@ export default function LearningPage() {
     });
   };
 
+  const saveDailyLearning = async () => {
+    if (!user || !dailyLearningRef) return;
+    setLoading(true);
+    const completedCount = [
+      ...dailyForm.learned.filter(v => !!v.trim()),
+      ...dailyForm.practiced.filter(v => !!v.trim()),
+      ...(dailyForm.takeaway.trim() ? [dailyForm.takeaway] : [])
+    ].length;
+
+    const payload = {
+      userId: user.uid,
+      date: todayStr,
+      learned: await Promise.all(dailyForm.learned.map(v => encryptData(v, user.uid))),
+      practiced: await Promise.all(dailyForm.practiced.map(v => encryptData(v, user.uid))),
+      takeaway: await encryptData(dailyForm.takeaway, user.uid),
+      learnedSkills: dailyForm.learnedSkills,
+      practicedSkills: dailyForm.practicedSkills,
+      takeawaySkill: dailyForm.takeawaySkill,
+      completedCount,
+      isEncrypted: true,
+      updatedAt: new Date().toISOString()
+    };
+
+    setDocumentNonBlocking(dailyLearningRef, payload, { merge: true });
+    toast({ title: "Daily Learning Vaulted" });
+    setLoading(false);
+  };
+
   const deleteGoal = (id: string) => {
     if (!goalsRef) return;
     deleteDocumentNonBlocking(doc(goalsRef, id));
     toast({ title: "Goal removed" });
   };
+
+  const dailyProgress = useMemo(() => {
+    const lCount = dailyForm.learned.filter(v => !!v.trim()).length;
+    const pCount = dailyForm.practiced.filter(v => !!v.trim()).length;
+    const rCount = dailyForm.takeaway.trim() ? 1 : 0;
+    return {
+      learned: lCount,
+      practiced: pCount,
+      reflected: rCount,
+      total: lCount + pCount + rCount,
+      percent: Math.round(((lCount + pCount + rCount) / 6) * 100)
+    };
+  }, [dailyForm]);
 
   if (!mounted || isDecrypting) {
     return (
@@ -148,7 +236,6 @@ export default function LearningPage() {
   return (
     <AppShell>
       <div className="space-y-6 max-w-6xl mx-auto pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-1">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-primary/10 rounded-2xl text-primary shadow-sm border border-primary/10">
@@ -166,30 +253,192 @@ export default function LearningPage() {
           </div>
 
           <div className="flex items-center gap-3">
-             <div className="bg-orange-500/10 px-4 py-2 rounded-2xl border border-orange-500/20 flex items-center gap-3 shadow-sm">
+             <div className="flex items-center gap-3 bg-muted/30 px-4 py-2 rounded-2xl border">
+                <div className="flex flex-col items-end">
+                   <Label className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">3-2-1 Rule</Label>
+                   <p className="text-[7px] font-bold text-primary/60 uppercase">Daily Framework</p>
+                </div>
+                <Switch checked={isRuleEnabled} onCheckedChange={setIsRuleEnabled} className="scale-75 origin-right" />
+             </div>
+             <div className="bg-orange-500/10 px-4 py-2 rounded-2xl border border-orange-500/20 flex items-center gap-3">
                 <Flame className={cn("h-5 w-5", streak > 0 ? "text-orange-500 animate-pulse" : "text-muted-foreground opacity-30")} />
                 <div className="flex flex-col">
                    <span className="text-[8px] font-black uppercase tracking-widest text-orange-600/70">Day Streak</span>
                    <span className="text-lg font-black leading-none text-orange-600">{streak}</span>
                 </div>
              </div>
-             <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-primary/10">
-                    <Info className="h-5 w-5 text-muted-foreground" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80 p-4 rounded-3xl shadow-2xl border-none ring-1 ring-border">
-                  <div className="space-y-2">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">Mastery Methodology</p>
-                    <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      The Skill Forge utilizes End-to-End Encryption (E2EE) to protect your developmental goals. Track daily repetitions to build streaks and visualize your distribution across multiple expertise domains.
-                    </p>
-                  </div>
-                </PopoverContent>
-             </Popover>
           </div>
         </div>
+
+        {isRuleEnabled && (
+          <div className="animate-in slide-in-from-top-4 duration-500 space-y-6">
+            <Card className="shadow-2xl rounded-[2.5rem] border-none ring-1 ring-primary/20 overflow-hidden bg-gradient-to-br from-primary/5 via-background to-background relative">
+              <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
+                 <Sparkles className="h-32 w-32 rotate-12" />
+              </div>
+              <CardHeader className="bg-primary/10 border-b py-5 px-6 md:px-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                 <div className="space-y-1">
+                    <CardTitle className="text-xl font-black tracking-tighter flex items-center gap-3">
+                       <Zap className="h-6 w-6 text-primary" />
+                       3-2-1 Learning Dashboard
+                    </CardTitle>
+                    <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-primary/60">
+                       Learn 3 • Practice 2 • Reflect 1
+                    </CardDescription>
+                 </div>
+                 <div className="flex items-center gap-3 bg-background/50 p-2 rounded-2xl border backdrop-blur-sm self-start md:self-auto">
+                    <Button variant="ghost" size="icon" onClick={() => setSelectedDate(subDays(selectedDate, 1))} className="h-8 w-8 rounded-xl"><ChevronLeft className="h-4 w-4" /></Button>
+                    <div className="flex items-center gap-2 px-2">
+                       <Calendar className="h-3.5 w-3.5 text-primary" />
+                       <span className="text-[11px] font-black uppercase tracking-widest">{format(selectedDate, 'MMM dd, yyyy')}</span>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => setSelectedDate(addDays(selectedDate, 1))} className="h-8 w-8 rounded-xl"><ChevronRight className="h-4 w-4" /></Button>
+                 </div>
+              </CardHeader>
+              <CardContent className="p-6 md:p-10">
+                 <div className="grid gap-8 lg:grid-cols-12">
+                    <div className="lg:col-span-8 space-y-8">
+                       <div className="space-y-4">
+                          <div className="flex items-center justify-between px-1">
+                             <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2 text-primary">
+                                <BookOpen className="h-4 w-4" /> LEARN 3 NEW CONCEPTS
+                             </h3>
+                             <Badge variant="outline" className="text-[8px] font-black bg-primary/5">{dailyProgress.learned}/3</Badge>
+                          </div>
+                          <div className="grid gap-3">
+                             {[0, 1, 2].map(i => (
+                               <div key={i} className="flex gap-2">
+                                  <Input 
+                                    placeholder={`What did you learn today? #${i+1}`} 
+                                    value={dailyForm.learned[i]} 
+                                    onChange={e => {
+                                      const next = [...dailyForm.learned];
+                                      next[i] = e.target.value;
+                                      setDailyEntry({...dailyForm, learned: next});
+                                    }}
+                                    className="h-11 rounded-xl bg-muted/10 border-primary/5 focus:border-primary/20 text-sm font-medium"
+                                  />
+                                  <Select 
+                                    value={dailyForm.learnedSkills[i]} 
+                                    onValueChange={v => {
+                                      const next = [...dailyForm.learnedSkills];
+                                      next[i] = v;
+                                      setDailyEntry({...dailyForm, learnedSkills: next});
+                                    }}
+                                  >
+                                     <SelectTrigger className="w-[120px] sm:w-[160px] h-11 rounded-xl font-bold text-[9px] uppercase"><SelectValue placeholder="Skill" /></SelectTrigger>
+                                     <SelectContent>
+                                        <SelectItem value="none" className="text-[9px] font-black uppercase">General</SelectItem>
+                                        {decryptedGoals.map(g => <SelectItem key={g.id} value={g.id} className="text-[9px] font-black uppercase">{g.skill}</SelectItem>)}
+                                     </SelectContent>
+                                  </Select>
+                               </div>
+                             ))}
+                          </div>
+                       </div>
+
+                       <div className="space-y-4">
+                          <div className="flex items-center justify-between px-1">
+                             <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2 text-orange-500">
+                                <Pencil className="h-4 w-4" /> PRACTICE 2 SKILLS
+                             </h3>
+                             <Badge variant="outline" className="text-[8px] font-black bg-orange-50">{dailyProgress.practiced}/2</Badge>
+                          </div>
+                          <div className="grid gap-3">
+                             {[0, 1].map(i => (
+                               <div key={i} className="flex gap-2">
+                                  <Input 
+                                    placeholder={`Practical activity #${i+1}`} 
+                                    value={dailyForm.practiced[i]} 
+                                    onChange={e => {
+                                      const next = [...dailyForm.practiced];
+                                      next[i] = e.target.value;
+                                      setDailyEntry({...dailyForm, practiced: next});
+                                    }}
+                                    className="h-11 rounded-xl bg-muted/10 border-orange-500/5 focus:border-orange-500/20 text-sm font-medium"
+                                  />
+                                  <Select 
+                                    value={dailyForm.practicedSkills[i]} 
+                                    onValueChange={v => {
+                                      const next = [...dailyForm.practicedSkills];
+                                      next[i] = v;
+                                      setDailyEntry({...dailyForm, practicedSkills: next});
+                                    }}
+                                  >
+                                     <SelectTrigger className="w-[120px] sm:w-[160px] h-11 rounded-xl font-bold text-[9px] uppercase"><SelectValue placeholder="Skill" /></SelectTrigger>
+                                     <SelectContent>
+                                        <SelectItem value="none" className="text-[9px] font-black uppercase">General</SelectItem>
+                                        {decryptedGoals.map(g => <SelectItem key={g.id} value={g.id} className="text-[9px] font-black uppercase">{g.skill}</SelectItem>)}
+                                     </SelectContent>
+                                  </Select>
+                               </div>
+                             ))}
+                          </div>
+                       </div>
+
+                       <div className="space-y-4">
+                          <div className="flex items-center justify-between px-1">
+                             <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2 text-indigo-500">
+                                <Target className="h-4 w-4" /> 1 KEY TAKEAWAY
+                             </h3>
+                             <Badge variant="outline" className="text-[8px] font-black bg-indigo-50">{dailyProgress.reflected}/1</Badge>
+                          </div>
+                          <div className="flex gap-2">
+                             <Input 
+                               placeholder="What's the main achievement today?" 
+                               value={dailyForm.takeaway} 
+                               onChange={e => setDailyEntry({...dailyForm, takeaway: e.target.value})}
+                               className="h-11 rounded-xl bg-muted/10 border-indigo-500/5 focus:border-indigo-500/20 text-sm font-medium"
+                             />
+                             <Select 
+                                value={dailyForm.takeawaySkill} 
+                                onValueChange={v => setDailyEntry({...dailyForm, takeawaySkill: v})}
+                             >
+                                <SelectTrigger className="w-[120px] sm:w-[160px] h-11 rounded-xl font-bold text-[9px] uppercase"><SelectValue placeholder="Skill" /></SelectTrigger>
+                                <SelectContent>
+                                   <SelectItem value="none" className="text-[9px] font-black uppercase">General</SelectItem>
+                                   {decryptedGoals.map(g => <SelectItem key={g.id} value={g.id} className="text-[9px] font-black uppercase">{g.skill}</SelectItem>)}
+                                </SelectContent>
+                             </Select>
+                          </div>
+                       </div>
+                    </div>
+
+                    <div className="lg:col-span-4 flex flex-col gap-6">
+                       <Card className="rounded-3xl border-none ring-1 ring-border p-6 space-y-6 bg-background/40 backdrop-blur-md">
+                          <div className="space-y-2 text-center">
+                             <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Daily Forge Status</p>
+                             <div className="text-5xl font-black tracking-tighter text-primary">{dailyProgress.percent}%</div>
+                             <Progress value={dailyProgress.percent} className="h-1.5" />
+                          </div>
+                          
+                          <div className="space-y-3">
+                             <ProgressNode label="Learn 3" current={dailyProgress.learned} total={3} color="bg-primary" />
+                             <ProgressNode label="Practice 2" current={dailyProgress.practiced} total={2} color="bg-orange-500" />
+                             <ProgressNode label="Reflect 1" current={dailyProgress.reflected} total={1} color="bg-indigo-500" />
+                          </div>
+
+                          <Button onClick={saveDailyLearning} disabled={loading} className="w-full h-14 rounded-2xl font-black shadow-xl gap-2 uppercase tracking-widest text-xs">
+                             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+                             Secure Day Entry
+                          </Button>
+                       </Card>
+
+                       <div className="bg-primary/5 p-5 rounded-3xl border border-dashed border-primary/20 space-y-3">
+                          <div className="flex items-center gap-2">
+                             <ShieldCheck className="h-4 w-4 text-primary" />
+                             <p className="text-[10px] font-black uppercase tracking-widest text-primary">Zero-Knowledge Storage</p>
+                          </div>
+                          <p className="text-[10px] font-medium text-muted-foreground leading-relaxed italic">
+                             Every entry you record here is scrambled locally using AES-GCM 256 before synchronization. Not even system admins can read your takeaways.
+                          </p>
+                       </div>
+                    </div>
+                 </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-12">
           {/* Setup Node */}
@@ -414,5 +663,20 @@ export default function LearningPage() {
         </div>
       </div>
     </AppShell>
+  );
+}
+
+function ProgressNode({ label, current, total, color }: any) {
+  const p = Math.round((current / total) * 100);
+  return (
+    <div className="space-y-1.5">
+       <div className="flex justify-between items-center px-1">
+          <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">{label}</span>
+          <span className="text-[9px] font-black">{current}/{total}</span>
+       </div>
+       <div className="h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
+          <div className={cn("h-full transition-all duration-500", color)} style={{ width: `${p}%` }} />
+       </div>
+    </div>
   );
 }

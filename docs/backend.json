@@ -129,6 +129,23 @@
         "createdAt": { "type": "string", "format": "date-time" }
       }
     },
+    "DailyLearning": {
+      "title": "DailyLearning",
+      "type": "object",
+      "description": "Daily 3-2-1 rule entries.",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string", "description": "YYYY-MM-DD" },
+        "learned": { "type": "array", "items": { "type": "string" } },
+        "practiced": { "type": "array", "items": { "type": "string" } },
+        "takeaway": { "type": "string" },
+        "learnedSkills": { "type": "array", "items": { "type": "string" } },
+        "practicedSkills": { "type": "array", "items": { "type": "string" } },
+        "takeawaySkill": { "type": "string" },
+        "isEncrypted": { "type": "boolean" },
+        "completedCount": { "type": "number" }
+      }
+    },
     "DailyDiary": {
       "title": "DailyDiary",
       "type": "object",
@@ -250,6 +267,7 @@
       { "path": "/users/{userId}/monthlyBudgets/{monthId}/expenses/{expenseId}", "definition": { "entityName": "RoomExpense", "description": "Personal expenses." } },
       { "path": "/users/{userId}/debts/{debtId}", "definition": { "entityName": "Debt", "description": "Debt records." } },
       { "path": "/users/{userId}/learningGoals/{goalId}", "definition": { "entityName": "LearningGoal", "description": "Learning progress." } },
+      { "path": "/users/{userId}/dailyLearning/{date}", "definition": { "entityName": "DailyLearning", "description": "3-2-1 learning entries." } },
       { "path": "/users/{userId}/dailyDiaries/{date}", "definition": { "entityName": "DailyDiary", "description": "Diary entries." } },
       { "path": "/users/{userId}/cravingLogs/{logId}", "definition": { "entityName": "CravingLog", "description": "Resisted craving records." } },
       { "path": "/users/{userId}/cravingStats/summary", "definition": { "entityName": "CravingStats", "description": "Streak tracking." } },
