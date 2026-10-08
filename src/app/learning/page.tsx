@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { format, subDays, parseISO } from 'date-fns';
 import { encryptData, decryptData } from '@/lib/encryption';
+import { cn } from '@/lib/utils';
 
 export default function LearningPage() {
   const { user } = useUser();

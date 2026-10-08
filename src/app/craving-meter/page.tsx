@@ -72,28 +72,31 @@ const QUICK_SUGGESTIONS = [
   { name: 'Plain Idli', emoji: '⚪', calories: 58, price: 40, category: 'breakfast' },
   { name: 'Plain Dosa', emoji: '🥞', calories: 168, price: 60, category: 'breakfast' },
   { name: 'Masala Dosa', emoji: '🌯', calories: 300, price: 100, category: 'breakfast' },
+  { name: 'Plain Uttapam', emoji: '🧇', calories: 180, price: 70, category: 'breakfast' },
   { name: 'Medu Vada', emoji: '🍩', calories: 135, price: 50, category: 'breakfast' },
   { name: 'Upma', emoji: '🥣', calories: 250, price: 60, category: 'breakfast' },
+  { name: 'Poha', emoji: '🍛', calories: 250, price: 50, category: 'breakfast' },
   { name: 'Aloo Paratha', emoji: '🫓', calories: 300, price: 80, category: 'breakfast' },
-  { name: 'Chole Bhature', emoji: '🥖', calories: 700, price: 150, category: 'lunch' },
+  { name: 'White Rice', emoji: '🍚', calories: 195, price: 40, category: 'lunch' },
+  { name: 'Dal Khichdi', emoji: '🍲', calories: 280, price: 120, category: 'lunch' },
   { name: 'Veg Biryani', emoji: '🍛', calories: 450, price: 250, category: 'lunch' },
-  { name: 'Chicken Dum Biryani', emoji: '🍗', calories: 650, price: 350, category: 'lunch' },
-  { name: 'Curd Rice', emoji: '🍚', calories: 250, price: 80, category: 'dinner' },
-  { name: 'Dal Khichdi', emoji: '🍲', calories: 280, price: 120, category: 'dinner' },
+  { name: 'Chicken Biryani', emoji: '🍗', calories: 600, price: 350, category: 'lunch' },
+  { name: 'Butter Chicken', emoji: '🍗', calories: 400, price: 350, category: 'dinner' },
+  { name: 'Palak Paneer', emoji: '🥬', calories: 300, price: 280, category: 'lunch' },
+  { name: 'Chole Bhature', emoji: '🥖', calories: 700, price: 150, category: 'lunch' },
   { name: 'Paneer Butter Masala', emoji: '🥘', calories: 380, price: 280, category: 'lunch' },
+  { name: 'Plain Chapati', emoji: '🫓', calories: 100, price: 15, category: 'lunch' },
+  { name: 'Tandoori Roti', emoji: '🫓', calories: 120, price: 30, category: 'dinner' },
   { name: 'Samosa', emoji: '🥟', calories: 260, price: 20, category: 'snacks' },
-  { name: 'Pani Puri', emoji: '🥯', calories: 180, price: 40, category: 'snacks' },
   { name: 'Vada Pav', emoji: '🍔', calories: 300, price: 30, category: 'snacks' },
+  { name: 'Pani Puri', emoji: '🥯', calories: 180, price: 40, category: 'snacks' },
+  { name: 'Pav Bhaji', emoji: '🍞', calories: 450, price: 120, category: 'snacks' },
+  { name: 'Bhel Puri', emoji: '🥗', calories: 250, price: 50, category: 'snacks' },
   { name: 'Gulab Jamun', emoji: '🍯', calories: 150, price: 50, category: 'snacks' },
   { name: 'Filter Coffee', emoji: '☕', calories: 100, price: 40, category: 'drinks' },
   { name: 'Masala Chai', emoji: '🍵', calories: 100, price: 20, category: 'drinks' },
   { name: 'Mango Lassi', emoji: '🍹', calories: 250, price: 80, category: 'drinks' },
-  { name: 'Butter Chicken', emoji: '🍗', calories: 400, price: 350, category: 'dinner' },
-  { name: 'Tandoori Roti', emoji: '🫓', calories: 120, price: 30, category: 'dinner' },
-  { name: 'Palak Paneer', emoji: '🥬', calories: 300, price: 260, category: 'lunch' },
-  { name: 'Pav Bhaji', emoji: '🍞', calories: 450, price: 120, category: 'snacks' },
-  { name: 'Bhel Puri', emoji: '🥗', calories: 250, price: 50, category: 'snacks' },
-  { name: 'Poha', emoji: '🍛', calories: 250, price: 50, category: 'breakfast' },
+  { name: 'Buttermilk', emoji: '🥛', calories: 60, price: 30, category: 'drinks' },
 ];
 
 const DEFAULT_CALORIE_GOAL = 2100;
@@ -331,26 +334,6 @@ export default function CalorieTrackerPage() {
                   <CardDescription className="text-[9px] font-bold uppercase tracking-tight">E2EE Protected Entry</CardDescription>
                 </CardHeader>
                 <CardContent className="pt-6 space-y-6 px-4 md:px-8">
-                  <div className="space-y-3">
-                    <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-1.5">
-                      <LayoutGrid className="h-3.5 w-3.5" /> Frequent Fuel
-                    </Label>
-                    <ScrollArea className="h-[140px] border rounded-2xl p-3 bg-muted/5">
-                      <div className="flex flex-wrap gap-2">
-                        {QUICK_SUGGESTIONS.map(s => (
-                          <button
-                            key={s.name}
-                            onClick={() => handleSuggestionClick(s)}
-                            className="px-3 py-1.5 rounded-xl border text-[9px] md:text-[10px] font-black uppercase transition-all flex items-center gap-2 bg-background shadow-sm border-primary/10 hover:border-primary/50"
-                          >
-                            <span className="text-sm">{s.emoji}</span>
-                            <span>{s.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </div>
-
                   <div className="space-y-4">
                     <div className="space-y-2 relative" ref={recommendationRef}>
                       <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Meal Description</Label>

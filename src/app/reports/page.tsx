@@ -9,14 +9,9 @@ import {
   startOfMonth, 
   endOfMonth, 
   eachDayOfInterval, 
-  eachWeekOfInterval,
   subMonths,
-  eachMonthOfInterval,
-  endOfWeek,
-  startOfYear,
-  endOfYear
 } from 'date-fns';
-import { collection, doc, query, where } from 'firebase/firestore';
+import { collection, doc } from 'firebase/firestore';
 import { 
   BarChart as RechartsBarChart, 
   Bar, 
@@ -29,41 +24,30 @@ import {
   PieChart,
   Pie,
   Cell,
-  ReferenceLine
 } from 'recharts';
 import { 
   TableProperties,
-  ArrowUpRight,
-  ArrowDownRight,
   CalendarDays,
   ChevronLeft,
   Activity,
   Loader2,
   CheckSquare,
-  ReceiptText,
   History,
   Target,
-  ShieldCheck,
-  BarChart as BarChartIcon,
   Download,
   Wallet,
-  PiggyBank,
-  HeartPulse,
-  Smile,
   Coins,
-  Zap,
   ArrowLeft,
-  ChevronRight as ChevronRightIcon,
-  Filter,
+  ArrowRight,
   Info,
   Utensils,
   Flame,
-  ArrowRight,
-  PieChart as PieChartIcon
+  PieChart as PieChartIcon,
+  BarChart as BarChartIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -73,22 +57,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuLabel,
-  DropdownMenuCheckboxItem,
-} from "@/components/ui/dropdown-menu";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { cn } from '@/lib/utils';
 import { decryptData, decryptNumber } from '@/lib/encryption';
-import { useToast } from '@/hooks/use-toast';
 
 const chartTooltipStyle = {
   borderRadius: '12px',
@@ -106,25 +76,21 @@ const CHART_COLORS = ['#6366f1', '#81C784', '#FFB74D', '#BA68C8', '#F06292', '#4
 export default function ReportsPage() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const { toast } = useToast();
   
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [activeAuditType, setActiveAuditType] = useState<'financial' | 'nutrition'>('financial');
-  const [viewType, setViewType] = useState<'weekly' | 'monthly' | 'annual'>('monthly');
-  const [categoryFilter, setCategoryFilter] = useState<string[]>(['all']);
+  const [activePillarId, setActivePillarId] = useState<string>('expense');
   const [mounted, setMounted] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [activeAuditCategoryId, setActiveAuditCategoryId] = useState<string | null>(null);
 
   const [decryptedBudget, setDecryptedBudget] = useState<any>(null);
-  const [decryptedPrevBudget, setDecryptedPrevBudget] = useState<any>(null);
   const [decryptedFixed, setDecryptedFixed] = useState<any[]>([]);
   const [decryptedExpenses, setDecryptedExpenses] = useState<any[]>([]);
-  const [decryptedPrevExpenses, setDecryptedPrevExpenses] = useState<any[]>([]);
   const [decryptedCategories, setDecryptedCategories] = useState<any[]>([]);
-  const [decryptedAllBudgets, setDecryptedAllBudgets] = useState<any[]>([]);
   const [decryptedCravingLogs, setDecryptedCravingLogs] = useState<any[]>([]);
   const [decryptedHealthProfile, setDecryptedHealthProfile] = useState<any>(null);
+  const [decryptedSalaryProfile, setDecryptedSalaryProfile] = useState<any>(null);
   const [isDecrypting, setIsDecrypting] = useState(false);
 
   useEffect(() => {
@@ -132,14 +98,12 @@ export default function ReportsPage() {
   }, []);
 
   const monthId = format(selectedDate, 'yyyyMM');
-  const prevDate = subMonths(selectedDate, 1);
-  const prevMonthId = format(prevDate, 'yyyyMM');
 
   const monthlyBudgetRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'users', user.uid, 'monthlyBudgets', monthId);
   }, [firestore, user, monthId]);
-  const { data: rawBudget, isLoading: isBudgetLoading } = useDoc(monthlyBudgetRef);
+  const { data: rawBudget } = useDoc(monthlyBudgetRef);
 
   const fixedExpensesRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -151,25 +115,13 @@ export default function ReportsPage() {
     if (!firestore || !user) return null;
     return collection(firestore, 'users', user.uid, 'monthlyBudgets', monthId, 'expenses');
   }, [firestore, user, monthId]);
-  const { data: rawExpenses, isLoading: isExpensesLoading } = useCollection(monthExpensesRef);
-
-  const prevMonthlyBudgetRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return doc(firestore, 'users', user.uid, 'monthlyBudgets', prevMonthId);
-  }, [firestore, user, prevMonthId]);
-  const { data: rawPrevBudget } = useDoc(prevMonthlyBudgetRef);
+  const { data: rawExpenses } = useCollection(monthExpensesRef);
 
   const categoriesRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return collection(firestore, 'users', user.uid, 'expenseCategories');
   }, [firestore, user]);
   const { data: rawCategories } = useCollection(categoriesRef);
-
-  const allBudgetsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return collection(firestore, 'users', user.uid, 'monthlyBudgets');
-  }, [firestore, user]);
-  const { data: rawAllBudgets } = useCollection(allBudgetsQuery);
 
   const cravingLogsRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -183,6 +135,12 @@ export default function ReportsPage() {
   }, [firestore, user]);
   const { data: rawHealthProfile } = useDoc(healthProfileRef);
 
+  const salaryProfileRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'users', user.uid, 'salaryProfiles', 'current');
+  }, [firestore, user]);
+  const { data: rawSalaryProfile } = useDoc(salaryProfileRef);
+
   useEffect(() => {
     const decryptAll = async () => {
       if (!user || !mounted) return;
@@ -193,8 +151,6 @@ export default function ReportsPage() {
           setDecryptedBudget({
             ...rawBudget,
             totalBudgetAmount: rawBudget.isEncrypted ? await decryptNumber(rawBudget.totalBudgetAmount, user.uid) : (rawBudget.totalBudgetAmount || 0),
-            actualSpent: rawBudget.isEncrypted ? await decryptNumber(rawBudget.actualSpent, user.uid) : (rawBudget.actualSpent || 0),
-            actualFixedSpent: rawBudget.isEncrypted ? await decryptNumber(rawBudget.actualFixedSpent, user.uid) : (rawBudget.actualFixedSpent || 0),
           });
         }
 
@@ -242,6 +198,15 @@ export default function ReportsPage() {
             dailyCalorieTarget: rawHealthProfile.isEncrypted ? await decryptNumber(rawHealthProfile.dailyCalorieTarget, user.uid) : (rawHealthProfile.dailyCalorieTarget || 2100),
           });
         }
+
+        if (rawSalaryProfile) {
+          setDecryptedSalaryProfile({
+            ...rawSalaryProfile,
+            salary: rawSalaryProfile.isEncrypted ? await decryptNumber(rawSalaryProfile.salary, user.uid) : (rawSalaryProfile.salary || 0),
+            pillars: rawSalaryProfile.pillars || [],
+            percents: rawSalaryProfile.percents || {}
+          });
+        }
       } catch (err) {
         console.error("Decryption failed", err);
       } finally {
@@ -249,15 +214,20 @@ export default function ReportsPage() {
       }
     };
     decryptAll();
-  }, [rawBudget, rawFixed, rawExpenses, rawCategories, rawCravingLogs, rawHealthProfile, user, mounted]);
+  }, [rawBudget, rawFixed, rawExpenses, rawCategories, rawCravingLogs, rawHealthProfile, rawSalaryProfile, user, mounted]);
 
   const financialTotals = useMemo(() => {
-    const budget = decryptedBudget?.totalBudgetAmount || 0;
-    const fixed = (decryptedFixed || []).filter(f => f.includeInBudget && (f.allocationBucket || 'expense') === 'expense').reduce((s, f) => s + f.amount, 0);
-    const daily = (decryptedExpenses || []).filter(e => (e.allocationBucket || 'expense') === 'expense').reduce((s, e) => s + e.amount, 0);
+    if (!decryptedSalaryProfile) return { budget: 0, fixed: 0, daily: 0, spent: 0, remaining: 0 };
+    
+    const pillarPerc = decryptedSalaryProfile.percents[activePillarId] || 0;
+    const pillarBudget = (decryptedSalaryProfile.salary * pillarPerc) / 100;
+    
+    const fixed = (decryptedFixed || []).filter(f => f.allocationBucket === activePillarId).reduce((s, f) => s + f.amount, 0);
+    const daily = (decryptedExpenses || []).filter(e => (e.allocationBucket || 'expense') === activePillarId).reduce((s, e) => s + e.amount, 0);
     const spent = fixed + daily;
-    return { budget, fixed, daily, spent, remaining: budget - spent };
-  }, [decryptedBudget, decryptedFixed, decryptedExpenses]);
+    
+    return { budget: pillarBudget, fixed, daily, spent, remaining: pillarBudget - spent };
+  }, [decryptedSalaryProfile, decryptedFixed, decryptedExpenses, activePillarId]);
 
   const nutritionTotals = useMemo(() => {
     const target = decryptedHealthProfile?.dailyCalorieTarget || 2100;
@@ -272,7 +242,7 @@ export default function ReportsPage() {
   const chartsData = useMemo(() => {
     if (activeAuditType === 'financial') {
       const categoryTotals: Record<string, number> = {};
-      const allItems = [...decryptedExpenses, ...decryptedFixed];
+      const allItems = [...decryptedExpenses, ...decryptedFixed].filter(i => (i.allocationBucket || 'expense') === activePillarId);
       allItems.forEach(item => {
         const cat = decryptedCategories.find(c => c.id === item.expenseCategoryId);
         const catName = cat?.name || 'Misc';
@@ -289,7 +259,7 @@ export default function ReportsPage() {
       const days = eachDayOfInterval({ start: monthStart, end: endOfMonth(selectedDate) });
       const spendingData = days.map(d => ({
         name: format(d, 'd'),
-        spent: decryptedExpenses.filter(e => e.date === format(d, 'yyyy-MM-dd')).reduce((s, e) => s + e.amount, 0),
+        spent: decryptedExpenses.filter(e => e.date === format(d, 'yyyy-MM-dd') && (e.allocationBucket || 'expense') === activePillarId).reduce((s, e) => s + e.amount, 0),
         fullLabel: format(d, 'dd MMM yyyy')
       }));
 
@@ -300,7 +270,6 @@ export default function ReportsPage() {
       currentMonthLogs.forEach(l => {
         const cat = l.category === 'drinks' ? 'Beverages' : (l.category?.charAt(0).toUpperCase() + l.category?.slice(1) || 'Snacks');
         if (mealTotals[cat] !== undefined) mealTotals[cat] += l.calories;
-        else mealTotals['Others'] = (mealTotals['Others'] || 0) + l.calories;
       });
 
       const categoryData = Object.entries(mealTotals).map(([name, value], idx) => ({
@@ -319,16 +288,24 @@ export default function ReportsPage() {
 
       return { categoryData, spendingData };
     }
-  }, [activeAuditType, decryptedExpenses, decryptedFixed, decryptedCategories, decryptedCravingLogs, selectedDate]);
+  }, [activeAuditType, activePillarId, decryptedExpenses, decryptedFixed, decryptedCategories, decryptedCravingLogs, selectedDate]);
+
+  const highCalorieFoods = useMemo(() => {
+    if (activeAuditType !== 'nutrition') return [];
+    const currentMonthLogs = decryptedCravingLogs.filter(l => l.date.startsWith(format(selectedDate, 'yyyy-MM')));
+    return [...currentMonthLogs]
+      .sort((a, b) => b.calories - a.calories)
+      .slice(0, 5);
+  }, [activeAuditType, decryptedCravingLogs, selectedDate]);
 
   const auditItems = useMemo(() => {
     if (!activeAuditCategoryId) return [];
     if (activeAuditType === 'financial') {
       const combined = [
-        ...decryptedExpenses.map(e => ({ ...e, type: 'daily', date: e.date, displayDesc: e.description })),
-        ...decryptedFixed.map(f => ({ ...f, type: 'fixed', date: format(selectedDate, 'yyyy-MM-01'), displayDesc: f.name }))
+        ...decryptedExpenses.filter(e => (e.allocationBucket || 'expense') === activePillarId).map(e => ({ ...e, type: 'daily', date: e.date, displayDesc: e.description })),
+        ...decryptedFixed.filter(f => f.allocationBucket === activePillarId).map(f => ({ ...f, type: 'fixed', date: format(selectedDate, 'yyyy-MM-01'), displayDesc: f.name }))
       ];
-      return combined.filter(i => i.expenseCategoryId === activeAuditCategoryId).sort((a,b) => b.date.localeCompare(a.date));
+      return combined.filter(i => (decryptedCategories.find(c => c.id === i.expenseCategoryId)?.name || 'Misc') === activeAuditCategoryId).sort((a,b) => b.date.localeCompare(a.date));
     } else {
       const currentMonthLogs = decryptedCravingLogs.filter(l => l.date.startsWith(format(selectedDate, 'yyyy-MM')));
       return currentMonthLogs.filter(l => {
@@ -336,11 +313,11 @@ export default function ReportsPage() {
         return cat === activeAuditCategoryId;
       }).sort((a,b) => b.date.localeCompare(a.date));
     }
-  }, [activeAuditCategoryId, activeAuditType, decryptedExpenses, decryptedFixed, decryptedCravingLogs, selectedDate]);
+  }, [activeAuditCategoryId, activeAuditType, activePillarId, decryptedExpenses, decryptedFixed, decryptedCategories, decryptedCravingLogs, selectedDate]);
 
   const downloadAuditCsv = () => {
     const combined = activeAuditType === 'financial' 
-      ? [...decryptedExpenses.map(e => ({ ...e, type: 'daily' })), ...decryptedFixed.map(f => ({ ...f, type: 'fixed' }))]
+      ? [...decryptedExpenses.filter(e => (e.allocationBucket || 'expense') === activePillarId).map(e => ({ ...e, type: 'daily' })), ...decryptedFixed.filter(f => f.allocationBucket === activePillarId).map(f => ({ ...f, type: 'fixed' }))]
       : decryptedCravingLogs.filter(l => l.date.startsWith(format(selectedDate, 'yyyy-MM')));
 
     if (combined.length === 0) return;
@@ -380,8 +357,8 @@ export default function ReportsPage() {
              </div>
              <Tabs value={activeAuditType} onValueChange={(v: any) => setActiveAuditType(v)} className="bg-muted/50 p-1 rounded-xl border">
                 <TabsList className="h-9">
-                   <TabsTrigger value="financial" className="text-[10px] font-black uppercase gap-2"><Coins className="h-3.5 w-3.5" /> Financial</TabsTrigger>
-                   <TabsTrigger value="nutrition" className="text-[10px] font-black uppercase gap-2"><Utensils className="h-3.5 w-3.5" /> Nutrition</TabsTrigger>
+                   <TabsTrigger value="financial" className="text-[10px] font-black uppercase gap-2"><Coins className="h-3.5 w-3.5" /> Strategic Wealth</TabsTrigger>
+                   <TabsTrigger value="nutrition" className="text-[10px] font-black uppercase gap-2"><Utensils className="h-3.5 w-3.5" /> Physiological Vault</TabsTrigger>
                 </TabsList>
              </Tabs>
           </div>
@@ -398,7 +375,7 @@ export default function ReportsPage() {
             </div>
             <div className="flex items-center gap-2 w-full md:w-auto">
               <Button variant="outline" size="sm" onClick={() => setIsAuditModalOpen(true)} className="h-8 md:h-9 px-2 md:px-4 font-black uppercase text-[9px] md:text-[10px] tracking-widest gap-2 bg-primary/5 hover:bg-primary/10 border-primary/20">
-                <History className="h-3.5 w-3.5" /> Room history
+                <History className="h-3.5 w-3.5" /> Audit History
               </Button>
               <Separator orientation="vertical" className="h-6 mx-1 hidden sm:block" />
               <Button variant="outline" size="sm" onClick={() => setSelectedDate(subMonths(selectedDate, 1))} className="h-8 md:h-9 px-2 md:px-3 text-[10px] md:text-xs">
@@ -410,14 +387,34 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 md:gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {activeAuditType === 'financial' && decryptedSalaryProfile && (
+            <div className="flex gap-2 overflow-x-auto pb-2 snap-x [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {decryptedSalaryProfile.pillars.map((p: any) => (
+                <button
+                  key={p.id}
+                  onClick={() => setActivePillarId(p.id)}
+                  className={cn(
+                    "flex-shrink-0 snap-center px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest border transition-all",
+                    activePillarId === p.id 
+                      ? "bg-primary text-white border-primary shadow-lg scale-105" 
+                      : "bg-card text-muted-foreground border-border hover:border-primary/40"
+                  )}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="grid gap-4 md:gap-6 md:grid-cols-2 lg:grid-cols-3 transition-opacity">
              {activeAuditType === 'financial' ? (
                 <Card className="shadow-md border-t-4 border-t-primary rounded-2xl overflow-hidden relative lg:col-span-2">
                   <CardHeader className="pb-2 pt-4 px-4 md:px-6">
                     <CardTitle className="text-base md:text-lg flex items-center gap-2 font-black uppercase">
                       <TableProperties className="h-4 w-4 md:h-5 md:w-5 text-primary" />
-                      Expense Pool Tally
+                      {activePillarId} Pool Tally
                     </CardTitle>
+                    <CardDescription className="text-[9px] font-bold uppercase tracking-tight">Total target for {activePillarId} pillar</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6 p-4 md:p-6">
                     <div className="grid grid-cols-2 gap-4">
@@ -461,7 +458,7 @@ export default function ReportsPage() {
                        <div className="p-4 rounded-2xl bg-muted/10 border border-dashed">
                           <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Daily average</p>
                           <p className="text-2xl font-black tracking-tighter">{Math.round(nutritionTotals.dailyAverage)} kcal</p>
-                          <p className="text-[7px] font-bold text-muted-foreground uppercase mt-1">{Math.round(nutritionTotals.dailyAverage)} vs last month</p>
+                          <p className="text-[7px] font-bold text-muted-foreground uppercase mt-1">Current month efficiency</p>
                        </div>
                     </div>
                     <div className="p-5 rounded-[2rem] bg-orange-50/20 border border-orange-200 flex items-center justify-between">
@@ -496,7 +493,7 @@ export default function ReportsPage() {
                       <Legend iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', paddingTop: '10px' }} verticalAlign="bottom" />
                     </PieChart>
                   </ResponsiveContainer>
-                ) : <div className="text-muted-foreground text-[10px] font-black uppercase tracking-widest opacity-30 italic">No distribution data</div>}
+                ) : <div className="text-muted-foreground text-[10px] font-black uppercase tracking-widest opacity-30 italic text-center px-6">No categorical data.<br/>Click to Audit Spends</div>}
               </CardContent>
             </Card>
 
@@ -507,17 +504,15 @@ export default function ReportsPage() {
                     <BarChartIcon className="h-5 w-5" />
                   </div>
                   <div>
-                    <CardTitle className="text-base md:text-lg font-black tracking-tight uppercase">{activeAuditType === 'financial' ? "Spending Pulse" : "Fuel velocity"}</CardTitle>
-                    <CardDescription className="text-[9px] uppercase font-bold tracking-tight">Temporal trend analysis</CardDescription>
+                    <CardTitle className="text-base md:text-lg font-black tracking-tight uppercase">Spending Tracker</CardTitle>
+                    <CardDescription className="text-[9px] uppercase font-bold tracking-tight">Track how your spending changes over time.</CardDescription>
                   </div>
                 </div>
-                <Tabs value={viewType} onValueChange={(v: any) => setViewType(v)} className="w-full md:w-auto">
-                    <TabsList className="grid w-full grid-cols-3 md:w-[240px] h-9 p-1 bg-muted/50 rounded-xl border">
-                      <TabsTrigger value="weekly" className="text-[9px] font-black uppercase">Weekly</TabsTrigger>
-                      <TabsTrigger value="monthly" className="text-[9px] font-black uppercase">Monthly</TabsTrigger>
-                      <TabsTrigger value="annual" className="text-[9px] font-black uppercase">Yearly</TabsTrigger>
-                    </TabsList>
-                </Tabs>
+                <div className="flex gap-2">
+                   <Badge variant="outline" className="text-[9px] font-black uppercase">Weekly</Badge>
+                   <Badge variant="secondary" className="text-[9px] font-black uppercase">Monthly</Badge>
+                   <Badge variant="outline" className="text-[9px] font-black uppercase">Annual</Badge>
+                </div>
               </CardHeader>
               <CardContent className="p-6">
                  <div className="h-[300px] md:h-[400px] w-full pt-4">
@@ -527,12 +522,34 @@ export default function ReportsPage() {
                         <XAxis dataKey="name" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} />
                         <YAxis fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => activeAuditType === 'financial' ? `₹${v}` : `${v}`} />
                         <Tooltip contentStyle={chartTooltipStyle} />
-                        <Bar dataKey="spent" fill={activeAuditType === 'financial' ? "hsl(var(--primary))" : "hsl(var(--orange-400))"} radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="spent" fill={activeAuditType === 'financial' ? "hsl(var(--primary))" : "hsl(var(--orange-400))"} radius={[4, 4, 0, 0]} name="Actual Spend" />
                       </RechartsBarChart>
                     </ResponsiveContainer>
                  </div>
               </CardContent>
             </Card>
+
+            {activeAuditType === 'nutrition' && highCalorieFoods.length > 0 && (
+              <Card className="lg:col-span-3 shadow-md rounded-2xl overflow-hidden border-none ring-1 ring-border">
+                <CardHeader className="bg-orange-50/30 border-b py-3">
+                  <CardTitle className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
+                    <Flame className="h-3.5 w-3.5 text-orange-500" />
+                    High-Fuel Intensity Items
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 space-y-3">
+                  {highCalorieFoods.map((log, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-muted/5 border border-dashed">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase truncate">{log.foodName}</p>
+                        <p className="text-[8px] font-bold text-muted-foreground uppercase">{format(new Date(log.date), 'dd MMM')}</p>
+                      </div>
+                      <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-200 font-black text-[9px]">{log.calories} kcal</Badge>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           <Dialog open={isAuditModalOpen} onOpenChange={(open) => { setIsAuditModalOpen(open); if(!open) setActiveAuditCategoryId(null); }}>
@@ -544,7 +561,7 @@ export default function ReportsPage() {
                        Strategic Audit Ledger
                     </DialogTitle>
                     <DialogDescription className="text-[10px] font-black uppercase tracking-widest text-white/70">
-                       {activeAuditType === 'financial' ? "Wealth Reconciliation" : "Nutritional Verification"}
+                       {activeAuditType === 'financial' ? `Wealth Reconciliation • ${activePillarId}` : "Physiological Verification"}
                     </DialogDescription>
                   </div>
                   <div className="flex items-center gap-2 mr-8">

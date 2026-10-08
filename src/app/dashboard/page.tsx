@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -715,7 +714,7 @@ export default function Dashboard() {
             />
             <DashboardCard 
               href="/future-vision" 
-              title="To do List" 
+              title="To-do" 
               value={`${visionStats.active} Tasks`} 
               subtext={`${visionStats.achieved} Completed`} 
               icon={<Mountain className="w-4 h-4" />} 
@@ -725,7 +724,7 @@ export default function Dashboard() {
             />
             <DashboardCard 
               href="/split-pay" 
-              title="Split & Debt" 
+              title="Split" 
               value={`₹${totalOwed.toFixed(0)}`} 
               subtext="Receivable total" 
               icon={<HandCoins className="w-4 h-4" />} 
@@ -736,7 +735,7 @@ export default function Dashboard() {
             />
             <DashboardCard 
               href="/learning" 
-              title="Skill Mastery" 
+              title="Learning" 
               value={`${goalsProgress}%`} 
               subtext="Completion rate" 
               icon={<BookOpen className="w-4 h-4" />} 
@@ -746,7 +745,7 @@ export default function Dashboard() {
             />
             <DashboardCard 
               href="/diary" 
-              title="Daily Reflection" 
+              title="Diary" 
               value={todayDiary ? "Logged" : "Pending"} 
               subtext={todayDiary ? "Well done!" : "Record thoughts"} 
               icon={todayDiary ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />} 
