@@ -146,7 +146,7 @@ export default function Dashboard() {
     if (!firestore || !user) return null;
     return collection(firestore, 'users', user.uid, 'debts');
   }, [firestore, user]);
-  const { data: rawDebts } = useCollection(debtsRef);
+  const { data: rawDebts } = useCollection( debtsRef);
 
   const cravingLogsRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -442,12 +442,33 @@ export default function Dashboard() {
   }, [selectedPillarReport, decryptedExpenses, decryptedFixed, pillarReportViewType, now, monthId, decryptedAllBudgets]);
 
   const selectedPillarRecentExpenses = useMemo(() => {
-    if (!selectedPillarReport || !decryptedExpenses) return [];
-    return decryptedExpenses
-      .filter(e => (e.allocationBucket || 'expense') === 'expense')
+    if (!selectedPillarReport || !decryptedExpenses || !decryptedFixed) return [];
+    
+    // Combine daily logs and fixed monthly obligations for this specific pillar
+    const daily = (decryptedExpenses || [])
+      .filter(e => (e.allocationBucket || 'expense') === selectedPillarReport.id)
+      .map(e => ({
+        id: e.id,
+        description: e.description || 'SECURED ITEM',
+        amount: e.amount,
+        date: e.date,
+        isFixed: false
+      }));
+
+    const fixed = (decryptedFixed || [])
+      .filter(f => f.allocationBucket === selectedPillarReport.id)
+      .map(f => ({
+        id: f.id,
+        description: f.name || 'RECURRING COST',
+        amount: f.amount,
+        date: format(startOfMonth(now), 'yyyy-MM-dd'),
+        isFixed: true
+      }));
+
+    return [...daily, ...fixed]
       .sort((a, b) => b.date.localeCompare(a.date))
-      .slice(0, 15);
-  }, [selectedPillarReport, decryptedExpenses]);
+      .slice(0, 20);
+  }, [selectedPillarReport, decryptedExpenses, decryptedFixed, now]);
 
   const hasLoggedToday = useMemo(() => {
      return decryptedExpenses.some(e => e.date === todayStr);
@@ -866,7 +887,12 @@ export default function Dashboard() {
                                 <div className="min-w-0">
                                    <p className="text-[11px] md:text-xs font-black uppercase tracking-tight truncate max-w-[140px] md:max-w-[320px]">{exp.description}</p>
                                    <div className="flex items-center gap-1.5 mt-0.5">
-                                      <Badge variant="outline" className="text-[6px] font-black uppercase px-1 py-0 h-3 leading-none opacity-60 bg-background">Verified</Badge>
+                                      <Badge variant="outline" className={cn(
+                                        "text-[6px] font-black uppercase px-1 py-0 h-3 leading-none bg-background",
+                                        exp.isFixed ? "text-orange-600 border-orange-200" : "text-primary border-primary/20"
+                                      )}>
+                                        {exp.isFixed ? "Fixed Vault" : "Verified Log"}
+                                      </Badge>
                                       <span className="text-[7px] font-bold text-muted-foreground/60 uppercase tracking-widest">{format(new Date(exp.date), 'yyyy')}</span>
                                    </div>
                                 </div>
