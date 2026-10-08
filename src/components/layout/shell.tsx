@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -114,17 +115,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   const handleToggleReminders = async (checked: boolean) => {
+    // UI Responsiveness: set state immediately
+    setRemindersEnabled(checked);
+    
     if (checked) {
       const permission = await requestNotificationPermission();
       if (permission === 'granted') {
-        setRemindersEnabled(true);
         localStorage.setItem('lifetrack_daily_reminders', 'true');
       } else {
+        // Revert if permission denied or dismissed
         setRemindersEnabled(false);
         localStorage.setItem('lifetrack_daily_reminders', 'false');
       }
     } else {
-      setRemindersEnabled(false);
       localStorage.setItem('lifetrack_daily_reminders', 'false');
     }
   };

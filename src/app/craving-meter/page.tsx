@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -34,7 +35,10 @@ import {
   Coffee,
   Pizza,
   Apple,
-  Cookie
+  Cookie,
+  Soup,
+  Beef,
+  GlassWater
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -65,38 +69,92 @@ const CATEGORY_ICONS: Record<string, any> = {
   lunch: Utensils,
   dinner: Pizza,
   snacks: Cookie,
-  drinks: Apple
+  drinks: GlassWater
 };
 
 const QUICK_SUGGESTIONS = [
+  // South Indian Breakfast
   { name: 'Plain Idli', emoji: '⚪', calories: 58, price: 40, category: 'breakfast' },
-  { name: 'Plain Dosa', emoji: '🥞', calories: 168, price: 60, category: 'breakfast' },
-  { name: 'Masala Dosa', emoji: '🌯', calories: 300, price: 100, category: 'breakfast' },
-  { name: 'Plain Uttapam', emoji: '🧇', calories: 180, price: 70, category: 'breakfast' },
-  { name: 'Medu Vada', emoji: '🍩', calories: 135, price: 50, category: 'breakfast' },
-  { name: 'Upma', emoji: '🥣', calories: 250, price: 60, category: 'breakfast' },
-  { name: 'Poha', emoji: '🍛', calories: 250, price: 50, category: 'breakfast' },
-  { name: 'Aloo Paratha', emoji: '🫓', calories: 300, price: 80, category: 'breakfast' },
-  { name: 'White Rice', emoji: '🍚', calories: 195, price: 40, category: 'lunch' },
-  { name: 'Dal Khichdi', emoji: '🍲', calories: 280, price: 120, category: 'lunch' },
-  { name: 'Veg Biryani', emoji: '🍛', calories: 450, price: 250, category: 'lunch' },
-  { name: 'Chicken Biryani', emoji: '🍗', calories: 600, price: 350, category: 'lunch' },
-  { name: 'Butter Chicken', emoji: '🍗', calories: 400, price: 350, category: 'dinner' },
-  { name: 'Palak Paneer', emoji: '🥬', calories: 300, price: 280, category: 'lunch' },
-  { name: 'Chole Bhature', emoji: '🥖', calories: 700, price: 150, category: 'lunch' },
-  { name: 'Paneer Butter Masala', emoji: '🥘', calories: 380, price: 280, category: 'lunch' },
+  { name: 'Mini Idli (1 pc)', emoji: '⚪', calories: 22, price: 10, category: 'breakfast' },
+  { name: 'Plain Dosa', emoji: '🥞', calories: 168, price: 70, category: 'breakfast' },
+  { name: 'Masala Dosa', emoji: '🌯', calories: 300, price: 110, category: 'breakfast' },
+  { name: 'Ghee Dosa', emoji: '🥞', calories: 280, price: 90, category: 'breakfast' },
+  { name: 'Onion Dosa', emoji: '🥞', calories: 220, price: 85, category: 'breakfast' },
+  { name: 'Rava Dosa', emoji: '🥞', calories: 230, price: 95, category: 'breakfast' },
+  { name: 'Pesarattu', emoji: '🥞', calories: 180, price: 80, category: 'breakfast' },
+  { name: 'MLA Pesarattu', emoji: '🥞', calories: 350, price: 130, category: 'breakfast' },
+  { name: 'Plain Uttapam', emoji: '🧇', calories: 180, price: 80, category: 'breakfast' },
+  { name: 'Onion Uttapam', emoji: '🧇', calories: 220, price: 90, category: 'breakfast' },
+  { name: 'Medu Vada (1 pc)', emoji: '🍩', calories: 135, price: 40, category: 'breakfast' },
+  { name: 'Upma', emoji: '🥣', calories: 250, price: 50, category: 'breakfast' },
+  { name: 'Ven Pongal', emoji: '🍛', calories: 280, price: 60, category: 'breakfast' },
+  { name: 'Appam', emoji: '🥞', calories: 120, price: 30, category: 'breakfast' },
+  { name: 'Puttu', emoji: '🥣', calories: 250, price: 45, category: 'breakfast' },
+  
+  // Breads & Rotis
   { name: 'Plain Chapati', emoji: '🫓', calories: 100, price: 15, category: 'lunch' },
+  { name: 'Phulka', emoji: '🫓', calories: 80, price: 12, category: 'lunch' },
   { name: 'Tandoori Roti', emoji: '🫓', calories: 120, price: 30, category: 'dinner' },
+  { name: 'Plain Naan', emoji: '🫓', calories: 260, price: 40, category: 'dinner' },
+  { name: 'Butter Naan', emoji: '🫓', calories: 320, price: 55, category: 'dinner' },
+  { name: 'Garlic Naan', emoji: '🫓', calories: 300, price: 60, category: 'dinner' },
+  { name: 'Aloo Paratha', emoji: '🫓', calories: 300, price: 80, category: 'breakfast' },
+  { name: 'Poori (1 pc)', emoji: '🥯', calories: 100, price: 20, category: 'breakfast' },
+  { name: 'Bhatura', emoji: '🥯', calories: 280, price: 50, category: 'lunch' },
+  
+  // Rice & Biryani
+  { name: 'White Rice (1 cup)', emoji: '🍚', calories: 195, price: 30, category: 'lunch' },
+  { name: 'Brown Rice', emoji: '🍚', calories: 165, price: 40, category: 'lunch' },
+  { name: 'Lemon Rice', emoji: '🍚', calories: 300, price: 80, category: 'lunch' },
+  { name: 'Curd Rice', emoji: '🍚', calories: 250, price: 60, category: 'lunch' },
+  { name: 'Vegetable Pulao', emoji: '🍛', calories: 300, price: 150, category: 'lunch' },
+  { name: 'Veg Biryani', emoji: '🍛', calories: 450, price: 220, category: 'lunch' },
+  { name: 'Chicken Biryani', emoji: '🍗', calories: 600, price: 350, category: 'lunch' },
+  { name: 'Mutton Biryani', emoji: '🍖', calories: 700, price: 450, category: 'dinner' },
+  { name: 'Hyderabadi Chicken Biryani', emoji: '🍗', calories: 650, price: 380, category: 'dinner' },
+  { name: 'Dal Khichdi', emoji: '🍲', calories: 280, price: 120, category: 'lunch' },
+  { name: 'Rajma Chawal', emoji: '🍛', calories: 450, price: 160, category: 'lunch' },
+  
+  // Curries & Dal
+  { name: 'Dal Tadka', emoji: '🥣', calories: 220, price: 180, category: 'lunch' },
+  { name: 'Dal Makhani', emoji: '🥣', calories: 300, price: 220, category: 'dinner' },
+  { name: 'Sambar', emoji: '🥣', calories: 120, price: 40, category: 'breakfast' },
+  { name: 'Palak Paneer', emoji: '🥬', calories: 300, price: 280, category: 'lunch' },
+  { name: 'Paneer Butter Masala', emoji: '🥘', calories: 380, price: 300, category: 'dinner' },
+  { name: 'Chole Masala', emoji: '🍛', calories: 280, price: 180, category: 'lunch' },
+  
+  // Non-Veg
+  { name: 'Boiled Egg', emoji: '🥚', calories: 78, price: 15, category: 'breakfast' },
+  { name: 'Egg Omelette (2 eggs)', emoji: '🍳', calories: 180, price: 60, category: 'breakfast' },
+  { name: 'Butter Chicken', emoji: '🍗', calories: 400, price: 420, category: 'dinner' },
+  { name: 'Tandoori Chicken (Quarter)', emoji: '🍗', calories: 300, price: 250, category: 'dinner' },
+  { name: 'Fish Fry', emoji: '🐟', calories: 250, price: 280, category: 'lunch' },
+  { name: 'Chicken Shawarma', emoji: '🌯', calories: 450, price: 140, category: 'snacks' },
+  
+  // Street Food & Fast Food
+  { name: 'Pani Puri (6 pcs)', emoji: '🥯', calories: 180, price: 40, category: 'snacks' },
+  { name: 'Bhel Puri', emoji: '🥗', calories: 250, price: 50, category: 'snacks' },
   { name: 'Samosa', emoji: '🥟', calories: 260, price: 20, category: 'snacks' },
   { name: 'Vada Pav', emoji: '🍔', calories: 300, price: 30, category: 'snacks' },
-  { name: 'Pani Puri', emoji: '🥯', calories: 180, price: 40, category: 'snacks' },
   { name: 'Pav Bhaji', emoji: '🍞', calories: 450, price: 120, category: 'snacks' },
-  { name: 'Bhel Puri', emoji: '🥗', calories: 250, price: 50, category: 'snacks' },
-  { name: 'Gulab Jamun', emoji: '🍯', calories: 150, price: 50, category: 'snacks' },
+  { name: 'Chole Bhature', emoji: '🥖', calories: 700, price: 180, category: 'lunch' },
+  { name: 'Veg Burger', emoji: '🍔', calories: 350, price: 120, category: 'snacks' },
+  { name: 'Veg Momos (6 pcs)', emoji: '🥟', calories: 220, price: 100, category: 'snacks' },
+  
+  // Sweets
+  { name: 'Gulab Jamun (1 pc)', emoji: '🍯', calories: 150, price: 40, category: 'snacks' },
+  { name: 'Rasgulla', emoji: '⚪', calories: 120, price: 35, category: 'snacks' },
+  { name: 'Kaju Katli (1 pc)', emoji: '💎', calories: 100, price: 30, category: 'snacks' },
+  { name: 'Mysore Pak', emoji: '🧈', calories: 200, price: 50, category: 'snacks' },
+  { name: 'Gajar Ka Halwa', emoji: '🥕', calories: 250, price: 120, category: 'snacks' },
+  
+  // Beverages
+  { name: 'Milk Tea', emoji: '☕', calories: 90, price: 20, category: 'drinks' },
   { name: 'Filter Coffee', emoji: '☕', calories: 100, price: 40, category: 'drinks' },
-  { name: 'Masala Chai', emoji: '🍵', calories: 100, price: 20, category: 'drinks' },
+  { name: 'Masala Chai', emoji: '🍵', calories: 100, price: 25, category: 'drinks' },
   { name: 'Mango Lassi', emoji: '🍹', calories: 250, price: 80, category: 'drinks' },
-  { name: 'Buttermilk', emoji: '🥛', calories: 60, price: 30, category: 'drinks' },
+  { name: 'Fresh Orange Juice', emoji: '🍊', calories: 110, price: 60, category: 'drinks' },
+  { name: 'Chocolate Milkshake', emoji: '🥤', calories: 350, price: 150, category: 'drinks' },
 ];
 
 const DEFAULT_CALORIE_GOAL = 2100;
@@ -204,7 +262,7 @@ export default function CalorieTrackerPage() {
       s.name.toLowerCase().includes(queryStr) && !historyMap.has(s.name.toUpperCase())
     );
 
-    return [...Array.from(historyMap.values()), ...templateMatches].slice(0, 5);
+    return [...Array.from(historyMap.values()), ...templateMatches].slice(0, 8);
   }, [description, decryptedLogs]);
 
   const handleAIAnalyze = async () => {
