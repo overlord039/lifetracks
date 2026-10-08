@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -20,58 +19,30 @@ import {
 import { collection, doc } from 'firebase/firestore';
 import { 
   Flame, 
-  Zap, 
   IndianRupee, 
-  Scale, 
   History, 
   BrainCircuit, 
   Loader2, 
   CheckCircle2, 
   Trash2, 
-  TrendingUp, 
   Utensils, 
-  PieChart as PieChartIcon,
-  BarChart3,
-  Weight,
-  Heart,
-  TrendingDown,
-  Info,
-  LayoutGrid,
-  Trophy,
-  ArrowRight,
-  ShieldCheck,
-  Star,
   Activity,
-  Search,
-  Timer,
+  ShieldCheck,
+  Target,
+  Plus,
+  LayoutGrid,
   Coffee,
   Pizza,
   Apple,
-  Cookie,
-  Target,
-  Plus
+  Cookie
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { format, subDays, startOfMonth, startOfWeek, isSameDay } from 'date-fns';
-import { 
-  BarChart as RechartsBarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend as RechartsLegend
-} from 'recharts';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { format, subDays } from 'date-fns';
+import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Progress } from '@/components/ui/progress';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { encryptData, decryptData, decryptNumber } from '@/lib/encryption';
 import { estimateCraving } from '@/ai/flows/estimate-craving-flow';
 import { cn } from '@/lib/utils';
@@ -80,11 +51,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-
-const CHART_COLORS = ['#64B5F6', '#81C784', '#FFB74D', '#BA68C8', '#F06292', '#4DB6AC', '#FF8A65'];
-
-// Default if no strategy is planned
-const DEFAULT_CALORIE_GOAL = 2100;
 
 const CATEGORIES: Record<string, string> = {
   breakfast: "Breakfast",
@@ -103,17 +69,34 @@ const CATEGORY_ICONS: Record<string, any> = {
 };
 
 const QUICK_SUGGESTIONS = [
-  { name: 'Oatmeal & Fruits', emoji: '🥣', calories: 350, price: 120, category: 'breakfast' },
-  { name: 'Chicken Salad', emoji: '🥗', calories: 450, price: 250, category: 'lunch' },
-  { name: 'Grilled Salmon', emoji: '🐟', calories: 550, price: 450, category: 'dinner' },
-  { name: 'Greek Yogurt', emoji: '🥛', calories: 150, price: 80, category: 'snacks' },
-  { name: 'Black Coffee', emoji: '☕', calories: 5, price: 100, category: 'drinks' },
-  { name: 'Protein Shake', emoji: '🥤', calories: 220, price: 150, category: 'snacks' },
-  { name: 'Vegetable Wrap', emoji: '🌯', calories: 380, price: 180, category: 'lunch' },
-  { name: 'Steamed Rice & Dal', emoji: '🍛', calories: 520, price: 150, category: 'dinner' },
-  { name: 'Apple & PB', emoji: '🍎', calories: 280, price: 60, category: 'snacks' },
-  { name: 'Green Tea', emoji: '🍵', calories: 0, price: 40, category: 'drinks' },
+  { name: 'Plain Idli', emoji: '⚪', calories: 58, price: 40, category: 'breakfast' },
+  { name: 'Plain Dosa', emoji: '🥞', calories: 168, price: 60, category: 'breakfast' },
+  { name: 'Masala Dosa', emoji: '🌯', calories: 300, price: 100, category: 'breakfast' },
+  { name: 'Medu Vada', emoji: '🍩', calories: 135, price: 50, category: 'breakfast' },
+  { name: 'Upma', emoji: '🥣', calories: 250, price: 60, category: 'breakfast' },
+  { name: 'Aloo Paratha', emoji: '🫓', calories: 300, price: 80, category: 'breakfast' },
+  { name: 'Chole Bhature', emoji: '🥖', calories: 700, price: 150, category: 'lunch' },
+  { name: 'Veg Biryani', emoji: '🍛', calories: 450, price: 250, category: 'lunch' },
+  { name: 'Chicken Dum Biryani', emoji: '🍗', calories: 650, price: 350, category: 'lunch' },
+  { name: 'Curd Rice', emoji: '🍚', calories: 250, price: 80, category: 'dinner' },
+  { name: 'Dal Khichdi', emoji: '🍲', calories: 280, price: 120, category: 'dinner' },
+  { name: 'Paneer Butter Masala', emoji: '🥘', calories: 380, price: 280, category: 'lunch' },
+  { name: 'Samosa', emoji: '🥟', calories: 260, price: 20, category: 'snacks' },
+  { name: 'Pani Puri', emoji: '🥯', calories: 180, price: 40, category: 'snacks' },
+  { name: 'Vada Pav', emoji: '🍔', calories: 300, price: 30, category: 'snacks' },
+  { name: 'Gulab Jamun', emoji: '🍯', calories: 150, price: 50, category: 'snacks' },
+  { name: 'Filter Coffee', emoji: '☕', calories: 100, price: 40, category: 'drinks' },
+  { name: 'Masala Chai', emoji: '🍵', calories: 100, price: 20, category: 'drinks' },
+  { name: 'Mango Lassi', emoji: '🍹', calories: 250, price: 80, category: 'drinks' },
+  { name: 'Butter Chicken', emoji: '🍗', calories: 400, price: 350, category: 'dinner' },
+  { name: 'Tandoori Roti', emoji: '🫓', calories: 120, price: 30, category: 'dinner' },
+  { name: 'Palak Paneer', emoji: '🥬', calories: 300, price: 260, category: 'lunch' },
+  { name: 'Pav Bhaji', emoji: '🍞', calories: 450, price: 120, category: 'snacks' },
+  { name: 'Bhel Puri', emoji: '🥗', calories: 250, price: 50, category: 'snacks' },
+  { name: 'Poha', emoji: '🍛', calories: 250, price: 50, category: 'breakfast' },
 ];
+
+const DEFAULT_CALORIE_GOAL = 2100;
 
 export default function CalorieTrackerPage() {
   const { user } = useUser();
@@ -301,25 +284,7 @@ export default function CalorieTrackerPage() {
     const todayCost = todayLogs.reduce((s, l) => s + l.cost, 0);
     const totalCost = decryptedLogs.reduce((s, l) => s + l.cost, 0);
     
-    const categoryCounts: Record<string, number> = {};
-    decryptedLogs.forEach(l => {
-      const label = CATEGORIES[l.category] || "Others";
-      categoryCounts[label] = (categoryCounts[label] || 0) + l.calories;
-    });
-
-    const pieData = Object.entries(categoryCounts).map(([name, value], idx) => ({
-      name,
-      value,
-      color: CHART_COLORS[idx % CHART_COLORS.length]
-    }));
-
-    const last7Days = Array.from({ length: 7 }, (_, i) => format(subDays(new Date(), 6 - i), 'yyyy-MM-dd'));
-    const dailyData = last7Days.map(d => ({
-      name: format(new Date(d), 'EEE'),
-      calories: decryptedLogs.filter(l => l.date === d).reduce((s, l) => s + l.calories, 0)
-    }));
-
-    return { todayCals, todayCost, totalCost, pieData, dailyData, totalEntries: decryptedLogs.length };
+    return { todayCals, todayCost, totalCost, totalEntries: decryptedLogs.length };
   }, [decryptedLogs, todayStr]);
 
   const intakePercent = Math.min(100, Math.round(((insights?.todayCals || 0) / plannedGoal) * 100));
@@ -535,60 +500,8 @@ export default function CalorieTrackerPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 px-1">
                 <MiniInsightCard title="Intake Today" value={`${insights?.todayCals || 0} kcal`} icon={<Flame className="h-4 w-4" />} color="text-orange-500" />
                 <MiniInsightCard title="Meal Cost Today" value={`₹${insights?.todayCost || 0}`} icon={<IndianRupee className="h-4 w-4" />} color="text-green-600" />
-                <MiniInsightCard title="Monthly Spent" value={`₹${(insights?.totalCost || 0).toLocaleString()}`} icon={<TrendingUp className="h-4 w-4" />} color="text-primary" />
-                <MiniInsightCard title="Total Entries" value={`${insights?.totalEntries || 0}`} icon={<Trophy className="h-4 w-4" />} color="text-purple-500" />
-              </div>
-
-              <div className="grid gap-4 md:gap-6 md:grid-cols-2 px-1">
-                <Card className="shadow-lg rounded-[2rem] border-none ring-1 ring-border overflow-hidden bg-card/50 backdrop-blur-sm">
-                  <CardHeader className="bg-muted/30 border-b py-3">
-                    <CardTitle className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
-                      <BarChart3 className="h-4 w-4 text-primary" />
-                      Intake Pulse (7D)
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="h-[220px] pt-6 pr-4">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RechartsBarChart data={insights?.dailyData}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} />
-                        <XAxis dataKey="name" fontSize={9} fontWeight="900" tickLine={false} axisLine={false} />
-                        <YAxis hide />
-                        <Tooltip 
-                          cursor={{ fill: 'hsl(var(--primary)/0.05)' }} 
-                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', fontSize: '10px', fontWeight: 'bold' }} 
-                        />
-                        <Bar dataKey="calories" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
-                      </RechartsBarChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-lg rounded-[2rem] border-none ring-1 ring-border overflow-hidden bg-card/50 backdrop-blur-sm">
-                  <CardHeader className="bg-muted/30 border-b py-3">
-                    <CardTitle className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
-                      <PieChartIcon className="h-4 w-4 text-primary" />
-                      Nutrient matrix
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="h-[220px] pt-6 flex items-center justify-center">
-                    {insights && insights.pieData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie data={insights?.pieData} innerRadius={45} outerRadius={65} paddingAngle={8} dataKey="value" stroke="none">
-                            {insights?.pieData.map((entry: any, index: number) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                          </Pie>
-                          <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', fontSize: '10px', fontWeight: 'bold' }} />
-                          <RechartsLegend iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: '900', textTransform: 'uppercase' }} layout="vertical" align="right" verticalAlign="middle" />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center opacity-30 grayscale gap-2">
-                         <Activity className="h-8 w-8" />
-                         <p className="text-[9px] font-black uppercase tracking-widest">No intake data</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                <MiniInsightCard title="Monthly Spent" value={`₹${(insights?.totalCost || 0).toLocaleString()}`} icon={<Activity className="h-4 w-4" />} color="text-primary" />
+                <MiniInsightCard title="Total Entries" value={`${insights?.totalEntries || 0}`} icon={<History className="h-4 w-4" />} color="text-purple-500" />
               </div>
 
               <Card className="shadow-xl rounded-[2rem] border-none ring-1 ring-border overflow-hidden bg-card/50 backdrop-blur-sm">
@@ -600,7 +513,7 @@ export default function CalorieTrackerPage() {
                   <Badge variant="outline" className="text-[9px] font-black uppercase px-3 py-1 bg-background h-7">{decryptedLogs.length} Records</Badge>
                 </CardHeader>
                 <CardContent className="p-0">
-                  <ScrollArea className="h-[400px]">
+                  <ScrollArea className="h-[500px]">
                     <div className="divide-y divide-dashed">
                       {decryptedLogs.sort((a,b) => b.createdAt.localeCompare(a.createdAt)).map(log => {
                         const Icon = CATEGORY_ICONS[log.category] || Apple;

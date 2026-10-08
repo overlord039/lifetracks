@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { AppShell } from '@/components/layout/shell';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { 
   format, 
@@ -10,11 +10,9 @@ import {
   endOfMonth, 
   eachDayOfInterval, 
   eachWeekOfInterval,
-  isSameWeek,
   subMonths,
   eachMonthOfInterval,
   endOfWeek,
-  subWeeks,
   startOfYear,
   endOfYear
 } from 'date-fns';
@@ -39,10 +37,6 @@ import {
   ArrowDownRight,
   CalendarDays,
   ChevronLeft,
-  ChevronRight,
-  TrendingDown,
-  TrendingUp,
-  Minus,
   Activity,
   Loader2,
   CheckSquare,
@@ -57,21 +51,21 @@ import {
   HeartPulse,
   Smile,
   Coins,
-  ArrowUp,
-  ArrowDown,
   Zap,
   ArrowLeft,
   ChevronRight as ChevronRightIcon,
   Filter,
-  Info
+  Info,
+  Utensils,
+  Flame,
+  ArrowRight,
+  PieChart as PieChartIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Progress } from '@/components/ui/progress';
 import {
   Dialog,
   DialogContent,
@@ -80,16 +74,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
   DropdownMenuLabel,
@@ -107,7 +93,7 @@ import { useToast } from '@/hooks/use-toast';
 const chartTooltipStyle = {
   borderRadius: '12px',
   border: '1px solid hsl(var(--border))',
-  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
   backgroundColor: 'hsl(var(--popover))',
   color: 'hsl(var(--popover-foreground))',
   padding: '8px 12px',
@@ -117,19 +103,13 @@ const chartTooltipStyle = {
 
 const CHART_COLORS = ['#6366f1', '#81C784', '#FFB74D', '#BA68C8', '#F06292', '#4DB6AC', '#FF8A65'];
 
-// Semantic view-based colors
-const VIEW_COLORS: Record<string, string> = {
-  weekly: "#0ea5e9", // Sky Blue
-  monthly: "#6366f1", // Indigo
-  annual: "#8b5cf6", // Violet
-};
-
 export default function ReportsPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
   
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [activeAuditType, setActiveAuditType] = useState<'financial' | 'nutrition'>('financial');
   const [viewType, setViewType] = useState<'weekly' | 'monthly' | 'annual'>('monthly');
   const [categoryFilter, setCategoryFilter] = useState<string[]>(['all']);
   const [mounted, setMounted] = useState(false);
@@ -143,6 +123,8 @@ export default function ReportsPage() {
   const [decryptedPrevExpenses, setDecryptedPrevExpenses] = useState<any[]>([]);
   const [decryptedCategories, setDecryptedCategories] = useState<any[]>([]);
   const [decryptedAllBudgets, setDecryptedAllBudgets] = useState<any[]>([]);
+  const [decryptedCravingLogs, setDecryptedCravingLogs] = useState<any[]>([]);
+  const [decryptedHealthProfile, setDecryptedHealthProfile] = useState<any>(null);
   const [isDecrypting, setIsDecrypting] = useState(false);
 
   useEffect(() => {
@@ -163,7 +145,7 @@ export default function ReportsPage() {
     if (!firestore || !user) return null;
     return collection(firestore, 'users', user.uid, 'monthlyBudgets', monthId, 'fixedExpenses');
   }, [firestore, user, monthId]);
-  const { data: rawFixed, isLoading: isFixedLoading } = useCollection(fixedExpensesRef);
+  const { data: rawFixed } = useCollection(fixedExpensesRef);
 
   const monthExpensesRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -177,12 +159,6 @@ export default function ReportsPage() {
   }, [firestore, user, prevMonthId]);
   const { data: rawPrevBudget } = useDoc(prevMonthlyBudgetRef);
 
-  const prevMonthExpensesRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return collection(firestore, 'users', user.uid, 'monthlyBudgets', prevMonthId, 'expenses');
-  }, [firestore, user, prevMonthId]);
-  const { data: rawPrevExpenses } = useCollection(prevMonthExpensesRef);
-
   const categoriesRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return collection(firestore, 'users', user.uid, 'expenseCategories');
@@ -194,6 +170,18 @@ export default function ReportsPage() {
     return collection(firestore, 'users', user.uid, 'monthlyBudgets');
   }, [firestore, user]);
   const { data: rawAllBudgets } = useCollection(allBudgetsQuery);
+
+  const cravingLogsRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, 'users', user.uid, 'cravingLogs');
+  }, [firestore, user]);
+  const { data: rawCravingLogs } = useCollection(cravingLogsRef);
+
+  const healthProfileRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'users', user.uid, 'healthProfile', 'current');
+  }, [firestore, user]);
+  const { data: rawHealthProfile } = useDoc(healthProfileRef);
 
   useEffect(() => {
     const decryptAll = async () => {
@@ -208,19 +196,6 @@ export default function ReportsPage() {
             actualSpent: rawBudget.isEncrypted ? await decryptNumber(rawBudget.actualSpent, user.uid) : (rawBudget.actualSpent || 0),
             actualFixedSpent: rawBudget.isEncrypted ? await decryptNumber(rawBudget.actualFixedSpent, user.uid) : (rawBudget.actualFixedSpent || 0),
           });
-        } else {
-          setDecryptedBudget(null);
-        }
-
-        if (rawPrevBudget) {
-          setDecryptedPrevBudget({
-            ...rawPrevBudget,
-            totalBudgetAmount: rawPrevBudget.isEncrypted ? await decryptNumber(rawPrevBudget.totalBudgetAmount, user.uid) : (rawPrevBudget.totalBudgetAmount || 0),
-            actualSpent: rawPrevBudget.isEncrypted ? await decryptNumber(rawPrevBudget.actualSpent, user.uid) : (rawPrevBudget.actualSpent || 0),
-            actualFixedSpent: rawPrevBudget.isEncrypted ? await decryptNumber(rawPrevBudget.actualFixedSpent, user.uid) : (rawPrevBudget.actualFixedSpent || 0),
-          });
-        } else {
-          setDecryptedPrevBudget(null);
         }
 
         if (rawFixed) {
@@ -231,8 +206,6 @@ export default function ReportsPage() {
             allocationBucket: f.allocationBucket || 'expense'
           })));
           setDecryptedFixed(fixed);
-        } else {
-          setDecryptedFixed([]);
         }
 
         if (rawExpenses) {
@@ -243,17 +216,6 @@ export default function ReportsPage() {
             allocationBucket: e.allocationBucket || 'expense'
           })));
           setDecryptedExpenses(exps);
-        } else {
-          setDecryptedExpenses([]);
-        }
-
-        if (rawPrevExpenses) {
-          const pExps = await Promise.all(rawPrevExpenses.map(async e => ({
-            ...e,
-            amount: e.isEncrypted ? await decryptNumber(e.amount, user.uid) : (e.amount || 0),
-            allocationBucket: e.allocationBucket || 'expense'
-          })));
-          setDecryptedPrevExpenses(pExps);
         }
 
         if (rawCategories) {
@@ -264,272 +226,137 @@ export default function ReportsPage() {
           setDecryptedCategories(cats);
         }
 
-        if (rawAllBudgets) {
-          const budgets = await Promise.all(rawAllBudgets.map(async b => ({
-            ...b,
-            actualSpent: b.isEncrypted ? await decryptNumber(b.actualSpent, user.uid) : (b.actualSpent || 0),
-            actualFixedSpent: b.isEncrypted ? await decryptNumber(b.actualFixedSpent, user.uid) : (b.actualFixedSpent || 0),
-            totalBudgetAmount: b.isEncrypted ? await decryptNumber(b.totalBudgetAmount, user.uid) : (b.totalBudgetAmount || 0),
+        if (rawCravingLogs) {
+          const logs = await Promise.all(rawCravingLogs.map(async l => ({
+            ...l,
+            foodName: l.isEncrypted ? await decryptData(l.foodName, user.uid) : (l.foodName || ''),
+            calories: l.isEncrypted ? await decryptNumber(l.caloriesAvoided, user.uid) : (l.caloriesAvoided || 0),
+            cost: l.isEncrypted ? await decryptNumber(l.moneySaved, user.uid) : (l.moneySaved || 0),
           })));
-          setDecryptedAllBudgets(budgets);
+          setDecryptedCravingLogs(logs);
+        }
+
+        if (rawHealthProfile) {
+          setDecryptedHealthProfile({
+            ...rawHealthProfile,
+            dailyCalorieTarget: rawHealthProfile.isEncrypted ? await decryptNumber(rawHealthProfile.dailyCalorieTarget, user.uid) : (rawHealthProfile.dailyCalorieTarget || 2100),
+          });
         }
       } catch (err) {
-        console.error("Decryption failed in Reports", err);
+        console.error("Decryption failed", err);
       } finally {
         setIsDecrypting(false);
       }
     };
     decryptAll();
-  }, [rawBudget, rawPrevBudget, rawFixed, rawExpenses, rawPrevExpenses, rawCategories, rawAllBudgets, user, mounted]);
+  }, [rawBudget, rawFixed, rawExpenses, rawCategories, rawCravingLogs, rawHealthProfile, user, mounted]);
 
-  const totals = useMemo(() => {
+  const financialTotals = useMemo(() => {
     const budget = decryptedBudget?.totalBudgetAmount || 0;
     const fixed = (decryptedFixed || []).filter(f => f.includeInBudget && (f.allocationBucket || 'expense') === 'expense').reduce((s, f) => s + f.amount, 0);
     const daily = (decryptedExpenses || []).filter(e => (e.allocationBucket || 'expense') === 'expense').reduce((s, e) => s + e.amount, 0);
     const spent = fixed + daily;
-    const remaining = budget - spent;
+    return { budget, fixed, daily, spent, remaining: budget - spent };
+  }, [decryptedBudget, decryptedFixed, decryptedExpenses]);
 
-    const prevDaily = (decryptedPrevExpenses || []).filter(e => (e.allocationBucket || 'expense') === 'expense').reduce((s, e) => s + e.amount, 0);
-    const prevBudget = decryptedPrevBudget?.totalBudgetAmount || 0;
-    const prevSpent = (decryptedPrevBudget?.actualSpent || 0) + (decryptedPrevBudget?.actualFixedSpent || 0);
-
-    return {
-      budget,
-      fixed,
-      daily,
-      spent,
-      remaining,
-      prevDaily,
-      prevBudget,
-      prevSpent,
-      dailyDiff: daily - prevDaily,
-      spentDiff: spent - prevSpent,
-      budgetDiff: budget - prevBudget
-    };
-  }, [decryptedBudget, decryptedFixed, decryptedExpenses, decryptedPrevExpenses, decryptedPrevBudget]);
+  const nutritionTotals = useMemo(() => {
+    const target = decryptedHealthProfile?.dailyCalorieTarget || 2100;
+    const currentMonthLogs = decryptedCravingLogs.filter(l => l.date.startsWith(format(selectedDate, 'yyyy-MM')));
+    const totalCals = currentMonthLogs.reduce((s, l) => s + l.calories, 0);
+    const daysInMonthSoFar = eachDayOfInterval({ start: startOfMonth(selectedDate), end: endOfMonth(selectedDate) }).filter(d => format(d, 'yyyy-MM-dd') <= format(new Date(), 'yyyy-MM-dd')).length;
+    const dailyAverage = totalCals / (daysInMonthSoFar || 1);
+    
+    return { target, dailyAverage, totalCals, efficiency: Math.min(100, Math.round((dailyAverage / target) * 100)) };
+  }, [decryptedCravingLogs, decryptedHealthProfile, selectedDate]);
 
   const chartsData = useMemo(() => {
-    if (!decryptedExpenses || !decryptedFixed || !decryptedCategories) {
-      return { spendingData: [], categoryData: [], highest: 0, lowest: 0, average: 0, comparisonKeys: [] };
-    }
+    if (activeAuditType === 'financial') {
+      const categoryTotals: Record<string, number> = {};
+      const allItems = [...decryptedExpenses, ...decryptedFixed];
+      allItems.forEach(item => {
+        const cat = decryptedCategories.find(c => c.id === item.expenseCategoryId);
+        const catName = cat?.name || 'Misc';
+        categoryTotals[catName] = (categoryTotals[catName] || 0) + item.amount;
+      });
 
-    const isFiltered = !categoryFilter.includes('all');
-    const selectedIds = isFiltered ? categoryFilter : [];
-    
-    // Mapping for comparison keys (Label Name instead of ID for Legend)
-    const idToName: Record<string, string> = {};
-    decryptedCategories.forEach(c => idToName[c.id] = c.name);
-    const comparisonKeys = selectedIds.map(id => idToName[id] || 'Misc');
+      const categoryData = Object.entries(categoryTotals).map(([name, value], idx) => ({
+        name,
+        value,
+        color: CHART_COLORS[idx % CHART_COLORS.length]
+      })).sort((a, b) => b.value - a.value);
 
-    const categoryTotals: Record<string, number> = {};
-    const allItems = [...decryptedExpenses, ...decryptedFixed];
-    allItems.forEach(item => {
-      const cat = decryptedCategories.find(c => c.id === item.expenseCategoryId);
-      const catName = cat?.name || 'Misc';
-      categoryTotals[catName] = (categoryTotals[catName] || 0) + item.amount;
-    });
-
-    const cData = Object.entries(categoryTotals).map(([name, value], idx) => ({
-      name,
-      value,
-      color: CHART_COLORS[idx % CHART_COLORS.length]
-    })).sort((a, b) => b.value - a.value);
-
-    let sData: any[] = [];
-
-    if (viewType === 'weekly') {
       const monthStart = startOfMonth(selectedDate);
-      const monthEnd = endOfMonth(selectedDate);
-      const weeks = eachWeekOfInterval({ start: monthStart, end: monthEnd });
+      const days = eachDayOfInterval({ start: monthStart, end: endOfMonth(selectedDate) });
+      const spendingData = days.map(d => ({
+        name: format(d, 'd'),
+        spent: decryptedExpenses.filter(e => e.date === format(d, 'yyyy-MM-dd')).reduce((s, e) => s + e.amount, 0),
+        fullLabel: format(d, 'dd MMM yyyy')
+      }));
 
-      sData = weeks.map((weekStart, idx) => {
-        const weekEnd = endOfWeek(weekStart);
-        const dataPoint: any = {
-          name: `Week ${idx + 1}`,
-          range: `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`,
-          spent: 0,
-          fullLabel: `Week ${idx + 1} (${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')})`
-        };
-
-        if (isFiltered) {
-          selectedIds.forEach(catId => {
-            const catName = idToName[catId] || 'Misc';
-            const val = decryptedExpenses
-              .filter(e => e.expenseCategoryId === catId)
-              .filter(e => {
-                const d = new Date(e.date);
-                return d >= weekStart && d <= weekEnd;
-              })
-              .reduce((sum, e) => sum + e.amount, 0);
-            dataPoint[catName] = val;
-            dataPoint.spent += val;
-          });
-        } else {
-          dataPoint.spent = decryptedExpenses
-            .filter(e => (e.allocationBucket || 'expense') === 'expense')
-            .filter(e => {
-              const d = new Date(e.date);
-              return d >= weekStart && d <= weekEnd;
-            })
-            .reduce((sum, e) => sum + e.amount, 0);
-        }
-        return dataPoint;
+      return { categoryData, spendingData };
+    } else {
+      const mealTotals: Record<string, number> = { Breakfast: 0, Lunch: 0, Dinner: 0, Snacks: 0, Beverages: 0 };
+      const currentMonthLogs = decryptedCravingLogs.filter(l => l.date.startsWith(format(selectedDate, 'yyyy-MM')));
+      currentMonthLogs.forEach(l => {
+        const cat = l.category === 'drinks' ? 'Beverages' : (l.category?.charAt(0).toUpperCase() + l.category?.slice(1) || 'Snacks');
+        if (mealTotals[cat] !== undefined) mealTotals[cat] += l.calories;
+        else mealTotals['Others'] = (mealTotals['Others'] || 0) + l.calories;
       });
-    } else if (viewType === 'monthly') {
+
+      const categoryData = Object.entries(mealTotals).map(([name, value], idx) => ({
+        name,
+        value,
+        color: CHART_COLORS[idx % CHART_COLORS.length]
+      })).filter(d => d.value > 0);
+
       const monthStart = startOfMonth(selectedDate);
-      const monthEnd = endOfMonth(selectedDate);
-      const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+      const days = eachDayOfInterval({ start: monthStart, end: endOfMonth(selectedDate) });
+      const spendingData = days.map(d => ({
+        name: format(d, 'd'),
+        spent: decryptedCravingLogs.filter(l => l.date === format(d, 'yyyy-MM-dd')).reduce((s, l) => s + l.calories, 0),
+        fullLabel: format(d, 'dd MMM yyyy')
+      }));
 
-      sData = days.map(d => {
-        const dStr = format(d, 'yyyy-MM-dd');
-        const dataPoint: any = {
-          name: format(d, 'd'),
-          spent: 0,
-          fullLabel: format(d, 'dd MMM yyyy')
-        };
-
-        if (isFiltered) {
-          selectedIds.forEach(catId => {
-            const catName = idToName[catId] || 'Misc';
-            const val = decryptedExpenses
-              .filter(e => e.expenseCategoryId === catId && e.date === dStr)
-              .reduce((sum, e) => sum + e.amount, 0);
-            dataPoint[catName] = val;
-            dataPoint.spent += val;
-          });
-        } else {
-          dataPoint.spent = decryptedExpenses
-            .filter(e => (e.allocationBucket || 'expense') === 'expense' && e.date === dStr)
-            .reduce((sum, e) => sum + e.amount, 0);
-        }
-        return dataPoint;
-      });
-    } else if (viewType === 'annual') {
-      const yearStart = startOfYear(selectedDate);
-      const yearEnd = endOfYear(selectedDate);
-      const months = eachMonthOfInterval({ start: yearStart, end: yearEnd });
-
-      const budgetMap: Record<string, any> = {};
-      (decryptedAllBudgets || []).forEach(b => budgetMap[b.id] = b);
-
-      sData = months.map(m => {
-        const mKey = format(m, 'yyyyMM');
-        const b = budgetMap[mKey];
-        return {
-          name: format(m, 'MMM'),
-          spent: (b?.actualSpent || 0) + (b?.actualFixedSpent || 0),
-          budgeted: b?.totalBudgetAmount || 0,
-          fullLabel: format(m, 'MMMM yyyy')
-        };
-      });
+      return { categoryData, spendingData };
     }
+  }, [activeAuditType, decryptedExpenses, decryptedFixed, decryptedCategories, decryptedCravingLogs, selectedDate]);
 
-    const spentValues = sData.filter(d => d.spent > 0).map(d => d.spent);
-    const highest = spentValues.length > 0 ? Math.max(...spentValues) : 0;
-    const lowest = spentValues.length > 0 ? Math.min(...spentValues) : 0;
-    const average = spentValues.length > 0 ? spentValues.reduce((a, b) => a + b, 0) / sData.length : 0;
-
-    return { spendingData: sData, categoryData: cData, highest, lowest, average, comparisonKeys };
-  }, [decryptedExpenses, decryptedFixed, decryptedCategories, decryptedAllBudgets, selectedDate, viewType, categoryFilter]);
-
-  const toggleCategory = (id: string) => {
-    setCategoryFilter(prev => {
-      if (id === 'all') return ['all'];
-      const next = prev.filter(p => p !== 'all');
-      if (next.includes(id)) {
-        const filtered = next.filter(p => p !== id);
-        return filtered.length === 0 ? ['all'] : filtered;
-      }
-      return [...next, id];
-    });
-  };
-
-  const changeMonth = (delta: number) => {
-    setSelectedDate(prev => subMonths(prev, -delta));
-    setActiveAuditCategoryId(null);
-  };
-
-  const auditExpenses = useMemo(() => {
+  const auditItems = useMemo(() => {
     if (!activeAuditCategoryId) return [];
-    
-    const targetCat = decryptedCategories.find(c => c.id === activeAuditCategoryId);
-    const targetCatName = targetCat?.name || 'Misc';
-
-    const combined = [
-      ...(decryptedExpenses || []).map(e => {
-        const cat = decryptedCategories.find(c => c.id === e.expenseCategoryId);
-        const catName = cat?.name || 'Misc';
-        return { 
-          ...e, 
-          type: 'daily', 
-          displayDesc: (e.description && e.description.trim()) ? e.description : catName,
-          catName,
-          sortDate: e.date || ''
-        };
-      }),
-      ...(decryptedFixed || []).map(f => {
-        const cat = decryptedCategories.find(c => c.id === f.expenseCategoryId);
-        const catName = cat?.name || 'Misc';
-        return { 
-          ...f, 
-          type: 'fixed', 
-          displayDesc: (f.name && f.name.trim()) ? f.name : catName, 
-          catName,
-          date: format(selectedDate, 'yyyy-MM-01'),
-          sortDate: format(selectedDate, 'yyyy-MM-01') 
-        };
-      })
-    ];
-
-    return combined
-      .filter(item => {
-        const matchesId = (item.expenseCategoryId || 'misc') === activeAuditCategoryId;
-        const matchesName = item.catName === targetCatName;
-        return matchesId || matchesName;
-      })
-      .sort((a, b) => b.sortDate.localeCompare(a.sortDate));
-  }, [decryptedExpenses, decryptedFixed, activeAuditCategoryId, selectedDate, decryptedCategories]);
+    if (activeAuditType === 'financial') {
+      const combined = [
+        ...decryptedExpenses.map(e => ({ ...e, type: 'daily', date: e.date, displayDesc: e.description })),
+        ...decryptedFixed.map(f => ({ ...f, type: 'fixed', date: format(selectedDate, 'yyyy-MM-01'), displayDesc: f.name }))
+      ];
+      return combined.filter(i => i.expenseCategoryId === activeAuditCategoryId).sort((a,b) => b.date.localeCompare(a.date));
+    } else {
+      const currentMonthLogs = decryptedCravingLogs.filter(l => l.date.startsWith(format(selectedDate, 'yyyy-MM')));
+      return currentMonthLogs.filter(l => {
+        const cat = l.category === 'drinks' ? 'Beverages' : (l.category?.charAt(0).toUpperCase() + l.category?.slice(1) || 'Snacks');
+        return cat === activeAuditCategoryId;
+      }).sort((a,b) => b.date.localeCompare(a.date));
+    }
+  }, [activeAuditCategoryId, activeAuditType, decryptedExpenses, decryptedFixed, decryptedCravingLogs, selectedDate]);
 
   const downloadAuditCsv = () => {
-    const combined = [
-      ...(decryptedExpenses || []).map(e => {
-        const cat = decryptedCategories.find(c => c.id === e.expenseCategoryId);
-        const catName = cat?.name || 'MISC';
-        return { ...e, description: (e.description && e.description.trim()) ? e.description : catName, catName };
-      }),
-      ...(decryptedFixed || []).map(f => {
-        const cat = decryptedCategories.find(c => c.id === f.expenseCategoryId);
-        const catName = cat?.name || 'MISC';
-        return { ...f, description: (f.name && f.name.trim()) ? f.name : catName, date: format(selectedDate, 'yyyy-MM-01'), catName };
-      })
-    ];
+    const combined = activeAuditType === 'financial' 
+      ? [...decryptedExpenses.map(e => ({ ...e, type: 'daily' })), ...decryptedFixed.map(f => ({ ...f, type: 'fixed' }))]
+      : decryptedCravingLogs.filter(l => l.date.startsWith(format(selectedDate, 'yyyy-MM')));
 
-    if (combined.length === 0) {
-      toast({ title: "No Data", description: "No records found to export for this month." });
-      return;
-    }
+    if (combined.length === 0) return;
 
-    const headers = ['Date', 'Description', 'Category', 'Pillar', 'Amount (₹)'];
-    const rows = combined.sort((a,b) => b.date.localeCompare(a.date)).map(item => {
-      return [
-        item.date,
-        `"${(item.description || '').replace(/"/g, '""')}"`,
-        `"${(item.catName || 'MISC').replace(/"/g, '""')}"`,
-        item.allocationBucket || 'expense',
-        item.amount
-      ];
-    });
+    const headers = activeAuditType === 'financial' ? ['Date', 'Description', 'Amount (₹)'] : ['Date', 'Item', 'Calories (kcal)', 'Cost (₹)'];
+    const rows = combined.map((i: any) => activeAuditType === 'financial' ? [i.date || format(selectedDate, 'yyyy-MM-01'), i.description || i.name, i.amount] : [i.date, i.foodName, i.calories, i.cost]);
 
     const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `LifeTrack_Audit_${format(selectedDate, 'yyyyMM')}.csv`);
+    link.setAttribute('download', `LifeTrack_${activeAuditType}_Audit_${format(selectedDate, 'yyyyMM')}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast({ title: "Audit Exported", description: "CSV has been saved to your downloads." });
   };
 
   return (
@@ -537,10 +364,28 @@ export default function ReportsPage() {
       {!mounted ? (
         <div className="flex h-[60vh] w-full items-center justify-center flex-col gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Syncing Vault...</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Syncing Audit Hub...</p>
         </div>
       ) : (
-        <div className="space-y-4 md:space-y-6 max-w-7xl mx-auto">
+        <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-1">
+             <div className="flex items-center gap-3">
+                <div className="p-3 bg-primary/10 rounded-2xl text-primary shadow-sm border border-primary/10">
+                   <CheckSquare className="h-7 w-7" />
+                </div>
+                <div>
+                   <h2 className="text-2xl md:text-3xl font-black tracking-tighter uppercase">Audit reports</h2>
+                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Multi-dimensional strategy analysis</p>
+                </div>
+             </div>
+             <Tabs value={activeAuditType} onValueChange={(v: any) => setActiveAuditType(v)} className="bg-muted/50 p-1 rounded-xl border">
+                <TabsList className="h-9">
+                   <TabsTrigger value="financial" className="text-[10px] font-black uppercase gap-2"><Coins className="h-3.5 w-3.5" /> Financial</TabsTrigger>
+                   <TabsTrigger value="nutrition" className="text-[10px] font-black uppercase gap-2"><Utensils className="h-3.5 w-3.5" /> Nutrition</TabsTrigger>
+                </TabsList>
+             </Tabs>
+          </div>
+
           <div className="flex flex-col md:flex-row items-center justify-between gap-3 bg-card p-3 md:p-4 rounded-2xl shadow-sm border">
             <div className="flex items-center gap-2 md:gap-3 w-full md:w-auto">
               <div className="p-1.5 md:p-2 bg-primary/10 rounded-lg text-primary">
@@ -551,525 +396,212 @@ export default function ReportsPage() {
                 <p className="text-[8px] md:text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">Reporting Period</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
+            <div className="flex items-center gap-2 w-full md:w-auto">
               <Button variant="outline" size="sm" onClick={() => setIsAuditModalOpen(true)} className="h-8 md:h-9 px-2 md:px-4 font-black uppercase text-[9px] md:text-[10px] tracking-widest gap-2 bg-primary/5 hover:bg-primary/10 border-primary/20">
-                <History className="h-3.5 w-3.5" /> Tranc History
+                <History className="h-3.5 w-3.5" /> Room history
               </Button>
               <Separator orientation="vertical" className="h-6 mx-1 hidden sm:block" />
-              <Button variant="outline" size="sm" onClick={() => changeMonth(-1)} className="h-8 md:h-9 px-2 md:px-3 flex-1 md:flex-initial text-[10px] md:text-xs">
-                <ChevronLeft className="h-3.5 w-3.5 mr-0.5 md:mr-1" /> {format(prevDate, 'MMM')}
+              <Button variant="outline" size="sm" onClick={() => setSelectedDate(subMonths(selectedDate, 1))} className="h-8 md:h-9 px-2 md:px-3 text-[10px] md:text-xs">
+                <ChevronLeft className="h-3.5 w-3.5 mr-1" /> {format(subMonths(selectedDate, 1), 'MMM')}
               </Button>
-              <Button variant="secondary" size="sm" disabled className="h-8 md:h-9 font-bold px-3 md:px-6 flex-1 md:flex-initial whitespace-nowrap text-[10px] md:text-xs">
+              <Button variant="secondary" size="sm" disabled className="h-8 md:h-9 font-bold px-3 md:px-6 whitespace-nowrap text-[10px] md:text-xs">
                 Current
               </Button>
             </div>
           </div>
 
-          <div className={cn("grid gap-4 md:gap-6 md:grid-cols-2 lg:grid-cols-3 transition-opacity", isDecrypting && "opacity-80")}>
-            <Card className="shadow-md border-t-4 border-t-primary rounded-2xl overflow-hidden relative lg:col-span-2">
-              {isBudgetLoading && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
-              <CardHeader className="pb-2 pt-4 px-4 md:px-6">
-                <CardTitle className="text-base md:text-lg flex items-center gap-2 font-black">
-                  <TableProperties className="h-4 w-4 md:h-5 md:w-5 text-primary" />
-                  Expense Pool Tally
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-5 w-5 rounded-full hover:bg-primary/10 ml-1">
-                        <Info className="h-3.5 w-3.5 text-muted-foreground" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-72 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-primary">Tally Overview</p>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed mt-2">
-                        This section provides a high-level summary of your variable spending vs. your planned targets for the Expenses pillar.
-                      </p>
-                    </PopoverContent>
-                  </Popover>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 md:space-y-6 p-4 md:p-6">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-start text-xs md:sm">
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-foreground font-black uppercase text-[10px] tracking-tight">Monthly Pool</span>
-                        <Popover>
-                          <PopoverTrigger asChild><button className="hover:text-primary transition-colors"><Info className="h-2.5 w-2.5 text-muted-foreground/50" /></button></PopoverTrigger>
-                          <PopoverContent className="w-64 p-3 text-[9px] font-medium leading-tight">Total target funds allocated for the Expenses pillar in your Wealth Strategy.</PopoverContent>
-                        </Popover>
-                      </div>
-                      <span className="text-muted-foreground text-[9px] font-medium leading-tight">Total target for Expenses pillar</span>
+          <div className="grid gap-4 md:gap-6 md:grid-cols-2 lg:grid-cols-3">
+             {activeAuditType === 'financial' ? (
+                <Card className="shadow-md border-t-4 border-t-primary rounded-2xl overflow-hidden relative lg:col-span-2">
+                  <CardHeader className="pb-2 pt-4 px-4 md:px-6">
+                    <CardTitle className="text-base md:text-lg flex items-center gap-2 font-black uppercase">
+                      <TableProperties className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+                      Expense Pool Tally
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6 p-4 md:p-6">
+                    <div className="grid grid-cols-2 gap-4">
+                       <div className="p-4 rounded-2xl bg-muted/10 border border-dashed">
+                          <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Monthly Pool</p>
+                          <p className="text-2xl font-black tracking-tighter">₹{financialTotals.budget.toLocaleString()}</p>
+                          <p className="text-[7px] font-bold text-muted-foreground uppercase mt-1">Strategic baseline</p>
+                       </div>
+                       <div className="p-4 rounded-2xl bg-muted/10 border border-dashed">
+                          <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Total Spent</p>
+                          <p className="text-2xl font-black tracking-tighter">₹{financialTotals.spent.toLocaleString()}</p>
+                          <p className="text-[7px] font-bold text-muted-foreground uppercase mt-1">Verified tallies</p>
+                       </div>
                     </div>
-                    <span className="font-black text-lg tracking-tighter">₹{totals.budget.toLocaleString()}</span>
-                  </div>
+                    <div className="p-5 rounded-[2rem] bg-primary/5 border border-primary/10 flex items-center justify-between">
+                       <div className="space-y-1">
+                          <p className="text-[10px] font-black uppercase text-primary tracking-widest">Remaining Vault</p>
+                          <p className="text-sm font-medium text-muted-foreground">Strategic headroom available</p>
+                       </div>
+                       <p className={cn("text-3xl md:text-4xl font-black tracking-tighter", financialTotals.remaining >= 0 ? "text-primary" : "text-destructive")}>
+                          ₹{financialTotals.remaining.toLocaleString()}
+                       </p>
+                    </div>
+                  </CardContent>
+                </Card>
+             ) : (
+                <Card className="shadow-md border-t-4 border-t-orange-400 rounded-2xl overflow-hidden relative lg:col-span-2">
+                  <CardHeader className="pb-2 pt-4 px-4 md:px-6">
+                    <CardTitle className="text-base md:text-lg flex items-center gap-2 font-black uppercase">
+                      <Utensils className="h-4 w-4 md:h-5 md:w-5 text-orange-400" />
+                      Intake status vault
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6 p-4 md:p-6">
+                    <div className="grid grid-cols-2 gap-4">
+                       <div className="p-4 rounded-2xl bg-muted/10 border border-dashed">
+                          <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Daily intake target</p>
+                          <p className="text-2xl font-black tracking-tighter text-orange-500">{nutritionTotals.target} kcal</p>
+                          <p className="text-[7px] font-bold text-muted-foreground uppercase mt-1">Planned strategic baseline</p>
+                       </div>
+                       <div className="p-4 rounded-2xl bg-muted/10 border border-dashed">
+                          <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Daily average</p>
+                          <p className="text-2xl font-black tracking-tighter">{Math.round(nutritionTotals.dailyAverage)} kcal</p>
+                          <p className="text-[7px] font-bold text-muted-foreground uppercase mt-1">{Math.round(nutritionTotals.dailyAverage)} vs last month</p>
+                       </div>
+                    </div>
+                    <div className="p-5 rounded-[2rem] bg-orange-50/20 border border-orange-200 flex items-center justify-between">
+                       <div className="space-y-1">
+                          <p className="text-[10px] font-black uppercase text-orange-600 tracking-widest">Burn efficiency</p>
+                          <p className="text-sm font-medium text-muted-foreground">Utilization of daily target</p>
+                       </div>
+                       <p className="text-3xl md:text-4xl font-black tracking-tighter text-orange-600">
+                          {nutritionTotals.efficiency}%
+                       </p>
+                    </div>
+                  </CardContent>
+                </Card>
+             )}
 
-                  <Separator className="opacity-50" />
-
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-foreground font-black uppercase text-[10px] tracking-tight">Total Amount Spends</p>
-                      <Popover>
-                        <PopoverTrigger asChild><button className="hover:text-primary transition-colors"><Info className="h-2.5 w-2.5 text-muted-foreground/50" /></button></PopoverTrigger>
-                        <PopoverContent className="w-64 p-3 text-[9px] font-medium leading-tight">Sum of all Fixed (recurring) and Daily (variable) expenses logged this month.</PopoverContent>
-                      </Popover>
-                    </div>
-                    
-                    <div className="pl-2 space-y-1.5 border-l-2 border-primary/20">
-                      <div className="flex justify-between items-center text-[11px]">
-                        <span className="text-muted-foreground font-bold uppercase tracking-tighter">Fixed Vault</span>
-                        <span className="font-black">₹{totals.fixed.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-[11px]">
-                        <span className="text-muted-foreground font-bold uppercase tracking-tighter">Daily Spends</span>
-                        <span className="font-black">₹{totals.daily.toLocaleString()}</span>
-                      </div>
-                      
-                      <Separator className="my-1 border-dashed" />
-                      
-                      <div className="flex justify-between items-start">
-                        <span className="text-foreground font-black uppercase text-[10px]">Total</span>
-                        <div className="flex flex-col items-end">
-                          <span className="font-black text-lg tracking-tighter">₹{totals.spent.toLocaleString()}</span>
-                          {totals.spentDiff !== 0 && (
-                            <span className={cn(
-                              "text-[8px] md:text-[9px] font-bold flex items-center gap-0.5",
-                              totals.spentDiff > 0 ? "text-destructive" : "text-green-600 dark:text-green-400"
-                            )}>
-                              {totals.spentDiff > 0 ? <ArrowUpRight className="h-2.5 w-2.5" /> : <ArrowDownRight className="h-2.5 w-2.5" />}
-                              ₹{Math.abs(totals.spentDiff).toLocaleString()} {totals.spentDiff > 0 ? 'Greater' : 'Less'} than {format(prevDate, 'MMM')}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <Separator />
-                
-                <div className="pt-1 md:pt-2 flex items-center justify-between">
-                  <div className="flex flex-col text-left">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-primary">Remaining Vault</p>
-                      <Popover>
-                        <PopoverTrigger asChild><button className="hover:text-primary transition-colors"><Info className="h-2.5 w-2.5 text-primary/50" /></button></PopoverTrigger>
-                        <PopoverContent className="w-64 p-3 text-[9px] font-medium leading-tight">Funds remaining in your variable spending pool before you exceed your strategy target.</PopoverContent>
-                      </Popover>
-                    </div>
-                    <p className="text-[9px] text-muted-foreground font-medium mb-1">Funds available before exhaustion</p>
-                  </div>
-                  <p className={cn(
-                    "text-3xl md:text-4xl font-black tracking-tighter leading-none text-right",
-                    totals.remaining >= 0 ? 'text-primary' : 'text-destructive'
-                  )}>
-                    ₹{totals.remaining.toLocaleString()}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card 
-              className="shadow-md lg:col-span-1 rounded-2xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all group relative"
-              onClick={() => setIsAuditModalOpen(true)}
-            >
-              {(isExpensesLoading || isDecrypting) && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10"><Loader2 className="h-6 w-6 animate-spin text-secondary-foreground" /></div>}
+            <Card className="shadow-md rounded-2xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all group relative" onClick={() => setIsAuditModalOpen(true)}>
               <CardHeader className="pb-2 pt-4 px-4 md:px-6 flex flex-row items-center justify-between">
-                <CardTitle className="text-base md:text-lg flex items-center gap-2 font-black">
-                  <Activity className="h-4 w-4 md:h-5 md:w-5 text-secondary-foreground" />
-                  Categories
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-5 w-5 rounded-full hover:bg-secondary/10 ml-1">
-                        <Info className="h-3.5 w-3.5 text-muted-foreground" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-72 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-secondary-foreground">Distribution Logic</p>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed mt-2">
-                        Visual breakdown of your spending across different labels. Click the card to perform a deep-dive audit of specific transactions.
-                      </p>
-                    </PopoverContent>
-                  </Popover>
+                <CardTitle className="text-sm md:text-base flex items-center gap-2 font-black uppercase">
+                   <PieChartIcon className="h-4 w-4 text-primary" />
+                   {activeAuditType === 'financial' ? "Categories" : "Meal distribution"}
                 </CardTitle>
-                <CheckSquare className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all" />
               </CardHeader>
-              <CardContent className="h-[180px] md:h-[200px] p-0 flex items-center justify-center relative">
+              <CardContent className="h-[250px] p-0 flex items-center justify-center">
                 {chartsData.categoryData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie
-                        data={chartsData.categoryData}
-                        cx="50%"
-                        cy="45%"
-                        innerRadius={35}
-                        outerRadius={60}
-                        paddingAngle={5}
-                        dataKey="value"
-                        stroke="none"
-                      >
-                        {chartsData.categoryData.map((entry: any, index: number) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
+                      <Pie data={chartsData.categoryData} cx="50%" cy="45%" innerRadius={40} outerRadius={70} paddingAngle={5} dataKey="value" stroke="none">
+                        {chartsData.categoryData.map((entry: any, index: number) => (<Cell key={`cell-${index}`} fill={entry.color} />))}
                       </Pie>
-                      <Tooltip 
-                        contentStyle={chartTooltipStyle}
-                        formatter={(value: number) => `₹${value.toLocaleString()}`}
-                        itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
-                      />
-                      <Legend 
-                        iconType="circle" 
-                        wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', paddingTop: '10px' }} 
-                        verticalAlign="bottom"
-                      />
+                      <Tooltip contentStyle={chartTooltipStyle} />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', paddingTop: '10px' }} verticalAlign="bottom" />
                     </PieChart>
                   </ResponsiveContainer>
-                ) : (
-                  <div className="text-muted-foreground text-xs italic py-10">
-                    No categorical data.
-                  </div>
-                )}
-                <div className="absolute bottom-4 left-0 right-0 text-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest bg-background/80 backdrop-blur-sm mx-auto w-fit px-2 py-0.5 rounded-full shadow-sm">Click to Audit Spends</p>
-                </div>
+                ) : <div className="text-muted-foreground text-[10px] font-black uppercase tracking-widest opacity-30 italic">No distribution data</div>}
               </CardContent>
             </Card>
 
             <Card className="md:col-span-2 lg:col-span-3 shadow-xl overflow-hidden rounded-3xl border-none ring-1 ring-border relative">
-              {isDecrypting && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
               <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-4 md:px-6 pt-4 bg-muted/20 border-b">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-primary/10 rounded-xl text-primary">
                     <BarChartIcon className="h-5 w-5" />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div>
-                      <CardTitle className="text-base md:text-lg font-black tracking-tight">Spending Tracker</CardTitle>
-                      <CardDescription className="text-[9px] md:text-[10px] uppercase font-bold tracking-tight">Track how your spending changes over time.</CardDescription>
-                    </div>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-primary/10">
-                          <Info className="h-3.5 w-3.5 text-muted-foreground" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80 p-4 rounded-2xl shadow-xl border-none ring-1 ring-border">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">Pulse Analytics</p>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed mt-2">
-                          Monitor spending velocity and trends. Use filters to compare labels and switch between weekly, monthly, or annual views for deep historical context.
-                        </p>
-                      </PopoverContent>
-                    </Popover>
+                  <div>
+                    <CardTitle className="text-base md:text-lg font-black tracking-tight uppercase">{activeAuditType === 'financial' ? "Spending Pulse" : "Fuel velocity"}</CardTitle>
+                    <CardDescription className="text-[9px] uppercase font-bold tracking-tight">Temporal trend analysis</CardDescription>
                   </div>
                 </div>
-                <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
-                  <Tabs value={viewType} onValueChange={(v: any) => setViewType(v)} className="w-full md:w-auto">
+                <Tabs value={viewType} onValueChange={(v: any) => setViewType(v)} className="w-full md:w-auto">
                     <TabsList className="grid w-full grid-cols-3 md:w-[240px] h-9 p-1 bg-muted/50 rounded-xl border">
                       <TabsTrigger value="weekly" className="text-[9px] font-black uppercase">Weekly</TabsTrigger>
                       <TabsTrigger value="monthly" className="text-[9px] font-black uppercase">Monthly</TabsTrigger>
-                      <TabsTrigger value="annual" className="text-[9px] font-black uppercase">Annual</TabsTrigger>
+                      <TabsTrigger value="annual" className="text-[9px] font-black uppercase">Yearly</TabsTrigger>
                     </TabsList>
-                  </Tabs>
-                </div>
+                </Tabs>
               </CardHeader>
-              <CardContent className="p-4 md:p-6 space-y-6">
-                <div className="h-[250px] md:h-[400px] w-full pt-4 -ml-4 md:ml-0 relative">
-                  {viewType !== 'annual' && (
-                    <div className="absolute -top-2 -right-2 z-10">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="icon" className="h-6 w-6 rounded-full bg-background/80 backdrop-blur-sm border-primary/20 shadow-sm">
-                            <Filter className={cn("h-3 w-3", !categoryFilter.includes('all') ? "text-primary" : "text-muted-foreground")} />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-44 rounded-xl">
-                          <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-muted-foreground py-1.5 px-2">Filter Labels</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuCheckboxItem 
-                            checked={categoryFilter.includes('all')} 
-                            onCheckedChange={() => setCategoryFilter(['all'])}
-                            className="text-[9px] font-black uppercase py-1.5"
-                          >
-                            All Labels
-                          </DropdownMenuCheckboxItem>
-                          <DropdownMenuSeparator />
-                          <ScrollArea className="h-48">
-                            {decryptedCategories.map(cat => (
-                              <DropdownMenuCheckboxItem 
-                                key={cat.id} 
-                                checked={categoryFilter.includes(cat.id)}
-                                onCheckedChange={() => toggleCategory(cat.id)}
-                                className="text-[9px] font-black uppercase py-1.5"
-                              >
-                                {cat.name}
-                              </DropdownMenuCheckboxItem>
-                            ))}
-                          </ScrollArea>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  )}
-
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsBarChart 
-                      data={chartsData.spendingData} 
-                      margin={{ left: -10, right: 10, bottom: 30 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} stroke="hsl(var(--muted-foreground))" />
-                      <XAxis 
-                        dataKey="name" 
-                        fontSize={7} 
-                        tick={(props: any) => {
-                          const { x, y, payload, index } = props;
-                          const data = chartsData.spendingData[index];
-                          if (viewType === 'weekly') {
-                            return (
-                              <g transform={`translate(${x},${y})`}>
-                                <text x={0} y={0} dy={10} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={8} fontWeight={700}>
-                                  {payload.value}
-                                </text>
-                                <text x={0} y={0} dy={20} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={7} fontWeight={500} opacity={0.7}>
-                                  {data?.range}
-                                </text>
-                              </g>
-                            );
-                          }
-                          return (
-                            <text x={x} y={y} dy={10} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={7} fontWeight={600}>
-                              {payload.value}
-                            </text>
-                          );
-                        }}
-                        axisLine={{ stroke: 'hsl(var(--border))' }} 
-                        tickLine={false}
-                        interval="preserveStartEnd"
-                        minTickGap={5}
-                      />
-                      <YAxis fontSize={9} tick={{ fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
-                      <Tooltip 
-                        contentStyle={chartTooltipStyle}
-                        cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }}
-                        formatter={(value: number, name: string, props: any) => [
-                          `₹${value.toLocaleString()}`, 
-                          name === 'spent' ? (props.payload.fullLabel || props.payload.name) : name
-                        ]} 
-                        itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
-                        labelStyle={{ color: 'hsl(var(--popover-foreground))', fontWeight: 'bold', marginBottom: '4px' }}
-                      />
-                      
-                      {!categoryFilter.includes('all') && chartsData.comparisonKeys.length > 0 ? (
-                        chartsData.comparisonKeys.map((key, idx) => (
-                          <Bar 
-                            key={key}
-                            dataKey={key}
-                            stackId="a"
-                            fill={CHART_COLORS[idx % CHART_COLORS.length]}
-                            radius={idx === chartsData.comparisonKeys.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
-                            animationDuration={1000}
-                          />
-                        ))
-                      ) : (
-                        <Bar 
-                          dataKey="spent" 
-                          fill={VIEW_COLORS[viewType] || "#6366f1"}
-                          radius={[4, 4, 0, 0]} 
-                          name="Actual Spend" 
-                          animationDuration={1000}
-                        />
-                      )}
-
-                      {viewType === 'annual' && (
-                        <Bar dataKey="budgeted" radius={[4, 4, 0, 0]} name="Target Budget" fill="hsl(var(--muted))" fillOpacity={0.3} animationDuration={1000} />
-                      )}
-                      
-                      {chartsData.highest > 0 && categoryFilter.includes('all') && (
-                        <ReferenceLine 
-                          y={chartsData.highest} 
-                          stroke="hsl(var(--destructive))" 
-                          strokeDasharray="4 4" 
-                          label={{ value: `High: ₹${Math.round(chartsData.highest)}`, position: 'insideTopLeft', fill: 'hsl(var(--destructive))', fontSize: 8, fontWeight: 'bold' }} 
-                        />
-                      )}
-                      
-                      {chartsData.average > 0 && categoryFilter.includes('all') && (
-                        <ReferenceLine 
-                          y={chartsData.average} 
-                          stroke="hsl(var(--primary))" 
-                          strokeDasharray="3 3" 
-                          label={{ value: `Avg: ₹${Math.round(chartsData.average)}`, position: 'right', fill: 'hsl(var(--primary))', fontSize: 8, fontWeight: 'bold' }} 
-                        />
-                      )}
-                      <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', paddingTop: '20px' }} />
-                    </RechartsBarChart>
-                  </ResponsiveContainer>
-                </div>
+              <CardContent className="p-6">
+                 <div className="h-[300px] md:h-[400px] w-full pt-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsBarChart data={chartsData.spendingData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} />
+                        <XAxis dataKey="name" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} />
+                        <YAxis fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => activeAuditType === 'financial' ? `₹${v}` : `${v}`} />
+                        <Tooltip contentStyle={chartTooltipStyle} />
+                        <Bar dataKey="spent" fill={activeAuditType === 'financial' ? "hsl(var(--primary))" : "hsl(var(--orange-400))"} radius={[4, 4, 0, 0]} />
+                      </RechartsBarChart>
+                    </ResponsiveContainer>
+                 </div>
               </CardContent>
             </Card>
           </div>
 
           <Dialog open={isAuditModalOpen} onOpenChange={(open) => { setIsAuditModalOpen(open); if(!open) setActiveAuditCategoryId(null); }}>
-            <DialogContent className="max-w-[98vw] md:max-w-4xl rounded-none md:rounded-2xl p-0 overflow-hidden border shadow-2xl h-[95vh] md:h-[80vh] flex flex-col">
-              <div className="bg-primary p-4 sm:p-5 text-primary-foreground relative shrink-0 flex items-center justify-between gap-4 border-b">
-                <div className="flex flex-col space-y-0.5">
-                  <DialogHeader className="text-left">
-                    <DialogTitle className="text-lg md:text-xl font-black tracking-tighter flex items-center gap-2">
-                      <CheckSquare className="h-5 w-5" />
-                      Category Audit
+            <DialogContent className="max-w-[98vw] md:max-w-4xl rounded-3xl p-0 overflow-hidden border shadow-2xl h-[90vh] flex flex-col">
+               <div className="bg-primary p-5 text-white relative shrink-0 flex items-center justify-between border-b">
+                  <div className="space-y-1">
+                    <DialogTitle className="text-xl font-black tracking-tighter flex items-center gap-3">
+                       <CheckSquare className="h-6 w-6" />
+                       Strategic Audit Ledger
                     </DialogTitle>
-                    <DialogDescription className="text-[9px] font-black uppercase tracking-widest text-primary-foreground/70 hidden sm:block">
-                      Spend reconciliation
+                    <DialogDescription className="text-[10px] font-black uppercase tracking-widest text-white/70">
+                       {activeAuditType === 'financial' ? "Wealth Reconciliation" : "Nutritional Verification"}
                     </DialogDescription>
-                  </DialogHeader>
-                </div>
-                <div className="flex items-center gap-2 mr-8">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={downloadAuditCsv}
-                    className="bg-white/10 border-white/20 hover:bg-white/20 text-white font-black uppercase text-[8px] tracking-widest h-7 px-2 rounded-lg gap-1.5"
-                  >
-                    <Download className="h-3 w-3" /> Download
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="flex-1 min-h-0 flex flex-col bg-background overflow-hidden relative">
-                {!activeAuditCategoryId ? (
-                  <ScrollArea className="flex-1">
-                    <div className="p-2 grid grid-cols-2 gap-2">
-                      {chartsData.categoryData.length > 0 ? chartsData.categoryData.map((cat: any) => {
-                        const catItem = decryptedCategories.find(c => c.name === cat.name);
-                        const catId = catItem?.id || 'misc';
-                        
-                        const targetCatName = cat.name;
-                        const dailyCount = (decryptedExpenses || []).filter(e => {
-                           const eCat = decryptedCategories.find(c => c.id === e.expenseCategoryId);
-                           const eCatName = eCat?.name || 'Misc';
-                           return e.expenseCategoryId === catId || eCatName === targetCatName;
-                        }).length;
-                        const fixedCount = (decryptedFixed || []).filter(f => {
-                           const fCat = decryptedCategories.find(c => c.id === f.expenseCategoryId);
-                           const fCatName = fCat?.name || 'Misc';
-                           return f.expenseCategoryId === catId || fCatName === targetCatName;
-                        }).length;
-                        const totalCount = dailyCount + fixedCount;
-                        
-                        return (
-                          <div 
-                            key={catId + cat.name} 
-                            className="flex flex-col justify-between p-3 rounded-xl border transition-all cursor-pointer group hover:border-primary/50 hover:shadow-md bg-card shadow-sm"
-                            onClick={() => setActiveAuditCategoryId(catId)}
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="p-1.5 bg-muted rounded-lg text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-                                <ReceiptText className="h-3.5 w-3.5" />
-                              </div>
-                              <span className="text-xs font-black tracking-tighter text-foreground">₹{cat.value.toLocaleString()}</span>
-                            </div>
-                            <div className="flex flex-col min-w-0">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-black uppercase truncate tracking-tight leading-tight">{cat.name}</span>
-                                <ChevronRightIcon className="h-2.5 w-2.5 text-muted-foreground/30 group-hover:text-primary transition-colors" />
-                              </div>
-                              <span className="text-[8px] font-bold text-muted-foreground uppercase leading-none mt-1">{totalCount} Items in ledger</span>
-                            </div>
-                          </div>
-                        );
-                      }) : (
-                        <div className="flex flex-col items-center justify-center py-20 opacity-30 grayscale space-y-2 col-span-2">
-                          <BarChartIcon className="h-10 w-10" />
-                          <p className="text-[10px] font-black uppercase tracking-widest text-center">No audit records found for this period</p>
-                        </div>
-                      )}
-                    </div>
-                  </ScrollArea>
-                ) : (
-                  <div className="flex-1 flex flex-col min-h-0 bg-background overflow-hidden animate-in fade-in slide-in-from-right-4 duration-300">
-                    <div className="p-3 border-b bg-muted/[0.05] flex items-center justify-between shrink-0 px-4">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => setActiveAuditCategoryId(null)}
-                        className="h-8 px-2 font-black uppercase text-[10px] gap-2 hover:bg-primary/5"
-                      >
-                        <ArrowLeft className="h-4 w-4" /> Back to Labels
-                      </Button>
-                      <div className="flex items-center gap-2">
-                        <p className="text-[10px] font-black uppercase text-primary tracking-widest">
-                          {decryptedCategories.find(c => c.id === activeAuditCategoryId)?.name || 'Misc'}
-                        </p>
-                        <Badge variant="outline" className="text-[9px] font-black uppercase bg-primary/5 border-primary/20 text-primary px-2 py-0.5 leading-none">
-                          {auditExpenses.length} Records
-                        </Badge>
-                      </div>
-                    </div>
-                    
-                    <ScrollArea className="flex-1">
-                      <div className="p-3 sm:p-4">
-                        {auditExpenses.length > 0 ? (
-                          <div className="grid grid-cols-1 gap-2">
-                            {auditExpenses.map((item) => (
-                              <div 
-                                key={item.id} 
-                                className="flex justify-between items-center p-3.5 rounded-xl bg-card border shadow-sm group hover:border-primary/20 transition-all relative overflow-hidden"
-                              >
-                                <div className="flex items-center gap-3 min-w-0 flex-1 relative z-10">
-                                  <div className="h-8 w-8 rounded-lg bg-muted/30 flex items-center justify-center text-muted-foreground shrink-0">
-                                    <span className="text-[10px] font-black uppercase">{format(new Date(item.date), 'dd')}</span>
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-[12px] font-black truncate tracking-tight text-foreground">
-                                      {item.displayDesc || item.catName || 'SECURED ITEM'}
-                                    </p>
-                                    <div className="flex items-center gap-2 mt-0.5">
-                                      <span className="text-[8px] font-black uppercase text-muted-foreground">
-                                        {format(new Date(item.date), 'MMM yyyy')}
-                                      </span>
-                                      <Separator orientation="vertical" className="h-2" />
-                                      <span className="text-[8px] text-primary/60 font-black uppercase truncate">
-                                        {item.allocationBucket || 'Expense'}
-                                      </span>
-                                      {item.type === 'fixed' && (
-                                        <Badge className="h-3 px-1 text-[6px] uppercase font-black bg-orange-100 text-orange-700 border-none">Recurring</Badge>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="text-right ml-4 relative z-10">
-                                  <span className="text-base font-black tracking-tighter text-foreground">
-                                    ₹{item.amount.toLocaleString()}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="flex-1 flex flex-col items-center justify-center py-20 text-center space-y-4">
-                            <ReceiptText className="h-10 w-10 text-primary/20" />
-                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground italic">
-                              where are the transactions
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </ScrollArea>
-                    
-                    <div className="p-4 border-t bg-card shrink-0 flex flex-row items-center justify-between shadow-sm relative z-20">
-                      <div className="flex flex-col text-left">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Verified Label Sum</span>
-                        <p className="text-[12px] font-black text-foreground uppercase tracking-tight">
-                          {decryptedCategories.find(c => c.id === activeAuditCategoryId)?.name || 'Misc'} Workspace
-                        </p>
-                      </div>
-                      
-                      <div className="bg-primary/[0.04] px-5 py-2.5 rounded-2xl border border-dashed border-primary/20 flex flex-row items-center gap-4 shadow-inner">
-                        <p className="text-2xl font-black text-primary tracking-tighter leading-none">
-                          ₹{auditExpenses.reduce((s, e) => s + e.amount, 0).toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
                   </div>
-                )}
-              </div>
+                  <div className="flex items-center gap-2 mr-8">
+                     <Button variant="outline" size="sm" onClick={downloadAuditCsv} className="bg-white/10 border-white/20 hover:bg-white/20 text-white font-black uppercase text-[8px] tracking-widest h-8 px-4 rounded-xl gap-2">
+                        <Download className="h-3 w-3" /> Audit CSV
+                     </Button>
+                  </div>
+               </div>
+
+               <div className="flex-1 min-h-0 bg-background flex flex-col overflow-hidden">
+                  {!activeAuditCategoryId ? (
+                     <ScrollArea className="flex-1">
+                        <div className="p-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+                           {chartsData.categoryData.map((cat: any) => (
+                              <div key={cat.name} onClick={() => setActiveAuditCategoryId(cat.name)} className="p-5 rounded-2xl border bg-card hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group shadow-sm">
+                                 <div className="flex justify-between items-start mb-4">
+                                    <div className="p-2 bg-muted rounded-xl text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                                       {activeAuditType === 'financial' ? <Coins className="h-5 w-5" /> : <Utensils className="h-5 w-5" />}
+                                    </div>
+                                    <span className="text-xs font-black tracking-tighter">{activeAuditType === 'financial' ? '₹' : ''}{cat.value.toLocaleString()}</span>
+                                 </div>
+                                 <h4 className="text-[11px] font-black uppercase tracking-tight truncate mb-1">{cat.name}</h4>
+                                 <p className="text-[8px] font-bold text-muted-foreground uppercase">Audit Node Distribution</p>
+                              </div>
+                           ))}
+                        </div>
+                     </ScrollArea>
+                  ) : (
+                     <div className="flex-1 flex flex-col min-h-0 animate-in fade-in slide-in-from-right-4 duration-300">
+                        <div className="p-4 border-b bg-muted/5 flex items-center justify-between shrink-0">
+                           <Button variant="ghost" size="sm" onClick={() => setActiveAuditCategoryId(null)} className="h-8 px-2 font-black uppercase text-[10px] gap-2">
+                              <ArrowLeft className="h-4 w-4" /> Back to Analysis
+                           </Button>
+                           <Badge variant="outline" className="text-[10px] font-black uppercase bg-primary/5 text-primary border-primary/20">{activeAuditCategoryId}</Badge>
+                        </div>
+                        <ScrollArea className="flex-1">
+                           <div className="p-4 space-y-3">
+                              {auditItems.map((item: any, idx: number) => (
+                                 <div key={idx} className="flex justify-between items-center p-4 rounded-2xl bg-card border shadow-sm group hover:ring-1 hover:ring-primary/20 transition-all">
+                                    <div className="flex items-center gap-4 min-w-0">
+                                       <div className="h-10 w-10 rounded-xl bg-muted/30 flex items-center justify-center font-black text-[10px] uppercase">{format(new Date(item.date), 'dd')}</div>
+                                       <div className="min-w-0">
+                                          <p className="text-sm font-black truncate uppercase tracking-tight">{item.displayDesc || item.foodName || 'SECURED ITEM'}</p>
+                                          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{format(new Date(item.date), 'MMM yyyy')}</p>
+                                       </div>
+                                    </div>
+                                    <div className="text-right">
+                                       <p className="text-base font-black tracking-tighter">{activeAuditType === 'financial' ? `₹${item.amount.toLocaleString()}` : `${item.calories} kcal`}</p>
+                                       {activeAuditType === 'nutrition' && <p className="text-[9px] font-black text-muted-foreground">₹{item.cost}</p>}
+                                    </div>
+                                 </div>
+                              ))}
+                           </div>
+                        </ScrollArea>
+                     </div>
+                  )}
+               </div>
             </DialogContent>
           </Dialog>
         </div>
