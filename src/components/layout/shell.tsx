@@ -59,7 +59,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useTheme } from "next-themes";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { requestNotificationPermission } from '@/lib/notifications';
+import { requestNotificationPermission, notifyModuleStatus } from '@/lib/notifications';
 
 const navItems = [
   { id: 'dashboard', title: 'Home', url: '/dashboard', icon: LayoutDashboard },
@@ -98,10 +98,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
-  const toggleSection = (id: string) => {
-    const next = { ...visibleSections, [id]: !visibleSections[id] };
+  const toggleSection = async (id: string) => {
+    const newState = !visibleSections[id];
+    const next = { ...visibleSections, [id]: newState };
     setVisibleSections(next);
     localStorage.setItem('lifetrack_nav_visibility', JSON.stringify(next));
+
+    // Request permissions if enabling a section and not already granted
+    if (newState && Notification.permission !== 'granted') {
+      await requestNotificationPermission();
+    }
+
+    // Trigger specialized notification
+    notifyModuleStatus(id, newState);
   };
 
   const handleToggleReminders = async (checked: boolean) => {
