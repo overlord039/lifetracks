@@ -52,6 +52,8 @@ export default function BudgetPage() {
   const [mounted, setMounted] = useState(false);
   const [activeInputTab, setActiveInputTab] = useState('logger');
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestionRef = useRef<HTMLDivElement>(null);
 
   const [decryptedCategories, setDecryptedCategories] = useState<any[]>([]);
   const [decryptedBudget, setDecryptedBudget] = useState<any>(null);
@@ -61,6 +63,13 @@ export default function BudgetPage() {
 
   useEffect(() => {
     setMounted(true);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (suggestionRef.current && !suggestionRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const now = useMemo(() => new Date(), []);
@@ -237,6 +246,39 @@ export default function BudgetPage() {
   const [newCategory, setNewCategory] = useState({ name: '', type: 'daily', isPrivate: false });
   const [newFixed, setNewFixed] = useState({ name: '', amount: '', categoryId: '', allocationBucket: 'expense' });
   const [newExpense, setNewExpense] = useState({ description: '', amount: '', categoryId: '', allocationBucket: 'expense' });
+
+  const predictiveSuggestions = useMemo(() => {
+    if (!newExpense.description.trim() || newExpense.description.length < 2) return [];
+    const queryStr = newExpense.description.toLowerCase();
+    
+    // Group by description to find unique historical matches
+    const historyMap = new Map();
+    decryptedExpenses.forEach(exp => {
+      if (exp.description.toLowerCase().includes(queryStr)) {
+        const key = exp.description.toUpperCase();
+        if (!historyMap.has(key)) {
+          historyMap.set(key, {
+            description: exp.description,
+            amount: exp.amount.toString(),
+            categoryId: exp.expenseCategoryId,
+            allocationBucket: exp.allocationBucket || 'expense'
+          });
+        }
+      }
+    });
+
+    return Array.from(historyMap.values()).slice(0, 5);
+  }, [newExpense.description, decryptedExpenses]);
+
+  const handleSuggestionClick = (item: any) => {
+    setNewExpense({
+      description: item.description,
+      amount: item.amount,
+      categoryId: item.categoryId,
+      allocationBucket: item.allocationBucket
+    });
+    setShowSuggestions(false);
+  };
 
   const saveMonthlyBudget = async (updates: any) => {
     if (!monthlyBudgetRef || !user) return;
@@ -574,7 +616,7 @@ export default function BudgetPage() {
                 
                 <TabsContent value="logger" className="mt-0 p-4 md:p-6 space-y-4 animate-in fade-in slide-in-from-left-2">
                   <div className="space-y-4">
-                    <div className="flex items-center gap-2">
+                    <div className="space-y-2 relative" ref={suggestionRef}>
                       <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Private Description</Label>
                       <Popover>
                         <PopoverTrigger asChild>
@@ -588,8 +630,37 @@ export default function BudgetPage() {
                           </p>
                         </PopoverContent>
                       </Popover>
+                      <Input 
+                        placeholder="What was this for?..." 
+                        value={newExpense.description} 
+                        onChange={(e) => {
+                          setNewExpense({ ...newExpense, description: e.target.value });
+                          setShowSuggestions(e.target.value.trim().length > 1);
+                        }} 
+                        className="h-11 text-[11px] md:text-sm rounded-xl" 
+                      />
+                      {showSuggestions && predictiveSuggestions.length > 0 && (
+                        <Card className="absolute z-[60] w-full mt-1 shadow-2xl border-none ring-1 ring-border rounded-xl overflow-hidden bg-background animate-in fade-in slide-in-from-top-1">
+                          <div className="divide-y divide-dashed">
+                            {predictiveSuggestions.map((item, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => handleSuggestionClick(item)}
+                                className="w-full px-4 py-2.5 text-left hover:bg-primary/[0.03] transition-colors flex items-center justify-between group"
+                              >
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-xs font-black uppercase tracking-tight truncate">{item.description}</span>
+                                  <span className="text-[8px] font-bold text-muted-foreground uppercase">{dailyCategories.find(c => c.id === item.categoryId)?.name || 'Misc'}</span>
+                                </div>
+                                <div className="text-right shrink-0 ml-4">
+                                  <span className="text-[10px] font-black text-primary">₹{parseFloat(item.amount).toLocaleString()}</span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </Card>
+                      )}
                     </div>
-                    <Input placeholder="What was this for?..." value={newExpense.description} onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })} className="h-11 text-[11px] md:text-sm rounded-xl" />
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Category Label</Label>
