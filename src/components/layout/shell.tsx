@@ -65,12 +65,12 @@ import { requestNotificationPermission } from '@/lib/notifications';
 const navItems = [
   { id: 'dashboard', title: 'Home', url: '/dashboard', icon: LayoutDashboard },
   { id: 'budget', title: 'Budget', url: '/budget', icon: Wallet },
-  { id: 'split-pay', title: 'Split', url: '/split-pay', icon: Users },
   { id: 'craving-meter', title: 'Calories', url: '/craving-meter', icon: Utensils },
-  { id: 'learning', title: 'Learning', url: '/learning', icon: GraduationCap },
-  { id: 'diary', title: 'Diary', url: '/diary', icon: BookText },
-  { id: 'reports', title: 'Reports', url: '/reports', icon: BarChart3 },
   { id: 'future-vision', title: 'To-do', url: '/future-vision', icon: Mountain },
+  { id: 'split-pay', title: 'Split', url: '/split-pay', icon: Users },
+  { id: 'diary', title: 'Diary', url: '/diary', icon: BookText },
+  { id: 'learning', title: 'Learning', url: '/learning', icon: GraduationCap },
+  { id: 'reports', title: 'Reports', url: '/reports', icon: BarChart3 },
   { id: 'salary-planner', title: 'Planner', url: '/salary-planner', icon: Calculator },
 ];
 
