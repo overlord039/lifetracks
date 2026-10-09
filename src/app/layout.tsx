@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect } from 'react';
@@ -35,8 +34,8 @@ export default function RootLayout({
         <meta name="theme-color" content="#64B5F6" />
         
         {/* Favicon & App Icons */}
-        <link rel="icon" href="/icon.png" />
-        <link rel="apple-touch-icon" href="/icon.png" />
+        <link rel="icon" href="/src/images/Neon Growth Leaf App Icon.png" />
+        <link rel="apple-touch-icon" href="/src/images/Neon Growth Leaf App Icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="LifeTrack" />

@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -62,6 +61,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { requestNotificationPermission, notifyModuleStatus } from '@/lib/notifications';
 import Image from 'next/image';
+import logoImage from '@/images/Neon Growth Leaf App Icon.png';
 
 const navItems = [
   { id: 'dashboard', title: 'Home', url: '/dashboard', icon: LayoutDashboard },
@@ -157,7 +157,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <SidebarHeader className="p-4 flex flex-row items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-lg overflow-hidden relative">
-                <Image src="/icon.png" alt="LifeTrack Logo" fill className="object-cover" />
+                <Image src={logoImage} alt="LifeTrack Logo" fill className="object-cover" />
               </div>
               <span className="font-headline font-black text-xl tracking-tighter">LifeTrack</span>
             </div>

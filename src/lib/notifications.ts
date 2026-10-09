@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview Utility for handling browser-level local notifications for the LifeTrack PWA.
  */
@@ -24,8 +23,8 @@ export function sendLocalNotification(title: string, options?: NotificationOptio
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
   const defaultOptions: NotificationOptions = {
-    icon: '/icon.png',
-    badge: '/icon.png',
+    icon: '/src/images/Neon Growth Leaf App Icon.png',
+    badge: '/src/images/Neon Growth Leaf App Icon.png',
     tag: 'lifetrack-reminder',
     renotify: true,
   };
