@@ -34,11 +34,12 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
         <meta name="theme-color" content="#64B5F6" />
         
-        {/* iOS Native App Meta Tags */}
+        {/* Favicon & App Icons */}
+        <link rel="icon" href="/icon.png" />
+        <link rel="apple-touch-icon" href="/icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="LifeTrack" />
-        <link rel="apple-touch-icon" href="https://picsum.photos/seed/lifetrack-icon-192/192/192" />
         
         {/* Android / Chrome Meta Tags */}
         <meta name="mobile-web-app-capable" content="yes" />

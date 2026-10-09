@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Utility for handling browser-level local notifications for the LifeTrack PWA.
  */
@@ -23,8 +24,8 @@ export function sendLocalNotification(title: string, options?: NotificationOptio
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
   const defaultOptions: NotificationOptions = {
-    icon: 'https://picsum.photos/seed/lifetrack-icon-192/192/192',
-    badge: 'https://picsum.photos/seed/lifetrack-icon-192/192/192',
+    icon: '/icon.png',
+    badge: '/icon.png',
     tag: 'lifetrack-reminder',
     renotify: true,
   };

@@ -61,6 +61,7 @@ import { useTheme } from "next-themes";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { requestNotificationPermission, notifyModuleStatus } from '@/lib/notifications';
+import Image from 'next/image';
 
 const navItems = [
   { id: 'dashboard', title: 'Home', url: '/dashboard', icon: LayoutDashboard },
@@ -155,8 +156,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Sidebar className="border-r hidden md:flex">
           <SidebarHeader className="p-4 flex flex-row items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-lg">
-                <span className="text-white font-black text-xl">L</span>
+              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-lg overflow-hidden relative">
+                <Image src="/icon.png" alt="LifeTrack Logo" fill className="object-cover" />
               </div>
               <span className="font-headline font-black text-xl tracking-tighter">LifeTrack</span>
             </div>
